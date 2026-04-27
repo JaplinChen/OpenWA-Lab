@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-04-27
+
+### Fixed
+
+- **First-boot crash on SQLite**: Data DB now defaults to `synchronize=true` for SQLite so the embedded
+  database "just works" on first boot. Resolves `SQLITE_ERROR: no such table: sessions` that appeared on
+  fresh installs without `DATABASE_SYNCHRONIZE=true`.
+- **PostgreSQL boot crash on `main` connection**: `AuditLog.metadata` now uses `simple-json` instead of
+  the dynamic `jsonColumnType()`. The `main` connection is always SQLite, so it must not switch to
+  `jsonb` when `DATABASE_TYPE=postgres`. Fixes `DataTypeNotSupportedError: Data type "jsonb" in
+  "AuditLog.metadata" is not supported by "sqlite" database`.
+- **Operator env vars ignored**: `data/.env.generated` no longer overrides `process.env` or project
+  `.env`. Loading order is now `process env > .env > data/.env.generated`, so values from Docker /
+  shell / systemd take precedence over Dashboard-saved config.
+
+### Changed
+
+- **Auto-run migrations on boot**: PostgreSQL data DB now runs pending migrations automatically; SQLite
+  also runs migrations when the user opts out of `synchronize`.
+- **Production migration scripts**: Added `migration:run:prod`, `migration:revert:prod`, and
+  `migration:show:prod` that operate from `dist/` so they can be executed inside the production
+  container (which strips `ts-node`).
+
 ## [0.1.4] - 2026-02-26
 
 ### Changed
