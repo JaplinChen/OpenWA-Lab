@@ -56,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   toast close button has an accessible name. The API-key visibility toggles on the Login and API Keys pages
   now have state-reflecting `aria-label`s (show/hide). New `common.showApiKey`/`common.hideApiKey` strings
   across all locales.
+- **Dashboard no longer shows a misleading "nothing here" empty state when a list fetch fails.** The
+  Webhooks, API Keys, and Logs pages discarded the query error and rendered the empty state on failure;
+  they now surface an accessible error banner (`role="alert"`) so the user knows the data failed to load.
 
 ## [0.2.8] - 2026-06-17
 

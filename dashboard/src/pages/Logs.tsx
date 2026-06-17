@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Download, Search, Filter, Loader2, FileText } from 'lucide-react';
+import { Download, Search, Filter, Loader2, FileText, AlertCircle } from 'lucide-react';
 import type { AuditLog } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useLogsQuery } from '../hooks/queries';
@@ -16,7 +16,7 @@ export function Logs() {
   const limit = 20;
 
   const severityParam = severityFilter !== 'all' ? severityFilter : undefined;
-  const { data, isLoading: loading } = useLogsQuery({ severity: severityParam, page, limit });
+  const { data, isLoading: loading, isError: logsError } = useLogsQuery({ severity: severityParam, page, limit });
   const logs: AuditLog[] = data?.data ?? [];
   const total: number = data?.total ?? 0;
 
@@ -100,6 +100,13 @@ export function Logs() {
           </button>
         }
       />
+
+      {logsError && (
+        <div className="error-banner" role="alert">
+          <AlertCircle size={20} />
+          <span className="error-banner-text">{t('dashboard.loadError')}</span>
+        </div>
+      )}
 
       <div className="filters-bar">
         <div className="search-input">

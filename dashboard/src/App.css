@@ -105,3 +105,23 @@ a {
 a:hover {
   text-decoration: underline;
 }
+
+/* Error banner — shared across pages (moved out of Plugins.css so any page can use it). */
+.error-banner {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.error-banner svg {
+  color: #ef4444;
+}
+
+.error-banner-text {
+  color: #ef4444;
+}

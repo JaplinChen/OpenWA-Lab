@@ -364,26 +364,6 @@
   color: var(--text-secondary);
 }
 
-/* Error Banner */
-.error-banner {
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  border-radius: 8px;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.error-banner svg {
-  color: #ef4444;
-}
-
-.error-banner-text {
-  color: #ef4444;
-}
-
 /* Empty State */
 .empty-state {
   text-align: center;

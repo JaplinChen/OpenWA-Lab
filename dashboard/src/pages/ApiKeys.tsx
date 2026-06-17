@@ -7,7 +7,20 @@ import {
   createColumnHelper,
   type VisibilityState,
 } from '@tanstack/react-table';
-import { Plus, Copy, RefreshCw, Trash2, Eye, EyeOff, Loader2, X, Check, KeyRound, AlertTriangle } from 'lucide-react';
+import {
+  Plus,
+  Copy,
+  RefreshCw,
+  Trash2,
+  Eye,
+  EyeOff,
+  Loader2,
+  X,
+  Check,
+  KeyRound,
+  AlertTriangle,
+  AlertCircle,
+} from 'lucide-react';
 import type { ApiKey } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useApiKeysQuery, useCreateApiKeyMutation, useDeleteApiKeyMutation, useRevokeApiKeyMutation } from '../hooks/queries';
@@ -32,7 +45,7 @@ const columnHelper = createColumnHelper<ApiKey>();
 export function ApiKeys() {
   const { t } = useTranslation();
   useDocumentTitle(t('apiKeys.title'));
-  const { data: apiKeys = [], isLoading: loading } = useApiKeysQuery();
+  const { data: apiKeys = [], isLoading: loading, isError: apiKeysError } = useApiKeysQuery();
   const createMutation = useCreateApiKeyMutation();
   const deleteMutation = useDeleteApiKeyMutation();
   const revokeMutation = useRevokeApiKeyMutation();
@@ -214,6 +227,13 @@ export function ApiKeys() {
           </button>
         }
       />
+
+      {apiKeysError && (
+        <div className="error-banner" role="alert">
+          <AlertCircle size={20} />
+          <span className="error-banner-text">{t('dashboard.loadError')}</span>
+        </div>
+      )}
 
       {showModal && (
         <div

@@ -11,6 +11,7 @@ import {
   Webhook as WebhookIcon,
   Check,
   AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 import { webhookApi, type Webhook } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -47,7 +48,7 @@ export function Webhooks() {
   const { t } = useTranslation();
   useDocumentTitle(t('webhooks.title'));
   const { canWrite } = useRole();
-  const { data: webhooks = [], isLoading: loadingWebhooks } = useWebhooksQuery();
+  const { data: webhooks = [], isLoading: loadingWebhooks, isError: webhooksError } = useWebhooksQuery();
   const { data: sessions = [] } = useSessionsQuery();
   const loading = loadingWebhooks;
   const createMutation = useCreateWebhookMutation();
@@ -219,6 +220,13 @@ export function Webhooks() {
           )
         }
       />
+
+      {webhooksError && (
+        <div className="error-banner" role="alert">
+          <AlertCircle size={20} />
+          <span className="error-banner-text">{t('dashboard.loadError')}</span>
+        </div>
+      )}
 
       {showCreateModal && (
         <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
