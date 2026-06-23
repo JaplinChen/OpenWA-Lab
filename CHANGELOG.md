@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-06-23
+
+Plugin platform follow-ups (sandbox hardening, install-from-URL + catalog), a mark-chat-unread
+endpoint, and a batch of correctness/housekeeping fixes.
+
 ### Added
 
 - **Install plugins from a URL / catalog.** `POST /plugins/install-url` downloads a plugin `.zip` from an HTTP(S) URL through the SSRF guard (host validated, connection pinned, redirects refused, size-capped) and runs the exact same validate-write-load pipeline as an uploaded package. `GET /plugins/catalog` fetches a configured remote catalog (`PLUGIN_CATALOG_URL`, default the OpenWA-plugins `plugins.json`) and annotates each entry with `installed` / `installedVersion` / `updateAvailable`. The dashboard install modal gains a **Catalog** tab to browse and one-click install. Add a non-public catalog/release host to `SSRF_ALLOWED_HOSTS`. (#433)
