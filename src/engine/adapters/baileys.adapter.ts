@@ -260,6 +260,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       const h = history as unknown as { lidPnMappings?: { lid: string; pn: string }[]; syncType?: unknown };
       const lidPnMappings = h.lidPnMappings;
       this.sessionStore.addLidMappings(lidPnMappings ?? []);
+      this.captureHistoryMessages(history.messages ?? []);
       this.logger.debug('History sync received', {
         action: 'baileys_history_set',
         sessionId: this.config.sessionId,
@@ -303,6 +304,8 @@ export class BaileysAdapter implements IWhatsAppEngine {
       this.reconnectAttempts = 0;
       this.setStatus(EngineStatus.READY);
       this.callbacks.onReady?.(this.phoneNumber ?? '', this.pushName ?? '');
+      // Backfill names the initial sync skipped (see hydrateNames).
+      void this.hydrateNames();
     }
 
     if (connection === 'close') {
@@ -1106,6 +1109,113 @@ export class BaileysAdapter implements IWhatsAppEngine {
         media,
         location,
         quotedMessage,
+      },
+      jid => this.sessionStore.toNeutralJid(jid),
+    );
+  }
+
+  /**
+   * Persist the bulk history Baileys pushes on connect (`messaging-history.set`) - the only
+   * pre-connection history source. Maps each message media-free and hands the batch to the dispatch-free
+   * `onHistoryMessages` callback, harvesting `pushName` into contacts on the way (history `contacts`
+   * carry no names) and seeding each chat's last-message preview.
+   */
+  private captureHistoryMessages(messages: WAMessage[]): void {
+    if (!messages.length) {
+      return;
+    }
+    const nameUpdates: { id: string; notify: string }[] = [];
+    const mapped: IncomingMessage[] = [];
+    for (const msg of messages) {
+      if (msg.key?.fromMe !== true && msg.pushName) {
+        const sender = msg.key?.participant ?? msg.key?.remoteJid;
+        if (sender) {
+          nameUpdates.push({ id: sender, notify: msg.pushName });
+        }
+      }
+      // Seed the chat's last-message preview + sort time (newest wins); else history-only chats
+      // would read "No messages yet".
+      this.sessionStore.recordMessage(msg);
+      const incoming = this.mapHistoryMessage(msg);
+      if (incoming) {
+        mapped.push(incoming);
+      }
+    }
+    if (nameUpdates.length) {
+      this.sessionStore.upsertContacts(nameUpdates);
+    }
+    if (mapped.length) {
+      this.callbacks.onHistoryMessages?.(mapped);
+    }
+  }
+
+  /**
+   * Backfill chat/contact display names after connect. Baileys 6.7.x often skips the initial app-state
+   * sync (the state machine goes Online before it runs) and the PUSH_NAME sync can fail to decrypt, so
+   * names never arrive. Fetch group subjects (reliable) and best-effort re-trigger the app-state sync;
+   * both are non-fatal, and DM push-names still arrive via `contacts.update` on live messages.
+   */
+  private async hydrateNames(): Promise<void> {
+    try {
+      const groups = await this.sock!.groupFetchAllParticipating();
+      const named = Object.values(groups)
+        .filter(g => g?.id && g.subject)
+        .map(g => ({ id: g.id, name: g.subject }));
+      if (named.length) {
+        this.sessionStore.upsertChats(named);
+        this.logger.debug('Hydrated group names', { action: 'baileys_hydrate_groups', count: named.length });
+      }
+    } catch (err) {
+      this.logger.warn('Group name hydration failed', { error: err instanceof Error ? err.message : String(err) });
+    }
+    try {
+      const b = await this.loadLib();
+      await this.sock!.resyncAppState(b.ALL_WA_PATCH_NAMES, false);
+      this.logger.debug('Re-synced app state for contact names', { action: 'baileys_resync_appstate' });
+    } catch (err) {
+      this.logger.warn('App-state resync for contact names failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  /**
+   * Media-free WAMessage -> IncomingMessage map for bulk history (downloading media for thousands of
+   * messages would be ruinous; the type is kept, the payload dropped). Returns null for protocol /
+   * reaction / key / empty messages, which carry nothing for the chat view.
+   */
+  private mapHistoryMessage(msg: WAMessage): IncomingMessage | null {
+    const content = msg.message;
+    if (!content || !msg.key?.remoteJid || !msg.key.id) {
+      return null;
+    }
+    const contentType = Object.keys(content)[0];
+    if (
+      contentType === 'protocolMessage' ||
+      contentType === 'reactionMessage' ||
+      contentType === 'senderKeyDistributionMessage'
+    ) {
+      return null;
+    }
+    const body =
+      content.conversation ??
+      content.extendedTextMessage?.text ??
+      content.imageMessage?.caption ??
+      content.videoMessage?.caption ??
+      content.documentMessage?.caption ??
+      '';
+    return buildIncomingMessageFromBaileys(
+      {
+        id: msg.key.id,
+        remoteJid: msg.key.remoteJid,
+        fromMe: msg.key.fromMe === true,
+        participant: msg.key.participant ?? undefined,
+        body,
+        contentType,
+        isPtt: content.audioMessage?.ptt === true,
+        timestamp: this.toUnixSeconds(msg.messageTimestamp),
+        pushName: msg.pushName ?? undefined,
+        selfJid: this.normalizedSelfJid(),
       },
       jid => this.sessionStore.toNeutralJid(jid),
     );

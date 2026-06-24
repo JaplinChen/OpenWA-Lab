@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Sessions (Baileys): pre-connection chat history is now persisted. On a fresh link Baileys pushes the recent (and, with `BAILEYS_SYNC_FULL_HISTORY=true`, full) message history via `messaging-history.set`; these batches are now mapped and saved into the messages table for the chat view, so a newly linked session shows past conversations instead of an empty panel. The batches are de-duplicated and stamped with each message's real timestamp, and are persisted only (no webhook/hook/websocket dispatch, since they predate the live session). Sender push-names from the history are also harvested so chats show names rather than bare ids, and each chat's last-message preview and sort time are seeded from the history so the chat list no longer reads "No messages yet".
+- Sessions (Baileys): chat display names are now backfilled on connect. Baileys 6.7.x frequently skips the initial app-state sync (the state machine goes Online before it runs when the first history notification is non-processable) and the `PUSH_NAME` sync can fail to decrypt, so chats showed bare ids/numbers. On connection open the adapter now fetches group subjects via `groupFetchAllParticipating` and re-triggers an app-state resync (best-effort) to recover saved contact names; both are non-fatal and complement the push-names that arrive on live messages.
+
 ### Fixed
 
 - Sessions (Baileys): when a session is logged out — unlinked from the phone or via the API — the now-invalid on-disk auth state is cleared, so re-linking shows a fresh QR instead of getting stuck silently reloading the dead credentials. (#453 — thanks @ulises2k)

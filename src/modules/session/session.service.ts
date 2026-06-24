@@ -432,6 +432,72 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
     return this.engines.get(id) === engine;
   }
 
+  /**
+   * Persist pre-connection history into the `messages` table for the chat view, without webhook/hook/ws
+   * dispatch (it predates the live session). De-duplicated by `waMessageId` so re-syncs never duplicate.
+   */
+  private async persistHistoryMessages(id: string, messages: IncomingMessage[]): Promise<void> {
+    const byId = new Map<string, IncomingMessage>();
+    for (const m of messages) {
+      // Need an id to de-dup; chatId/from/to are NOT NULL; status/story posts aren't chats.
+      if (m.id && !m.isStatusBroadcast && m.chatId && m.from && m.to) {
+        byId.set(m.id, m);
+      }
+    }
+    if (byId.size === 0) {
+      return;
+    }
+    // Chunk the dedup query: a batch can be thousands, past SQLite's bound-variable limit for IN (...).
+    const ids = [...byId.keys()];
+    const CHUNK = 400;
+    let inserted = 0;
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const chunkIds = ids.slice(i, i + CHUNK);
+      const existing = await this.messageRepository.find({
+        where: { sessionId: id, waMessageId: In(chunkIds) },
+        select: ['waMessageId'],
+      });
+      const seen = new Set(existing.map(r => r.waMessageId));
+      const rows = chunkIds
+        .filter(x => !seen.has(x))
+        .map(x => {
+          const m = byId.get(x)!;
+          const metadata: Record<string, unknown> = {};
+          if (m.media) metadata.media = m.media;
+          if (m.quotedMessage) metadata.quotedMessage = m.quotedMessage;
+          const row = this.messageRepository.create({
+            sessionId: id,
+            waMessageId: m.id,
+            chatId: m.chatId,
+            from: m.from,
+            to: m.to,
+            body: m.body,
+            type: m.type,
+            direction: m.fromMe ? MessageDirection.OUTGOING : MessageDirection.INCOMING,
+            timestamp: m.timestamp,
+            status: MessageStatus.SENT,
+            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+          });
+          // The chat panel orders by createdAt; stamp the real time so history sorts correctly.
+          if (m.timestamp) {
+            row.createdAt = new Date(m.timestamp * 1000);
+          }
+          return row;
+        });
+      if (rows.length) {
+        await this.messageRepository.save(rows);
+        inserted += rows.length;
+      }
+    }
+    if (inserted) {
+      this.logger.log(`Persisted ${inserted} history message(s)`, {
+        sessionId: id,
+        inserted,
+        action: 'history_messages_persisted',
+      });
+    }
+  }
+
   private async initializeEngine(id: string, session: Session): Promise<void> {
     this.logger.log(`Initializing engine for session: ${session.name}`, {
       sessionId: id,
@@ -587,6 +653,13 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
             this.eventsGateway.emitMessage(id, finalMessage);
           })
           .catch(err => this.logger.error(`onMessage handler failed for ${id}`, String(err)));
+      },
+      onHistoryMessages: (messages): void => {
+        if (!this.isLiveEngine(id, engine)) return;
+        // Persist for the chat view only; no dispatch (these predate the live session).
+        void this.persistHistoryMessages(id, messages).catch(err =>
+          this.logger.error(`Failed to persist history messages for ${id}`, String(err)),
+        );
       },
       onMessageCreate: (message): void => {
         if (!this.isLiveEngine(id, engine)) return;

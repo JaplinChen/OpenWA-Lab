@@ -1478,6 +1478,8 @@ describe('BaileysAdapter contact + chat reads', () => {
     fakeSock.user = { id: '628999:1@s.whatsapp.net', name: 'Me' };
     fakeSock.resetEmitter();
     jest.clearAllMocks();
+    // Keep hydrateNames() (runs on 'open') inert; clearAllMocks doesn't reset a prior mockResolvedValue.
+    fakeSock.groupFetchAllParticipating.mockResolvedValue({});
   });
 
   const ready = async (): Promise<BaileysAdapter> => {

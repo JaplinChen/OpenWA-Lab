@@ -332,6 +332,11 @@ export interface EngineEventCallbacks {
   onMessageAck?: (messageId: string, status: DeliveryStatus) => void;
   onMessageRevoked?: (message: RevokedMessage) => void;
   onMessageReaction?: (event: ReactionEvent) => void;
+  /**
+   * Bulk historical messages from an engine's initial sync (e.g. Baileys `messaging-history.set`).
+   * They predate the live session, so consumers persist them for the chat view but must not dispatch.
+   */
+  onHistoryMessages?: (messages: IncomingMessage[]) => void;
   onDisconnected?: (reason: string) => void;
   onStateChanged?: (state: EngineStatus) => void;
   /**
