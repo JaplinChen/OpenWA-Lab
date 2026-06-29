@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Disappearing-messages support (Baileys engine).** Outbound messages now honor a chat's disappearing-messages timer and set it on each send (text, media, and replies), so recipients no longer see _"This message won't disappear — the sender may be using an older version of WhatsApp."_ The timer is learned from inbound messages — the reliable source, since the cached chat setting is often absent for a long-standing timer — and resolved across both phone and `@lid` chat identifiers so it applies on LID-migrated 1:1 chats, with a fallback to the chat's cached setting. It is applied only when a positive value is known; when it's unknown or disabled, the per-message expiration is omitted, exactly as before. Reactions, deletes/revokes, and status posts are unaffected. Thanks @ulises2k. (#473, #513)
+- **Selective skip for disappearing messages.** New `STORE_EPHEMERAL_MESSAGES` env var (default `true`). Set to `false` to skip persisting and dispatching incoming disappearing messages (those with `ephemeralDuration > 0`) — no DB insert, no webhook dispatch, no websocket event. Backward compatible; existing deployments are unaffected. The `ephemeralDuration` field is also surfaced on `IncomingMessage` for consumers that want to handle it themselves. Thanks @spidgrou. (#506)
 - **Durable dead-letter record for failed webhook deliveries.** A webhook delivery that permanently fails — exhausting its retries or being rejected before it is sent — is now persisted to a new `webhook_delivery_failures` table instead of disappearing when its job is evicted from the queue. Operators can review the recorded failures (endpoint, event, status, error, attempts) through a new admin endpoint, `GET /webhooks/delivery-failures`. (#520)
 
 ### Fixed
@@ -26,13 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-key IP allowlist** now uses the shared, hardened IP matcher and rejects a malformed client address instead of coercing it into an allowed range. (#519)
 - **Dashboard:** the Infrastructure page is no longer rendered for non-admin roles, and image-attachment preview object URLs are released after use. (#508)
 - Released a small in-memory leak: a deleted session's stored failure reason is now cleared. (#505)
+- **The webhook worker now connects to the configured Redis.** Configuration from `.env` and the dashboard-saved file is loaded before the application modules are evaluated, so the webhook delivery worker reads its Redis host/port/password from the configured values instead of falling back to a local default when those are supplied by file rather than the process environment. (#523)
 
 ### Performance
 
 - **Configurable webhook worker concurrency** (`WEBHOOK_WORKER_CONCURRENCY`, default 10): a single slow or unresponsive receiver no longer head-of-line-blocks delivery for every other webhook. (#511)
 - Dropped a redundant single-column index on `messages(sessionId)` already covered by the existing composite indexes, reducing write-time overhead on a high-volume table. (#509)
-
-- **Selective skip for disappearing messages.** New `STORE_EPHEMERAL_MESSAGES` env var (default `true`). Set to `false` to skip persisting and dispatching incoming disappearing messages (those with `ephemeralDuration > 0`) — no DB insert, no webhook dispatch, no websocket event. Backward compatible; existing deployments are unaffected. The `ephemeralDuration` field is also surfaced on `IncomingMessage` for consumers that want to handle it themselves. Thanks @spidgrou. (#506)
 
 ## [0.7.10] - 2026-06-28
 
