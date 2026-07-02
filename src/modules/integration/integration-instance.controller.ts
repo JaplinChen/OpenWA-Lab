@@ -47,6 +47,7 @@ export class IntegrationInstanceController {
       void this.audit.logInfo(AuditAction.INTEGRATION_INSTANCE_CREATED, {
         metadata: { pluginId, instanceId: dto.instanceId },
       });
+      this.applyScopeBinding(pluginId, inst.sessionScope, inst.config ?? {}, inst.enabled);
       return this.view(inst, routes, /* reveal */ true);
     } catch (err) {
       if (err instanceof InstanceExistsError) throw new ConflictException(err.message);
@@ -90,18 +91,28 @@ export class IntegrationInstanceController {
   ): Promise<InstanceView> {
     let inst: PluginInstance | null = await this.instances.resolve(pluginId, instanceId);
     if (!inst) throw new NotFoundException('instance not found');
+    const previousScope = inst.sessionScope;
     if (dto.enabled !== undefined) inst = await this.instances.setEnabled(pluginId, instanceId, dto.enabled);
     if (dto.sessionScope !== undefined || dto.config !== undefined) {
       inst = await this.instances.update(pluginId, instanceId, { sessionScope: dto.sessionScope, config: dto.config });
     }
-    return this.view(inst as PluginInstance, this.pluginRoutes(pluginId), false);
+    const updated = inst as PluginInstance;
+    // If the bound session changed, tear down the old scope so it stops firing with stale config.
+    if (previousScope && previousScope !== '*' && previousScope !== updated.sessionScope) {
+      this.applyScopeBinding(pluginId, previousScope, {}, false);
+    }
+    this.applyScopeBinding(pluginId, updated.sessionScope, updated.config ?? {}, updated.enabled);
+    return this.view(updated, this.pluginRoutes(pluginId), false);
   }
 
   @Delete(':instanceId')
   @HttpCode(204)
   async remove(@Param('pluginId') pluginId: string, @Param('instanceId') instanceId: string): Promise<void> {
-    const removed = await this.instances.remove(pluginId, instanceId);
-    if (!removed) throw new NotFoundException('instance not found');
+    const inst = await this.instances.resolve(pluginId, instanceId);
+    if (!inst) throw new NotFoundException('instance not found');
+    // Deactivate + clear the session config BEFORE deletion (needs the instance's scope).
+    this.applyScopeBinding(pluginId, inst.sessionScope, {}, false);
+    await this.instances.remove(pluginId, instanceId);
     void this.audit.logInfo(AuditAction.INTEGRATION_INSTANCE_DELETED, { metadata: { pluginId, instanceId } });
   }
 
@@ -138,5 +149,40 @@ export class IntegrationInstanceController {
       updatedAt: masked.updatedAt,
       ingressUrls: buildIngressUrls(process.env.BASE_URL, inst.pluginId, inst.instanceId, routes),
     };
+  }
+
+  // Bind an instance's config to the plugin's runtime so an ingress handler resolves it as ctx.config
+  // (see PluginLoaderService.dispatchWebhookForInstance) and activate the session — iff `activate` (a
+  // disabled or removed instance must not keep firing). A concrete scope writes sessionConfig[scope] and
+  // toggles that session in activeSessions; a null/'*' scope binds the base config + all sessions ('*').
+  // Best-effort: provisioning must not fail because the plugin is momentarily unloaded.
+  private applyScopeBinding(
+    pluginId: string,
+    scope: string | null,
+    config: Record<string, unknown>,
+    activate: boolean,
+  ): void {
+    try {
+      if (!scope || scope === '*') {
+        // 'all sessions' → base config + activate ['*']. A base binding cannot be cleanly torn down
+        // (updatePluginConfig merges, so one instance's keys aren't separable) — deactivation is a no-op.
+        if (activate) {
+          this.loader.updatePluginConfig(pluginId, config);
+          this.loader.setPluginSessions(pluginId, ['*']);
+        }
+        return;
+      }
+      this.loader.setPluginSessionConfig(pluginId, scope, activate ? config : {});
+      const current = this.loader.getPlugin(pluginId)?.activeSessions ?? [];
+      const set = new Set(current.filter(s => s !== '*'));
+      if (activate) set.add(scope);
+      else set.delete(scope);
+      this.loader.setPluginSessions(pluginId, [...set]);
+    } catch (err) {
+      // Best-effort: don't fail provisioning if the plugin is momentarily unloaded.
+      void this.audit.logInfo(AuditAction.INTEGRATION_INSTANCE_UPDATED, {
+        metadata: { pluginId, scope, bridgeError: String(err) },
+      });
+    }
   }
 }
