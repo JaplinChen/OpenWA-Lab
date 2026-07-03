@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-03
+
 ### Added
 
 - **Plugins can send media through `ctx.conversations.send`.** The conversation-send capability now accepts `image`, `video`, `audio`, and `file` envelopes that carry a `mediaUrl`, sending them by URL through the same media pipeline as the REST media endpoints (the caption comes from `text`). It stays under the existing `conversation:send` permission and the plugin's activated-session scope — the text/reply behavior is unchanged. A `replyTo` on a media envelope is rejected, since the engine media path cannot quote a message.
