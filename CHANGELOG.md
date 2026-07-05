@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.8] - 2026-07-05
+
 ### Added
 
 - **Native WhatsApp polls** via `POST /api/sessions/:sessionId/messages/send-poll`: question, 2–12 options and an optional `allowMultipleAnswers` flag (default single choice), implemented on both engines (whatsapp-web.js `Poll`, Baileys `poll` content with `selectableCount` 1/0). The message history stores the poll question as the body so the log stays readable. Polls are a first-class `poll` message type end to end — both engines map incoming poll messages to it, so the websocket/webhook events, persisted rows, and dashboard all report `poll` consistently. Thanks @alejo117.
+
+### Changed
+
+- Corrected the Italian login-footer wording. Thanks @albanobattistella.
 
 ### Fixed
 
