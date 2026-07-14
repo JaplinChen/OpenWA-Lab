@@ -1,72 +1,53 @@
 import { useCallback, useLayoutEffect, useRef, type RefObject } from 'react';
 import { decideScroll, type ScrollDirection } from '../utils/scrollDecision.ts';
 
+/** Data attribute each message row carries in Chats.tsx — the anchor we remember per chat. */
+const MSG_ID_ATTR = 'data-wa-message-id';
+
+/** Minimal shape of a message row needed to decide visibility (real DOM elements satisfy it). */
+interface MsgNode {
+  offsetTop: number;
+  getAttribute: (name: string) => string | null;
+}
+interface ScrollBox {
+  scrollTop: number;
+  clientHeight: number;
+  querySelectorAll: (selector: string) => ArrayLike<MsgNode>;
+}
+
 /**
- * Decide what to do with the scroll container on a chat switch or load-resolve.
- *
- * Inputs:
- *   - prevChatId: chat we are LEAVING (or null if first render)
- *   - nextChatId: chat we are ENTERING (or null if no chat selected)
- *   - prevLoaded: was the previous chat's content rendered when we last ran?
- *   - isLoaded:   is the next chat's content rendered now?
- *   - savedScrollTop: previously-saved scrollTop for nextChatId (or undefined)
- *
- * Output: { save: 'previous' | null, restore: 'saved' | 'bottom' | null }
- *   - save:    instructs the hook to write the CURRENT scrollTop into the
- *              map under prevChatId BEFORE doing the restore
- *   - restore: instructs the hook to write scrollTop = (the saved value)
- *              or = scrollHeight (bottom); null means do nothing
- *
- * This is a pure function so it can be unit-tested without React.
+ * Id of the newest message the user has actually seen: the bottom-most row whose top sits within the
+ * current viewport. Returns null when there are no message rows. Pure (DOM-shape only) so it can be
+ * unit-tested with stubs.
  */
-export interface RestoreDecision {
-  save: 'previous' | null;
-  restore: 'saved' | 'bottom' | null;
-}
-
-export function decideRestoreTarget(
-  prevChatId: string | null,
-  nextChatId: string | null,
-  prevLoaded: boolean,
-  isLoaded: boolean,
-  savedScrollTop: number | undefined,
-): RestoreDecision {
-  // Only save the previous chat's scrollTop when we're switching to ANOTHER
-  // chat (not when deselecting back to nothing) and when its content was
-  // actually rendered (not a spinner snapshot).
-  const save: 'previous' | null =
-    prevChatId !== null &&
-    nextChatId !== null &&
-    prevChatId !== nextChatId &&
-    prevLoaded
-      ? 'previous'
-      : null;
-
-  const restore: 'saved' | 'bottom' | null =
-    nextChatId !== null && isLoaded
-      ? savedScrollTop !== undefined ? 'saved' : 'bottom'
-      : null;
-
-  return { save, restore };
+export function bottomVisibleMessageId(box: ScrollBox): string | null {
+  const viewportBottom = box.scrollTop + box.clientHeight;
+  const nodes = box.querySelectorAll(`[${MSG_ID_ATTR}]`);
+  let seen: string | null = null;
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    if (node.offsetTop <= viewportBottom) {
+      seen = node.getAttribute(MSG_ID_ATTR) ?? seen; // rows are in DOM order → keep the newest seen
+    } else {
+      break; // first row below the fold — everything after is also below
+    }
+  }
+  return seen;
 }
 
 /**
- * Per-chat scroll-position memory + auto-scroll heuristic.
+ * Per-chat scroll memory, anchored to a MESSAGE (not a pixel offset, which breaks when content above
+ * changes height).
  *
- * - On chat switch (and once content for the new chat has actually rendered):
- *   saves the leaving chat's scrollTop, restores the entering chat's saved
- *   scrollTop, or jumps to bottom on first visit. All synchronously, before
- *   paint, via useLayoutEffect — no visible "jump" or smooth-scroll animation.
- * - The hook depends on BOTH activeChatId AND isLoaded so that a cold-open
- *   (spinner first, then data) correctly waits to restore until the messages
- *   list is mounted with non-zero scrollHeight.
- * - On message append: `onMessageAppended(direction)` snapshots the geometry
- *   BEFORE the new message is committed, then defers the scroll-to-bottom (if
- *   any) to the next frame so the new message is already in the DOM.
+ * - On leaving a rendered chat, remember the newest message the user had in view.
+ * - On entering a chat (once its content renders), align that remembered message to the bottom of the
+ *   viewport — so new messages that arrived while away sit just below it. First visit (or if the
+ *   anchor message is gone) jumps to the bottom. A rAF re-pin covers late height growth
+ *   (media/fonts/wrapping).
+ * - On message append, `onMessageAppended` keeps the view pinned to bottom only when the user was
+ *   already near it (see decideScroll), so reading history isn't yanked away.
  *
- * Mount the returned `containerRef` on the scroll container (the `.room-messages`
- * div in Chats.tsx). The Map of saved positions lives in a ref so it doesn't
- * trigger renders and is garbage-collected when the host component unmounts.
+ * Mount the returned `containerRef` on the scroll container (`.room-messages` in Chats.tsx).
  */
 export function useChatScrollPosition(
   activeChatId: string | null,
@@ -76,33 +57,30 @@ export function useChatScrollPosition(
   onMessageAppended: (direction: ScrollDirection) => void;
 } {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const scrollMap = useRef<Map<string, number>>(new Map());
+  const anchorMap = useRef<Map<string, string>>(new Map());
   const prevChatIdRef = useRef<string | null>(null);
   const prevLoadedRef = useRef<boolean>(false);
 
   useLayoutEffect(() => {
+    const el = containerRef.current;
     const prev = prevChatIdRef.current;
     const next = activeChatId;
-    const el = containerRef.current;
     const prevLoaded = prevLoadedRef.current;
 
-    const decision = decideRestoreTarget(
-      prev,
-      next,
-      prevLoaded,
-      isLoaded,
-      next !== null ? scrollMap.current.get(next) : undefined,
-    );
-
     if (el) {
-      if (decision.save === 'previous' && prev !== null) {
-        scrollMap.current.set(prev, el.scrollTop);
+      // Save the leaving chat's last-seen newest message when actually switching away from a
+      // rendered chat (not a spinner snapshot).
+      if (prev !== null && next !== prev && prevLoaded) {
+        const id = bottomVisibleMessageId(el);
+        if (id) anchorMap.current.set(prev, id);
       }
-      if (decision.restore === 'saved' && next !== null) {
-        const saved = scrollMap.current.get(next);
-        if (saved !== undefined) el.scrollTop = saved;
-      } else if (decision.restore === 'bottom') {
-        el.scrollTop = el.scrollHeight;
+      // Restore the entering chat once its content is rendered.
+      if (next !== null && isLoaded) {
+        pinToAnchorOrBottom(el, anchorMap.current.get(next));
+        // Height can grow after this layout pass (media/fonts/wrapping); re-pin next frame.
+        requestAnimationFrame(() => {
+          if (containerRef.current) pinToAnchorOrBottom(containerRef.current, anchorMap.current.get(next));
+        });
       }
     }
 
@@ -126,4 +104,16 @@ export function useChatScrollPosition(
   }, []);
 
   return { containerRef, onMessageAppended };
+}
+
+/** Align the remembered message to the viewport bottom; fall back to the very bottom when absent. */
+function pinToAnchorOrBottom(el: HTMLElement, anchorId: string | undefined): void {
+  if (anchorId) {
+    const anchor = el.querySelector(`[${MSG_ID_ATTR}="${CSS.escape(anchorId)}"]`);
+    if (anchor instanceof HTMLElement) {
+      anchor.scrollIntoView({ block: 'end' });
+      return;
+    }
+  }
+  el.scrollTop = el.scrollHeight;
 }
