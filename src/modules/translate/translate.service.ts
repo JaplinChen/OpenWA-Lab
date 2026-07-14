@@ -1,9 +1,11 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { HookManager, HookContext, HookResult } from '../../core/hooks';
 import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
 import { createLogger } from '../../common/services/logger.service';
+import { Glossary } from './translate-glossary';
 
 // Invisible marker (ported from WA-Translate) prepended to bot output so the bot never re-translates
 // its own messages. U+2063 is a zero-width invisible separator — it does not alter the visible text.
@@ -20,25 +22,42 @@ interface Pair {
 const ZH_TO_VI: Pair = { key: 'zh-tw:vi', source: '繁體中文', targetLabel: '越南文 (Tiếng Việt)' };
 const VI_TO_ZH: Pair = { key: 'vi:zh-tw', source: '越南文', targetLabel: '繁體中文' };
 
+const CONFIG_PATH = 'data/translate-config.json';
+
+export interface TranslateConfig {
+  enabled: boolean;
+  groupIds: string[];
+  includeFromMe: boolean;
+  minSendIntervalMs: number;
+}
+
 @Injectable()
 export class TranslateService implements OnModuleInit {
   private readonly logger = createLogger('TranslateService');
 
   private enabled = false;
   private groupIds = new Set<string>();
-  private apiKeys: string[] = [];
-  private model = 'gemini-2.5-flash';
-  private minIntervalMs = 12000;
-  // pairKey -> { source: target } term overrides, injected into the prompt (ported from WA-Translate).
-  private glossary: Record<string, Record<string, string>> = {};
+  private endpoint = 'http://127.0.0.1:11434/api/chat';
+  private model = 'translategemma-12b-cline-32768:latest';
+  // zh<->vi term overrides injected into the prompt (see Glossary).
+  private glossary!: Glossary;
   private glossaryPath = 'secrets/glossary.json';
   // Author WIDs allowed to mutate the glossary via /glossary commands. Empty = anyone in the group.
   private adminIds = new Set<string>();
+  // Also translate the account's OWN outgoing messages (message:sent). Needed when the operator IS
+  // the controlled number and types in Chinese for Vietnamese members to read. Echo is prevented by
+  // the invisible marker: the bot's own translation is fromMe+marker and skipped on the sent path.
+  private includeFromMe = false;
 
-  // Serialize translations behind one chain so we honour Gemini's rate limit (ported queue+throttle).
+  // Anti-ban: minimum gap between outbound translation sends (ms). 0 = no extra pacing.
+  private minSendIntervalMs = 0;
+  private nextSendAt = 0;
+
+  // hookId for the dynamically (un)registered message:sent hook — null when not registered.
+  private sentHookId: string | null = null;
+
+  // Serialize translations behind one chain — a local Ollama model handles one request at a time.
   private queue: Promise<unknown> = Promise.resolve();
-  private keyIndex = 0;
-  private nextAt = 0;
 
   constructor(
     private readonly hookManager: HookManager,
@@ -53,46 +72,124 @@ export class TranslateService implements OnModuleInit {
         .map(s => s.trim())
         .filter(Boolean),
     );
-    this.apiKeys = (process.env.GEMINI_API_KEYS || '')
-      .split(',')
-      .map(s => s.trim())
-      .filter(Boolean);
-    this.model = process.env.GEMINI_MODEL || this.model;
-    const iv = Number(process.env.GEMINI_MIN_INTERVAL_MS);
-    if (Number.isFinite(iv) && iv >= 0) this.minIntervalMs = iv;
+    this.endpoint = process.env.OLLAMA_ENDPOINT || this.endpoint;
+    this.model = process.env.OLLAMA_MODEL || this.model;
     this.glossaryPath = process.env.TRANSLATE_GLOSSARY_PATH || this.glossaryPath;
+    this.includeFromMe = process.env.TRANSLATE_INCLUDE_FROM_ME === 'true';
+    const si = Number(process.env.TRANSLATE_MIN_SEND_INTERVAL_MS);
+    if (Number.isFinite(si) && si >= 0) this.minSendIntervalMs = si;
     this.adminIds = new Set(
       (process.env.TRANSLATE_ADMIN_IDS || '')
         .split(',')
         .map(s => s.trim())
         .filter(Boolean),
     );
-    this.loadGlossary(this.glossaryPath);
+    this.glossary = new Glossary(this.glossaryPath);
+    const terms = this.glossary.load();
+    if (terms > 0) this.logger.log(`Glossary loaded: ${terms} term(s) from ${this.glossaryPath}`);
 
-    if (!this.enabled) return;
-    if (this.apiKeys.length === 0 || this.groupIds.size === 0) {
-      this.logger.warn('Translate enabled but GEMINI_API_KEYS or TRANSLATE_GROUP_IDS is empty — disabling');
-      this.enabled = false;
-      return;
-    }
+    // Persisted runtime config takes precedence over .env; .env values seed the file on first run.
+    this.loadConfig();
+
+    // Received hook is always registered; enable/disable is enforced at the top of onMessage so
+    // toggling `enabled` at runtime takes effect without re-registration.
     this.hookManager.register(
       'translate',
       'message:received',
-      ctx => this.onMessage(ctx as HookContext<IncomingMessage>),
+      ctx => this.onMessage(ctx as HookContext<IncomingMessage>, false),
       50,
     );
-    this.logger.log(`Translate active for ${this.groupIds.size} group(s), model=${this.model}`);
+    if (this.includeFromMe) this.registerSentHook();
+
+    this.logger.log(
+      `Translate loaded: enabled=${this.enabled}, ${this.groupIds.size} group(s), ` +
+        `model=${this.model}, includeFromMe=${this.includeFromMe}`,
+    );
+  }
+
+  getConfig(): TranslateConfig {
+    return {
+      enabled: this.enabled,
+      groupIds: [...this.groupIds],
+      includeFromMe: this.includeFromMe,
+      minSendIntervalMs: this.minSendIntervalMs,
+    };
+  }
+
+  updateConfig(partial: Partial<TranslateConfig>): TranslateConfig {
+    if (partial.enabled !== undefined) this.enabled = partial.enabled;
+    if (partial.groupIds !== undefined) {
+      this.groupIds = new Set(partial.groupIds.map(s => s.trim()).filter(Boolean));
+    }
+    if (partial.minSendIntervalMs !== undefined && partial.minSendIntervalMs >= 0) {
+      this.minSendIntervalMs = partial.minSendIntervalMs;
+    }
+    if (partial.includeFromMe !== undefined && partial.includeFromMe !== this.includeFromMe) {
+      this.includeFromMe = partial.includeFromMe;
+      if (this.includeFromMe) this.registerSentHook();
+      else this.unregisterSentHook();
+    }
+    this.saveConfig();
+    return this.getConfig();
+  }
+
+  private registerSentHook(): void {
+    if (this.sentHookId) return;
+    // fromMe messages never reach message:received — the adapter routes them to message:sent.
+    this.sentHookId = this.hookManager.register(
+      'translate',
+      'message:sent',
+      ctx => this.onMessage(ctx as HookContext<IncomingMessage>, true),
+      50,
+    );
+  }
+
+  private unregisterSentHook(): void {
+    if (!this.sentHookId) return;
+    this.hookManager.unregister(this.sentHookId);
+    this.sentHookId = null;
+  }
+
+  private loadConfig(): void {
+    try {
+      const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as Partial<TranslateConfig>;
+      if (typeof raw.enabled === 'boolean') this.enabled = raw.enabled;
+      if (Array.isArray(raw.groupIds)) {
+        this.groupIds = new Set(raw.groupIds.map(s => String(s).trim()).filter(Boolean));
+      }
+      if (typeof raw.includeFromMe === 'boolean') this.includeFromMe = raw.includeFromMe;
+      if (typeof raw.minSendIntervalMs === 'number' && raw.minSendIntervalMs >= 0) {
+        this.minSendIntervalMs = raw.minSendIntervalMs;
+      }
+    } catch {
+      // No file yet (or unreadable): keep the .env-seeded values and write out an initial file.
+      this.saveConfig();
+    }
+  }
+
+  private saveConfig(): void {
+    const dir = path.dirname(CONFIG_PATH);
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(this.getConfig(), null, 2), 'utf8');
   }
 
   // Fire-and-forget: never block the receive pipeline (SessionService awaits the hook chain before
   // persisting). We kick off translation async and return continue:true immediately.
-  private async onMessage(ctx: HookContext<IncomingMessage>): Promise<HookResult<IncomingMessage>> {
+  private async onMessage(
+    ctx: HookContext<IncomingMessage>,
+    isSentPath: boolean,
+  ): Promise<HookResult<IncomingMessage>> {
     const msg = ctx.data;
     const pass: HookResult<IncomingMessage> = { continue: true };
     try {
-      if (msg.fromMe || msg.type !== 'text') return pass;
+      if (!this.enabled) return pass;
+      if (msg.type !== 'text') return pass;
+      // received-path fromMe shouldn't occur (adapter routes fromMe to message:sent); guard anyway.
+      if (msg.fromMe && !isSentPath) return pass;
       if (!msg.isGroup || !this.groupIds.has(msg.chatId)) return pass;
       const body = msg.body || '';
+      // marker skip is load-bearing on the sent path: the bot's own translation is fromMe+marker,
+      // so this is what stops an infinite translate→send→translate loop.
       if (!body.trim() || body.startsWith(BOT_MARKER)) return pass;
 
       const sessionId = ctx.sessionId;
@@ -112,13 +209,18 @@ export class TranslateService implements OnModuleInit {
 
       void this.enqueue(async () => {
         const translated = await this.translate(body, pair);
-        // Gemini rule 3 can echo the source when it's not translatable natural language — don't
-        // spam the group with a verbatim copy.
+        // The model can echo the source when it's not translatable natural language — don't spam
+        // the group with a verbatim copy.
         if (!translated || translated.trim() === body.trim()) return;
+        // Anti-ban pacing: enforce a minimum gap between outbound translations (serialized here, so
+        // this is race-free). Typing simulation runs inside MessageService.sendText (SIMULATE_TYPING).
+        const wait = this.nextSendAt - Date.now();
+        if (wait > 0) await sleep(wait);
         await this.messageService.sendText(sessionId, {
           chatId: msg.chatId,
           text: BOT_MARKER + translated,
         });
+        this.nextSendAt = Date.now() + this.minSendIntervalMs;
       }).catch(err => this.logger.error('Translate task failed', String(err)));
     } catch (err) {
       this.logger.error('Translate hook error', String(err));
@@ -126,82 +228,14 @@ export class TranslateService implements OnModuleInit {
     return pass;
   }
 
-  private loadGlossary(path: string): void {
-    try {
-      this.glossary = JSON.parse(fs.readFileSync(path, 'utf8')) as Record<string, Record<string, string>>;
-      const terms = Object.values(this.glossary).reduce((n, m) => n + Object.keys(m).length, 0);
-      if (terms > 0) this.logger.log(`Glossary loaded: ${terms} term(s) from ${path}`);
-    } catch {
-      this.glossary = {}; // absent/unreadable glossary is fine — translate without term overrides
-    }
-  }
-
-  private saveGlossary(): void {
-    fs.mkdirSync(this.glossaryPath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
-    fs.writeFileSync(this.glossaryPath, JSON.stringify(this.glossary, null, 2), 'utf8');
-  }
-
-  // Group commands (marker-prefixed replies so the bot never re-translates its own output):
-  //   /glossary                       list all terms
-  //   /glossary add <中文> = <越南文>   add both directions
-  //   /glossary del <詞>               remove any pairing where the term appears on either side
+  // Marker-prefixed reply so the bot never re-translates its own output. Admin allowlist (if set)
+  // gates mutating subcommands; the parsing/persistence lives in Glossary.
   private async handleGlossaryCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
-    const reply = (text: string): Promise<unknown> =>
-      this.messageService.sendText(sessionId, { chatId: msg.chatId, text: BOT_MARKER + text });
-
     const rest = raw.replace(/^\/glossary\s*/i, '').trim();
-
-    if (!rest || /^list$/i.test(rest)) {
-      const lines: string[] = [];
-      for (const [key, terms] of Object.entries(this.glossary)) {
-        const entries = Object.entries(terms);
-        if (entries.length) lines.push(`[${key}]`, ...entries.map(([s, t]) => `- ${s} → ${t}`));
-      }
-      await reply(lines.length ? ['術語表：', ...lines].join('\n') : '術語表目前為空。');
-      return;
-    }
-
     const author = msg.author || msg.from;
-    if (this.adminIds.size > 0 && !this.adminIds.has(author)) {
-      await reply('此指令僅限管理員使用。');
-      return;
-    }
-
-    const addMatch = rest.match(/^add\s+(.+?)\s*(?:=|→|->)\s*(.+)$/i);
-    if (addMatch) {
-      const zh = addMatch[1].trim();
-      const vi = addMatch[2].trim();
-      if (!zh || !vi) {
-        await reply('格式錯誤，請用：/glossary add 中文 = tiếng Việt');
-        return;
-      }
-      (this.glossary['zh-tw:vi'] ??= {})[zh] = vi;
-      (this.glossary['vi:zh-tw'] ??= {})[vi] = zh;
-      this.saveGlossary();
-      await reply(`已新增術語：${zh} ⇄ ${vi}`);
-      return;
-    }
-
-    const delMatch = rest.match(/^del(?:ete)?\s+(.+)$/i);
-    if (delMatch) {
-      const term = delMatch[1].trim();
-      let removed = false;
-      for (const terms of Object.values(this.glossary)) {
-        for (const [s, t] of Object.entries(terms)) {
-          if (s === term || t === term) {
-            delete terms[s];
-            removed = true;
-          }
-        }
-      }
-      if (removed) this.saveGlossary();
-      await reply(removed ? `已移除術語：${term}` : `找不到術語：${term}`);
-      return;
-    }
-
-    await reply(
-      ['指令：', '/glossary  列出術語', '/glossary add 中文 = tiếng Việt', '/glossary del <詞>'].join('\n'),
-    );
+    const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
+    const reply = this.glossary.command(rest, canMutate);
+    await this.messageService.sendText(sessionId, { chatId: msg.chatId, text: BOT_MARKER + reply });
   }
 
   private detectPair(text: string): Pair | null {
@@ -217,11 +251,7 @@ export class TranslateService implements OnModuleInit {
   }
 
   private buildPrompt(text: string, pair: Pair): string {
-    const entries = Object.entries(this.glossary[pair.key] || {});
-    const glossarySection =
-      entries.length > 0
-        ? ['', '術語表（必須使用以下對照翻譯）：', ...entries.map(([s, t]) => `- ${s} → ${t}`), ''].join('\n')
-        : '';
+    const glossarySection = this.glossary.section(pair.key);
     return [
       '你是專業翻譯引擎，只做翻譯。',
       `請把以下內容從 ${pair.source} 翻譯成 ${pair.targetLabel}。`,
@@ -236,51 +266,22 @@ export class TranslateService implements OnModuleInit {
 
   private async translate(text: string, pair: Pair): Promise<string> {
     const prompt = this.buildPrompt(text, pair);
-    let lastErr: unknown = null;
-    for (let i = 0; i < this.apiKeys.length; i += 1) {
-      const idx = (this.keyIndex + i) % this.apiKeys.length;
-      try {
-        const now = Date.now();
-        if (this.nextAt > now) await sleep(this.nextAt - now);
-        const out = await this.callGemini(this.apiKeys[idx], prompt);
-        this.nextAt = Date.now() + this.minIntervalMs;
-        this.keyIndex = (idx + 1) % this.apiKeys.length;
-        return out;
-      } catch (err) {
-        lastErr = err;
-        if (isRateLimit(err)) {
-          this.logger.warn('Gemini rate-limited, rotating key');
-          continue;
-        }
-      }
-    }
-    throw lastErr || new Error('translate failed');
-  }
-
-  private async callGemini(key: string, prompt: string): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${key}`;
-    const res = await fetch(url, {
+    const res = await fetch(this.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+      body: JSON.stringify({
+        model: this.model,
+        stream: false,
+        options: { temperature: 0 },
+        messages: [{ role: 'user', content: prompt }],
+      }),
     });
-    if (!res.ok) {
-      const err = new Error(`Gemini HTTP ${res.status}`) as Error & { status?: number };
-      err.status = res.status;
-      throw err;
-    }
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
-    };
-    const out = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!out) throw new Error('Gemini empty response');
+    if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+    const data = (await res.json()) as { message?: { content?: string } };
+    const out = data.message?.content?.trim();
+    if (!out) throw new Error('Ollama empty response');
     return out;
   }
-}
-
-function isRateLimit(err: unknown): boolean {
-  const status = (err as { status?: number })?.status;
-  return status === 429 || status === 503;
 }
 
 function sleep(ms: number): Promise<void> {

@@ -705,6 +705,26 @@ export const infraApi = {
 };
 
 // =============================================================================
+// Translate API
+// =============================================================================
+
+export interface TranslateConfig {
+  enabled: boolean;
+  groupIds: string[];
+  includeFromMe: boolean;
+  minSendIntervalMs: number;
+}
+
+export const translateApi = {
+  getConfig: () => request<TranslateConfig>('/translate/config'),
+  updateConfig: (config: Partial<TranslateConfig>) =>
+    request<TranslateConfig>('/translate/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+};
+
+// =============================================================================
 // Settings API
 // =============================================================================
 
