@@ -9,6 +9,7 @@ import configuration from './config/configuration';
 import { validateEnv } from './config/env.validation';
 import { SessionModule } from './modules/session/session.module';
 import { MessageModule } from './modules/message/message.module';
+import { TranslateModule } from './modules/translate/translate.module';
 import { TemplateModule } from './modules/template/template.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { HealthModule } from './modules/health/health.module';
@@ -249,6 +250,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     EngineModule,
     SessionModule,
     MessageModule,
+    TranslateModule, // zh<->vi auto-translate in selected groups
     TemplateModule,
     WebhookModule,
     HealthModule,
