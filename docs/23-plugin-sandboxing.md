@@ -1,6 +1,6 @@
 # 23 — Plugin Sandboxing
 
-OpenWA runs **untrusted plugins** (anything loaded from the plugins directory) in an isolated worker
+OpenWA-Lab runs **untrusted plugins** (anything loaded from the plugins directory) in an isolated worker
 thread, separate from first-party built-ins (engines, bundled extensions) which run in-process. This
 page describes the security model honestly — what the sandbox guarantees and, just as important, what
 it does not — and what changes for plugin authors.
@@ -41,14 +41,14 @@ from disk is untrusted and sandboxed.
 > not an OS-level sandbox.
 
 A worker still has access to Node built-ins — `require('fs')`, `process`, network sockets — and runs
-as the same uid as OpenWA. The sandbox therefore does **not**, by itself, stop a malicious plugin
-from reading files the OpenWA process can read or making outbound network connections. It protects
+as the same uid as OpenWA-Lab. The sandbox therefore does **not**, by itself, stop a malicious plugin
+from reading files the OpenWA-Lab process can read or making outbound network connections. It protects
 the *integrity* of the host (no host-object compromise, contained faults, mediated capabilities) — not
 the *confidentiality* of the host filesystem against deliberate Node-builtin abuse.
 
 For genuinely untrusted, third-party plugins, combine the sandbox with **OS-level containment**:
 
-- **Run OpenWA in its container** (the shipped Docker image already runs read-only rootfs, non-root,
+- **Run OpenWA-Lab in its container** (the shipped Docker image already runs read-only rootfs, non-root,
   and `cap_drop: ALL`), which bounds what any plugin's `fs`/network access can reach.
 - Until a marketplace exists, the standing guidance remains: **install only plugins you trust.**
 

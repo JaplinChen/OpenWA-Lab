@@ -2,7 +2,7 @@
 
 > ## ⚠️ DESIGN REFERENCE ONLY — NOT IMPLEMENTED
 >
-> **OpenWA is currently a single-process, single-instance application.** Live WhatsApp
+> **OpenWA-Lab is currently a single-process, single-instance application.** Live WhatsApp
 > engine state (browser + WebSocket + reconnect/error state) lives in an in-memory `Map`
 > in `SessionService`; there is **no** DB-backed session registry, **no** node-claim/lease,
 > and **no** Socket.IO Redis adapter.
@@ -14,9 +14,9 @@
 >
 > Everything in this guide (session-claim, node affinity, `replicas: 3`) is a **future
 > design sketch**, retained for planning. Until it is implemented, deploy with
-> **`replicas: 1`** for the OpenWA API service.
+> **`replicas: 1`** for the OpenWA-Lab API service.
 
-This guide explains a *proposed* design for deploying OpenWA in a horizontally scaled environment for high availability and increased capacity.
+This guide explains a *proposed* design for deploying OpenWA-Lab in a horizontally scaled environment for high availability and increased capacity.
 
 ## 13.1 Architecture Overview
 
@@ -26,10 +26,10 @@ flowchart TB
         NGINX[Nginx/Traefik]
     end
 
-    subgraph Nodes["OpenWA Nodes"]
-        N1[OpenWA Node 1]
-        N2[OpenWA Node 2]
-        N3[OpenWA Node 3]
+    subgraph Nodes["OpenWA-Lab Nodes"]
+        N1[OpenWA-Lab Node 1]
+        N2[OpenWA-Lab Node 2]
+        N3[OpenWA-Lab Node 3]
     end
 
     subgraph Storage["Shared Storage"]
@@ -104,7 +104,7 @@ Each node "claims" sessions on startup and releases them on shutdown. **(Not imp
 version: '3.8'
 
 services:
-  openwa:
+  openwa-lab:
     image: ghcr.io/rmyndharis/openwa:0.4.6
     deploy:
       replicas: 1 # MUST stay 1 until session-claim is implemented — multiple replicas on one session volume corrupt WhatsApp auth
@@ -132,7 +132,7 @@ services:
     volumes:
       - sessions:/app/data/sessions
     networks:
-      - openwa-net
+      - openwa-lab-net
     depends_on:
       - postgres
       - redis
@@ -151,7 +151,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     networks:
-      - openwa-net
+      - openwa-lab-net
 
   redis:
     image: redis:7-alpine
@@ -161,11 +161,11 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - openwa-net
+      - openwa-lab-net
 
-  # NOTE (v0.4.0): OpenWA no longer ships a bundled Traefik container.
+  # NOTE (v0.4.0): OpenWA-Lab no longer ships a bundled Traefik container.
   # For TLS / public exposure, bring your own reverse proxy (Traefik, nginx,
-  # Caddy, a cloud load balancer, etc.) and point it at openwa:2785.
+  # Caddy, a cloud load balancer, etc.) and point it at openwa-lab:2785.
   # See section 13.5 for Traefik / nginx config examples.
 
 volumes:
@@ -174,7 +174,7 @@ volumes:
   sessions:
 
 networks:
-  openwa-net:
+  openwa-lab-net:
     driver: overlay
 ```
 
@@ -185,14 +185,14 @@ networks:
 docker swarm init
 
 # Deploy stack
-docker stack deploy -c docker-compose.swarm.yml openwa
+docker stack deploy -c docker-compose.swarm.yml openwa-lab
 
 # Scale up/down
-docker service scale openwa_openwa=5
+docker service scale openwa-lab_openwa-lab=5
 
 # Check status
 docker service ls
-docker service ps openwa_openwa
+docker service ps openwa-lab_openwa-lab
 ```
 
 ## 13.4 Kubernetes Deployment
@@ -203,7 +203,7 @@ docker service ps openwa_openwa
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: openwa
+  name: openwa-lab
 ```
 
 ### k8s/configmap.yaml
@@ -212,8 +212,8 @@ metadata:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: openwa-config
-  namespace: openwa
+  name: openwa-lab-config
+  namespace: openwa-lab
 data:
   NODE_ENV: 'production'
   DATABASE_TYPE: 'postgres'
@@ -232,8 +232,8 @@ data:
 apiVersion: v1
 kind: Secret
 metadata:
-  name: openwa-secrets
-  namespace: openwa
+  name: openwa-lab-secrets
+  namespace: openwa-lab
 type: Opaque
 stringData:
   DATABASE_USER: openwa
@@ -248,30 +248,30 @@ stringData:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: openwa
-  namespace: openwa
+  name: openwa-lab
+  namespace: openwa-lab
 spec:
-  serviceName: openwa
+  serviceName: openwa-lab
   replicas: 1 # MUST stay 1 until session-claim is implemented — see the warning at the top of this guide
   selector:
     matchLabels:
-      app: openwa
+      app: openwa-lab
   template:
     metadata:
       labels:
-        app: openwa
+        app: openwa-lab
     spec:
       containers:
-        - name: openwa
+        - name: openwa-lab
           image: ghcr.io/rmyndharis/openwa:0.4.6
           ports:
             - containerPort: 2785
               name: http
           envFrom:
             - configMapRef:
-                name: openwa-config
+                name: openwa-lab-config
             - secretRef:
-                name: openwa-secrets
+                name: openwa-lab-secrets
           env:
             - name: NODE_ID
               valueFrom:
@@ -315,12 +315,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: openwa-service
-  namespace: openwa
+  name: openwa-lab-service
+  namespace: openwa-lab
 spec:
   type: ClusterIP
   selector:
-    app: openwa
+    app: openwa-lab
   ports:
     - port: 80
       targetPort: 2785
@@ -329,12 +329,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: openwa-headless
-  namespace: openwa
+  name: openwa-lab-headless
+  namespace: openwa-lab
 spec:
   clusterIP: None
   selector:
-    app: openwa
+    app: openwa-lab
   ports:
     - port: 2785
       name: http
@@ -346,11 +346,11 @@ spec:
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: openwa-ingress
-  namespace: openwa
+  name: openwa-lab-ingress
+  namespace: openwa-lab
   annotations:
     nginx.ingress.kubernetes.io/affinity: 'cookie'
-    nginx.ingress.kubernetes.io/session-cookie-name: 'openwa-session'
+    nginx.ingress.kubernetes.io/session-cookie-name: 'openwa-lab-session'
     nginx.ingress.kubernetes.io/session-cookie-max-age: '172800'
 spec:
   ingressClassName: nginx
@@ -362,13 +362,13 @@ spec:
             pathType: Prefix
             backend:
               service:
-                name: openwa-service
+                name: openwa-lab-service
                 port:
                   number: 80
   tls:
     - hosts:
         - openwa.example.com
-      secretName: openwa-tls
+      secretName: openwa-lab-tls
 ```
 
 ### Deploy to Kubernetes
@@ -378,13 +378,13 @@ spec:
 kubectl apply -f k8s/
 
 # Check pods
-kubectl get pods -n openwa
+kubectl get pods -n openwa-lab
 
 # Check logs
-kubectl logs -f deployment/openwa -n openwa
+kubectl logs -f deployment/openwa-lab -n openwa-lab
 
 # Scale
-kubectl scale statefulset openwa --replicas=5 -n openwa
+kubectl scale statefulset openwa-lab --replicas=5 -n openwa-lab
 ```
 
 ## 13.5 Load Balancer Configuration
@@ -395,9 +395,9 @@ kubectl scale statefulset openwa --replicas=5 -n openwa
 # traefik/dynamic-scaling.yml
 http:
   routers:
-    openwa:
+    openwa-lab:
       rule: 'Host(`openwa.example.com`)'
-      service: openwa
+      service: openwa-lab
       middlewares:
         - sticky-session
 
@@ -408,17 +408,17 @@ http:
           X-OpenWA-Node: '{{.Node}}'
 
   services:
-    openwa:
+    openwa-lab:
       loadBalancer:
         sticky:
           cookie:
-            name: openwa_node
+            name: openwa-lab_node
             secure: true
             httpOnly: true
         servers:
-          - url: 'http://openwa-1:2785'
-          - url: 'http://openwa-2:2785'
-          - url: 'http://openwa-3:2785'
+          - url: 'http://openwa-lab-1:2785'
+          - url: 'http://openwa-lab-2:2785'
+          - url: 'http://openwa-lab-3:2785'
         healthCheck:
           path: /api/health
           interval: 10s
@@ -428,12 +428,12 @@ http:
 ### Nginx Upstream Config
 
 ```nginx
-upstream openwa {
+upstream openwa-lab {
     ip_hash;  # Sticky sessions based on client IP
 
-    server openwa-1:2785 weight=1 max_fails=3 fail_timeout=30s;
-    server openwa-2:2785 weight=1 max_fails=3 fail_timeout=30s;
-    server openwa-3:2785 weight=1 max_fails=3 fail_timeout=30s;
+    server openwa-lab-1:2785 weight=1 max_fails=3 fail_timeout=30s;
+    server openwa-lab-2:2785 weight=1 max_fails=3 fail_timeout=30s;
+    server openwa-lab-3:2785 weight=1 max_fails=3 fail_timeout=30s;
 }
 
 server {
@@ -441,7 +441,7 @@ server {
     server_name openwa.example.com;
 
     location / {
-        proxy_pass http://openwa;
+        proxy_pass http://openwa-lab;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
@@ -454,7 +454,7 @@ server {
     }
 
     location /api/health {
-        proxy_pass http://openwa;
+        proxy_pass http://openwa-lab;
         proxy_connect_timeout 5s;
         proxy_read_timeout 5s;
     }

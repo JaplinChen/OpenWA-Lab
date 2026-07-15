@@ -2,7 +2,7 @@
 
 ## 11.1 Overview
 
-This document contains Standard Operating Procedures (SOP) for OpenWA operations, including incident response, maintenance procedures, and troubleshooting guides.
+This document contains Standard Operating Procedures (SOP) for OpenWA-Lab operations, including incident response, maintenance procedures, and troubleshooting guides.
 
 ### Runbook Structure
 
@@ -505,7 +505,7 @@ OPENWA_DATA_DIR=/srv/openwa/data \
   ./scripts/backup.sh
 ```
 
-> The data directory is a Docker **named volume** (`openwa-data`) in the production
+> The data directory is a Docker **named volume** (`openwa-lab-data`) in the production
 > compose. Run the script where that volume is mounted — e.g. point `OPENWA_DATA_DIR`
 > at the volume's mountpoint, or run it inside a container with `/app/data` mounted.
 

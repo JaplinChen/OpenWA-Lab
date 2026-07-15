@@ -101,9 +101,9 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/local/bin/puppeteer-chrome
 COPY --from=build /app/dist ./dist
 
 # Create non-root user
-RUN groupadd -r openwa && useradd -r -g openwa openwa
-RUN chown -R openwa:openwa /app /opt/puppeteer
-USER openwa
+RUN groupadd -r openwa-lab && useradd -r -g openwa-lab openwa-lab
+RUN chown -R openwa-lab:openwa-lab /app /opt/puppeteer
+USER openwa-lab
 
 
 # Expose port
@@ -224,7 +224,7 @@ volumes:
 ```
 
 > [!IMPORTANT]
-> **Keep `replicas: 1`.** OpenWA is a single-process application: live engine state lives in an
+> **Keep `replicas: 1`.** OpenWA-Lab is a single-process application: live engine state lives in an
 > in-memory `Map` in `SessionService` (`src/modules/session/session.service.ts`). Multi-replica is
 > **not** a supported topology — running two replicas against a shared `SESSION_DATA_PATH` makes two
 > browsers write the same WhatsApp LocalAuth directory and **corrupts the session** (forced logout /
@@ -380,7 +380,7 @@ jobs:
 flowchart TB
     subgraph Server["Single Server"]
         NGINX[Nginx Reverse Proxy]
-        NGINX --> APP[OpenWA App]
+        NGINX --> APP[OpenWA-Lab App]
         APP --> PG[(PostgreSQL)]
         APP --> RD[(Redis)]
         APP --> FS[File Storage]
@@ -391,8 +391,8 @@ flowchart TB
 
 ### Multi-Server Deployment
 
-> **Design sketch, not a supported topology.** OpenWA is single-process with in-memory engine state,
-> so the multi-`OpenWA` fan-out below would corrupt WhatsApp auth across replicas. It is retained only
+> **Design sketch, not a supported topology.** OpenWA-Lab is single-process with in-memory engine state,
+> so the multi-`OpenWA-Lab` fan-out below would corrupt WhatsApp auth across replicas. It is retained only
 > as the target architecture once the session-claim design in
 > [13 - Horizontal Scaling Guide](./13-horizontal-scaling.md) is implemented. Deploy with `replicas: 1`.
 
@@ -407,9 +407,9 @@ flowchart TB
     end
     
     subgraph AppServers["Application Servers"]
-        APP1[OpenWA 1]
-        APP2[OpenWA 2]
-        APP3[OpenWA N]
+        APP1[OpenWA-Lab 1]
+        APP2[OpenWA-Lab 2]
+        APP3[OpenWA-Lab N]
     end
     
     subgraph DataLayer["Data Layer"]
@@ -720,7 +720,7 @@ scrape_configs:
 
 ### Alert Rules
 
-These rules use the metric names OpenWA actually exports (`openwa_*`). The memory rule below uses a
+These rules use the metric names OpenWA-Lab actually exports (`openwa_*`). The memory rule below uses a
 node-exporter metric — an **external** exporter, not the app — and is kept as a host-level example.
 
 ```yaml
@@ -735,8 +735,8 @@ groups:
         labels:
           severity: critical
         annotations:
-          summary: "OpenWA service is down"
-          description: "The OpenWA application is not responding"
+          summary: "OpenWA-Lab service is down"
+          description: "The OpenWA-Lab application is not responding"
 
       # Session(s) disconnected
       - alert: SessionDisconnected
@@ -765,10 +765,10 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: "High OpenWA process memory"
+          summary: "High OpenWA-Lab process memory"
           description: "RSS is {{ $value | humanize1024 }}B"
 
-      # Host memory pressure — EXTERNAL (node-exporter), not exported by OpenWA
+      # Host memory pressure — EXTERNAL (node-exporter), not exported by OpenWA-Lab
       - alert: HighHostMemoryUsage
         expr: |
           (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
@@ -871,7 +871,7 @@ export class HealthController {
 
 ### Prometheus Metrics Implementation
 
-The metrics surface is small, so OpenWA emits Prometheus text exposition format (v0.0.4) **by hand** —
+The metrics surface is small, so OpenWA-Lab emits Prometheus text exposition format (v0.0.4) **by hand** —
 there is **no `prom-client` dependency** and **no `collectDefaultMetrics`**. `MetricsService` reads an
 aggregate overview from `StatsService` plus `process.memoryUsage()`, memoizes the rendered text for a
 short TTL (~5s, so back-to-back scrapes don't repeat the DB scan), and exposes it at
@@ -927,9 +927,9 @@ export class MetricsService {
 ### Grafana Dashboard Definition
 
 ```json
-// monitoring/grafana/dashboards/openwa.json — panels use the openwa_* metrics OpenWA exports
+// monitoring/grafana/dashboards/openwa.json — panels use the openwa_* metrics OpenWA-Lab exports
 {
-  "title": "OpenWA Dashboard",
+  "title": "OpenWA-Lab Dashboard",
   "uid": "openwa-main",
   "panels": [
     {
@@ -1055,7 +1055,7 @@ this.logger.log('Message sent', {
 
 ### Key Metrics to Monitor
 
-These are the metrics OpenWA actually exports at `GET /api/metrics`:
+These are the metrics OpenWA-Lab actually exports at `GET /api/metrics`:
 
 | Category | Metric | Description | Alert Idea |
 |----------|--------|-------------|------------|
@@ -1070,7 +1070,7 @@ These are the metrics OpenWA actually exports at `GET /api/metrics`:
 | **System** | `openwa_process_heap_used_bytes` | V8 heap used | Growth |
 | **System** | `openwa_process_uptime_seconds` | Process uptime | Frequent restarts (resets) |
 
-> OpenWA does **not** expose request-rate, latency-histogram, webhook, queue, or Node default
+> OpenWA-Lab does **not** expose request-rate, latency-histogram, webhook, queue, or Node default
 > (`nodejs_*`) metrics. For host/container-level signals (CPU, memory pressure, event-loop), scrape
 > external exporters: `up` and `container_memory_usage_bytes` come from blackbox/cAdvisor, and
 > `node_*` from node-exporter — not from the app.
@@ -1156,7 +1156,7 @@ echo "Restore completed"
 
 ### Vertical Scaling
 
-OpenWA scales **vertically** — add CPU/RAM to a single instance. The table below is **unbenchmarked
+OpenWA-Lab scales **vertically** — add CPU/RAM to a single instance. The table below is **unbenchmarked
 starting guidance**, not measured figures; actual usage depends heavily on engine choice
 (whatsapp-web.js spawns a Chromium per session; Baileys is far lighter), message volume, and media.
 Size up from your own monitoring.
@@ -1170,7 +1170,7 @@ Size up from your own monitoring.
 
 ### Horizontal Scaling
 
-**Not currently supported.** OpenWA is a single-process application with in-memory engine state, so
+**Not currently supported.** OpenWA-Lab is a single-process application with in-memory engine state, so
 multiple replicas against a shared session volume corrupt WhatsApp auth. Run exactly **one** API
 instance per session-data volume (`replicas: 1`). The DB-backed session registry / node-claim design
 that would be required to scale out is documented — as a future design sketch, not a shipped feature —

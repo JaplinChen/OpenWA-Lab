@@ -1,6 +1,6 @@
 # Security Policy
 
-OpenWA is a self-hosted WhatsApp API gateway. It handles API-key authentication,
+OpenWA-Lab is a self-hosted WhatsApp API gateway. It handles API-key authentication,
 WhatsApp session credentials, message data, and — optionally — access to the Docker
 socket. Security matters here, and we appreciate responsible disclosure.
 
@@ -20,7 +20,7 @@ Security fixes land on the latest minor release. Please upgrade older deployment
 Report it privately through either channel:
 
 - **GitHub Security Advisories** (preferred) — open a private report at
-  <https://github.com/rmyndharis/OpenWA/security/advisories/new>
+  <https://github.com/JaplinChen/OpenWA-Lab/security/advisories/new>
 - **Email** — yudhi@rmyndharis.com
 
 Please include, where possible:
@@ -37,13 +37,13 @@ Please include, where possible:
 
 ## Hardening notes for operators
 
-OpenWA already ships several hardening measures: API-key auth with roles
+OpenWA-Lab already ships several hardening measures: API-key auth with roles
 (ADMIN / OPERATOR / VIEWER), optional outbound webhook SSRF protection, a production
 CORS policy (wildcard origins refused in production), request body-size limits, a
 least-privilege Docker socket-proxy with a non-root container, and path-containment
 checks on storage import/export.
 
-When exposing OpenWA, please review the security-relevant configuration documented in
+When exposing OpenWA-Lab, please review the security-relevant configuration documented in
 the README and `docs/` — in particular `CORS_ORIGINS`, `ALLOW_DEV_API_KEY`,
 `ENABLE_SWAGGER`, `WEBHOOK_SSRF_PROTECT`, `BODY_SIZE_LIMIT`, and the Docker proxy setup.
 Never expose the dashboard/API to the public internet with the development API key

@@ -1,6 +1,6 @@
 # rmyndharis-openwa
 
-Official Python SDK for the [OpenWA](https://github.com/rmyndharis/OpenWA) WhatsApp API Gateway.
+Official Python SDK for the [OpenWA-Lab](https://github.com/JaplinChen/OpenWA-Lab) WhatsApp API Gateway.
 
 A synchronous client built on [httpx](https://www.python-httpx.org/), with bundled type hints (PEP 561).
 
@@ -26,7 +26,7 @@ client.sessions.start("my-session")
 
 result = client.messages.send_text("my-session", {
     "chatId": "628123456789@c.us",
-    "text": "Hello from the OpenWA Python SDK!",
+    "text": "Hello from the OpenWA-Lab Python SDK!",
 })
 print(result["messageId"])
 ```

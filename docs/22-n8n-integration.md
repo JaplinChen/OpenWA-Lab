@@ -2,7 +2,7 @@
 
 ## Overview
 
-OpenWA provides official n8n community nodes for integrating WhatsApp automation into n8n workflows. This enables users to build powerful automations combining WhatsApp messaging with hundreds of other services available in n8n.
+OpenWA-Lab provides official n8n community nodes for integrating WhatsApp automation into n8n workflows. This enables users to build powerful automations combining WhatsApp messaging with hundreds of other services available in n8n.
 
 **Repository:** https://github.com/rmyndharis/OpenWA-n8n
 **npm Package:** `@rmyndharis/n8n-nodes-openwa`
@@ -11,14 +11,14 @@ OpenWA provides official n8n community nodes for integrating WhatsApp automation
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   n8n Workflow  │────▶│  OpenWA Node    │────▶│  OpenWA API     │
+│   n8n Workflow  │────▶│  OpenWA Node    │────▶│  OpenWA-Lab API │
 │                 │     │  (credentials)  │     │  (your server)  │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
                                                         │
                                                         ▼
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
 │   n8n Workflow  │◀────│ OpenWA Trigger  │◀────│  Webhook POST   │
-│   (triggered)   │     │  (listens)      │     │  from OpenWA    │
+│   (triggered)   │     │  (listens)      │     │  from OpenWA-Lab│
 └─────────────────┘     └─────────────────┘     └─────────────────┘
 ```
 
@@ -43,14 +43,14 @@ npm install @rmyndharis/n8n-nodes-openwa
 
 ### OpenWA Node
 
-Execute operations on your OpenWA server.
+Execute operations on your OpenWA-Lab server.
 
 #### Credentials Setup
 
 | Field      | Description                      | Example                  |
 | ---------- | -------------------------------- | ------------------------ |
-| Server URL | OpenWA server URL (without /api) | `https://wa.example.com` |
-| API Key    | API key from OpenWA dashboard    | `owa_xxxxxxxx...`        |
+| Server URL | OpenWA-Lab server URL (without /api) | `https://wa.example.com` |
+| API Key    | API key from OpenWA-Lab dashboard    | `owa_xxxxxxxx...`        |
 
 #### Resources & Operations
 
@@ -92,8 +92,8 @@ Start workflows when WhatsApp events occur.
 
 #### How It Works
 
-1. When workflow is activated, the trigger creates a webhook in OpenWA
-2. OpenWA sends events to n8n's webhook URL
+1. When workflow is activated, the trigger creates a webhook in OpenWA-Lab
+2. OpenWA-Lab sends events to n8n's webhook URL
 3. When workflow is deactivated, the webhook is automatically deleted
 
 #### Output Data Format
@@ -247,15 +247,15 @@ Always use the correct format for chat IDs:
 
 ### Credential Test Failed
 
-1. Verify OpenWA server is running
+1. Verify OpenWA-Lab server is running
 2. Check API key is correct
 3. Ensure server URL doesn't have trailing slash
-4. Verify network connectivity between n8n and OpenWA
+4. Verify network connectivity between n8n and OpenWA-Lab
 
 ### Trigger Not Receiving Events
 
-1. Check webhook was created in OpenWA dashboard
-2. Verify n8n webhook URL is accessible from OpenWA server
+1. Check webhook was created in OpenWA-Lab dashboard
+2. Verify n8n webhook URL is accessible from OpenWA-Lab server
 3. Check firewall/proxy settings
 4. Ensure session is connected and active
 
@@ -305,7 +305,7 @@ docker run -it --rm \
 
 ## Related Documentation
 
-- [OpenWA API Specification](./06-api-specification.md)
+- [OpenWA-Lab API Specification](./06-api-specification.md)
 - [Webhook System](./03-system-architecture.md#webhooks)
 - [n8n Appointment Booking Workflow](./examples/n8n-appointment-booking.md)
 - [n8n Documentation](https://docs.n8n.io/)
