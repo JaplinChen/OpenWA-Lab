@@ -79,6 +79,7 @@
     "plugins": "Plugins",
     "logs": "Journaux",
     "translate": "Groupes de traduction",
+    "glossary": "Glossaire",
     "settings": "Paramètres"
   },
   "chats": {

@@ -77,7 +77,10 @@
     "messageTester": "메시지 테스터",
     "infrastructure": "인프라",
     "plugins": "플러그인",
-    "logs": "로그"
+    "logs": "로그",
+    "translate": "번역 그룹",
+    "glossary": "용어집",
+    "settings": "설정"
   },
   "chats": {
     "media": {
