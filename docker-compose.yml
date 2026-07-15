@@ -45,6 +45,8 @@ services:
     networks:
       - openwa-lab-network
       - internal-docker
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
     # Container hardening: Chromium runs with --no-sandbox, so the
     # container itself is the confinement boundary. cap_drop ALL + a minimal re-add
     # ONLY for the root entrypoint's chown + gosu privilege-drop; once gosu setuids to
@@ -155,6 +157,7 @@ services:
       - REDIS_HOST=${REDIS_HOST:-}
       - REDIS_PORT=${REDIS_PORT:-}
       # Webhook
+      - SSRF_ALLOWED_HOSTS=${SSRF_ALLOWED_HOSTS:-}
       - WEBHOOK_TIMEOUT=${WEBHOOK_TIMEOUT:-10000}
       - WEBHOOK_MAX_RETRIES=${WEBHOOK_MAX_RETRIES:-3}
       - WEBHOOK_RETRY_DELAY=${WEBHOOK_RETRY_DELAY:-5000}
