@@ -141,7 +141,7 @@
 }
 
 .message-tester .response-status.success{
-  background: rgba(37, 211, 102, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
 }
 

@@ -80,7 +80,7 @@
 }
 
 .api-keys-page .keys-table tbody tr.table-row:hover{
-  background: rgba(37, 211, 102, 0.05);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 
 .api-keys-page .keys-table tbody tr.table-row:nth-child(even){
@@ -88,7 +88,7 @@
 }
 
 .api-keys-page .keys-table tbody tr.table-row:nth-child(even):hover{
-  background: rgba(37, 211, 102, 0.05);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 
 .api-keys-page .name-cell{
@@ -144,7 +144,7 @@
 }
 
 .api-keys-page .permission-badge:first-child:last-child{
-  background: rgba(37, 211, 102, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--primary);
 }
 
@@ -214,7 +214,7 @@
 .api-keys-page .perm-item code{
   font-size: 0.8125rem;
   color: var(--primary);
-  background: rgba(37, 211, 102, 0.1);
+  background: color-mix(in srgb, var(--primary) 10%, transparent);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;
   width: fit-content;
@@ -408,7 +408,7 @@
   }
 
   .api-keys-page .status-badge.active{
-    background: rgba(37, 211, 102, 0.1);
+    background: color-mix(in srgb, var(--primary) 10%, transparent);
     color: var(--primary);
   }
 

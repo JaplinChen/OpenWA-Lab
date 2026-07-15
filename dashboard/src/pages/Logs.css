@@ -127,7 +127,7 @@
 }
 
 .logs-page .logs-table .table-row:not(.header):hover{
-  background: rgba(37, 211, 102, 0.05);
+  background: color-mix(in srgb, var(--primary) 5%, transparent);
 }
 
 .logs-page .timestamp{

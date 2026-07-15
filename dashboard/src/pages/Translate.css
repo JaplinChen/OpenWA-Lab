@@ -197,7 +197,7 @@
 
 .translate-group-item.selected{
   border-color: var(--primary);
-  background: rgba(37, 211, 102, 0.08);
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
 }
 
 .translate-group-item input[type='checkbox']{
@@ -302,8 +302,8 @@
 }
 
 .translate-page .toast.success{
-  background: rgba(37, 211, 102, 0.12);
-  border: 1px solid rgba(37, 211, 102, 0.3);
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
   color: var(--success);
 }
 
