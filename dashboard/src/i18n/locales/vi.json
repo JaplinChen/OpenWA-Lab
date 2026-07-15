@@ -147,7 +147,7 @@
     "connectionError": "Không thể kết nối tới máy chủ. Vui lòng thử lại.",
     "help": "Cần trợ giúp?",
     "viewDocs": "Xem tài liệu",
-    "footer": "Được tạo với ❤️ bởi Yudhi Armyndharis và OpenWA Community",
+    "footer": "Được tạo với ❤️ bởi Yudhi Armyndharis và OpenWA-Lab Community",
     "version": "v{{version}} · {{date}}"
   },
   "dashboard": {
@@ -590,7 +590,7 @@
       "postgres": "PostgreSQL",
       "postgresDesc": "Cơ sở dữ liệu sẵn sàng cho production",
       "useBuiltIn": "Dùng container PostgreSQL tích hợp",
-      "builtInDesc": "OpenWA sẽ quản lý một container PostgreSQL cho bạn",
+      "builtInDesc": "OpenWA-Lab sẽ quản lý một container PostgreSQL cho bạn",
       "dbName": "Tên cơ sở dữ liệu",
       "schema": "Schema",
       "schemaDesc": "Schema PostgreSQL (bỏ qua đối với SQLite). Mặc định 'public'. Schema phải tồn tại sẵn.",
@@ -626,7 +626,7 @@
       "enable": "Bật Redis",
       "enableDesc": "Bắt buộc cho bộ nhớ đệm, lưu trữ phiên và hàng đợi BullMQ",
       "useBuiltIn": "Dùng container Redis tích hợp",
-      "builtInDesc": "OpenWA sẽ quản lý một container Redis cho bạn",
+      "builtInDesc": "OpenWA-Lab sẽ quản lý một container Redis cho bạn",
       "queueTitle": "Bật hệ thống hàng đợi BullMQ",
       "queueDesc": "Dùng hàng đợi tin nhắn để gửi tin nhắn và webhook đáng tin cậy",
       "statsTitle": "Thống kê hàng đợi",
@@ -649,7 +649,7 @@
       "s3": "Amazon S3",
       "s3Desc": "Lưu trữ đám mây (tương thích S3)",
       "useBuiltIn": "Dùng container MinIO tích hợp",
-      "builtInDesc": "OpenWA sẽ quản lý một container MinIO (tương thích S3) cho bạn",
+      "builtInDesc": "OpenWA-Lab sẽ quản lý một container MinIO (tương thích S3) cho bạn",
       "storagePath": "Đường dẫn lưu trữ",
       "bucket": "Tên Bucket",
       "region": "Region",
@@ -677,7 +677,7 @@
       "importFailed": "Không thể nhập dữ liệu",
       "importOk": "Đã nhập dữ liệu",
       "importConfirm": "Việc nhập sẽ THAY THẾ toàn bộ dữ liệu hiện tại bằng bản sao lưu ({{rows}} hàng). Điều này không thể hoàn tác. Tiếp tục?",
-      "invalidFile": "Tệp đó không phải là bản sao lưu dữ liệu OpenWA hợp lệ.",
+      "invalidFile": "Tệp đó không phải là bản sao lưu dữ liệu OpenWA-Lab hợp lệ.",
       "importTooLarge": "Bản sao lưu quá lớn so với giới hạn yêu cầu. Tăng BODY_SIZE_LIMIT trên máy chủ và thử lại."
     },
     "restart": {
@@ -724,7 +724,7 @@
     "engineSwitchHint": "Để chuyển đổi engine đang hoạt động, hãy đặt ENGINE_TYPE trong môi trường và khởi động lại máy chủ",
     "empty": {
       "title": "Chưa cài đặt plugin nào",
-      "description": "Cài đặt một plugin để mở rộng những gì OpenWA có thể làm."
+      "description": "Cài đặt một plugin để mở rộng những gì OpenWA-Lab có thể làm."
     },
     "config": {
       "title": "Cấu hình {{name}}",

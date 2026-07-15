@@ -147,7 +147,7 @@
     "connectionError": "Impossible de se connecter au serveur. Veuillez réessayer.",
     "help": "Besoin d'aide ?",
     "viewDocs": "Voir la documentation",
-    "footer": "Fait avec ❤️ par Yudhi Armyndharis et la communauté OpenWA",
+    "footer": "Fait avec ❤️ par Yudhi Armyndharis et la communauté OpenWA-Lab",
     "version": "v{{version}} · {{date}}"
   },
   "dashboard": {
@@ -590,7 +590,7 @@
       "postgres": "PostgreSQL",
       "postgresDesc": "Base de données prête pour la production",
       "useBuiltIn": "Utiliser le conteneur PostgreSQL intégré",
-      "builtInDesc": "OpenWA gérera un conteneur PostgreSQL pour vous",
+      "builtInDesc": "OpenWA-Lab gérera un conteneur PostgreSQL pour vous",
       "dbName": "Nom de la base de données",
       "schema": "Schéma",
       "schemaDesc": "Schéma PostgreSQL (ignoré pour SQLite). Par défaut 'public'. Le schéma doit déjà exister.",
@@ -626,7 +626,7 @@
       "enable": "Activer Redis",
       "enableDesc": "Requis pour le cache, le stockage des sessions et les files d'attente BullMQ",
       "useBuiltIn": "Utiliser le conteneur Redis intégré",
-      "builtInDesc": "OpenWA gérera un conteneur Redis pour vous",
+      "builtInDesc": "OpenWA-Lab gérera un conteneur Redis pour vous",
       "queueTitle": "Activer le système de file d'attente BullMQ",
       "queueDesc": "Utiliser des files d'attente pour une livraison fiable des messages et des webhooks",
       "statsTitle": "Statistiques de la file d'attente",
@@ -648,7 +648,7 @@
       "s3": "Amazon S3",
       "s3Desc": "Stockage cloud (compatible S3)",
       "useBuiltIn": "Utiliser le conteneur MinIO intégré",
-      "builtInDesc": "OpenWA gérera un conteneur MinIO (compatible S3) pour vous",
+      "builtInDesc": "OpenWA-Lab gérera un conteneur MinIO (compatible S3) pour vous",
       "storagePath": "Chemin de stockage",
       "bucket": "Nom du bucket",
       "region": "Région",
@@ -696,7 +696,7 @@
       "importFailed": "Impossible d'importer les données",
       "importOk": "Données importées",
       "importConfirm": "L'importation REMPLACERA toutes les données actuelles par la sauvegarde ({{rows}} lignes). Cette action est irréversible. Continuer ?",
-      "invalidFile": "Ce fichier n'est pas une sauvegarde de données OpenWA valide.",
+      "invalidFile": "Ce fichier n'est pas une sauvegarde de données OpenWA-Lab valide.",
       "importTooLarge": "La sauvegarde dépasse la limite de la requête. Augmentez BODY_SIZE_LIMIT sur le serveur, puis réessayez."
     },
     "statusLoadError": "Impossible de charger l'état actuel de l'infrastructure. Actualisez pour réessayer."
@@ -724,7 +724,7 @@
     "engineSwitchHint": "Définissez-le comme moteur actif dans les Paramètres, puis redémarrez",
     "empty": {
       "title": "Aucun plugin trouvé",
-      "description": "Installez des plugins pour étendre les fonctionnalités d'OpenWA"
+      "description": "Installez des plugins pour étendre les fonctionnalités d'OpenWA-Lab"
     },
     "config": {
       "title": "Configurer {{name}}",
