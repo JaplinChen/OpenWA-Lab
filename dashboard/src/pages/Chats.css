@@ -75,6 +75,21 @@
   border-radius: var(--radius, 8px);
 }
 
+.chats-page .chat-translate-filter{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #9aa0a6);
+  cursor: pointer;
+  user-select: none;
+}
+
+.chats-page .chat-translate-filter input{
+  cursor: pointer;
+}
+
 .chats-page .chat-search-input svg{
   color: var(--text-muted);
   flex-shrink: 0;
@@ -268,6 +283,29 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  position: relative;
+}
+
+.chats-page .scroll-to-bottom-btn{
+  position: absolute;
+  right: 1.25rem;
+  bottom: 5.5rem;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-white);
+  color: var(--text-secondary, #9aa0a6);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+}
+
+.chats-page .scroll-to-bottom-btn:hover{
+  color: var(--text-primary, #e8eaed);
 }
 
 .chats-page .room-header{
