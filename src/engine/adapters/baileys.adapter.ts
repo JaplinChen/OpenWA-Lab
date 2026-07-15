@@ -36,13 +36,20 @@ import {
   ChatSummary,
   StatusPostOptions,
 } from '../interfaces/whatsapp-engine.interface';
-import { loadRemoteMediaBuffer } from '../../common/media/load-remote-media';
 import { EngineNotReadyError } from '../../common/errors/engine-not-ready.error';
 import { EngineNotSupportedError } from '../../common/errors/engine-not-supported.error';
 import { MessageNotFoundError } from '../../common/errors/message-not-found.error';
 import { ChannelNotFoundError } from '../../common/errors/channel-not-found.error';
 import { createLogger } from '../../common/services/logger.service';
-import { BaileysAdapterConfig, BaileysLogger } from '../types/baileys.types';
+import { BaileysAdapterConfig } from '../types/baileys.types';
+import { BAILEYS_BROWSER, createBaileysLogger, createSilentLogger } from './baileys-logger';
+import {
+  extractMentionedJids,
+  toUnixSeconds,
+  extractPhone,
+  resolveMediaBuffer,
+  toStatusResult,
+} from './baileys-adapter.helpers';
 import { BaileysSessionStore } from './baileys-session-store';
 import { buildVCard } from './vcard';
 import {
@@ -55,63 +62,6 @@ import {
   withInboundDownloadTimeout,
 } from './inbound-media-cap';
 import { ConcurrencyLimiter } from '../../common/utils/concurrency-limiter';
-
-/** Linked-device identity shown in WhatsApp (Settings → Linked Devices). */
-const BAILEYS_BROWSER: [string, string, string] = ['OpenWA', 'Chrome', '120.0.0'];
-
-/** Fully silent logger so Baileys does not spam stdout; diagnostics flow via connection.update. */
-function createSilentLogger(): BaileysLogger {
-  const noop = (): void => {};
-  const logger: BaileysLogger = {
-    level: 'silent',
-    child: () => logger,
-    trace: noop,
-    debug: noop,
-    info: noop,
-    warn: noop,
-    error: noop,
-  };
-  return logger;
-}
-
-const BAILEYS_LOG_LEVELS = ['trace', 'debug', 'info', 'warn', 'error'];
-
-/**
- * Baileys logger, silent by default. Set `BAILEYS_LOG_LEVEL` (trace|debug|info|warn|error) to surface
- * Baileys' own diagnostics - the history/app-state sync decision flow ("awaiting notification", "App
- * state sync complete", MAC errors) at debug/info, and the raw decoded WA wire frames at trace. Emits
- * JSON lines to stdout (context "baileys-wire") independent of the app log level, so a run can be
- * captured with `BAILEYS_LOG_LEVEL=trace node dist/main > baileys-wire.log`.
- */
-function createBaileysLogger(): BaileysLogger {
-  const configured = (process.env.BAILEYS_LOG_LEVEL ?? 'silent').toLowerCase();
-  if (!BAILEYS_LOG_LEVELS.includes(configured)) {
-    return createSilentLogger();
-  }
-  const threshold = BAILEYS_LOG_LEVELS.indexOf(configured);
-  const write =
-    (lvl: string) =>
-    (obj: unknown, msg?: string): void => {
-      if (BAILEYS_LOG_LEVELS.indexOf(lvl) < threshold) {
-        return;
-      }
-      const rec =
-        typeof obj === 'string' ? { msg: obj } : { ...(obj as Record<string, unknown>), ...(msg ? { msg } : {}) };
-      process.stdout.write(
-        JSON.stringify({ ts: new Date().toISOString(), level: lvl, context: 'baileys-wire', ...rec }) + '\n',
-      );
-    };
-  const logger: BaileysLogger = {
-    level: configured,
-    child: () => logger,
-    trace: write('trace'),
-    debug: write('debug'),
-    info: write('info'),
-    warn: write('warn'),
-    error: write('error'),
-  };
-  return logger;
-}
 
 export class BaileysAdapter implements IWhatsAppEngine {
   private static readonly MAX_RECONNECT_ATTEMPTS = 5;
@@ -335,7 +285,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
     if (connection === 'open') {
       this.qrCode = null;
-      this.phoneNumber = this.extractPhone(this.sock?.user?.id);
+      this.phoneNumber = extractPhone(this.sock?.user?.id);
       this.pushName = this.sock?.user?.name ?? null;
       // I4: reset the reconnect counter on a successful connection.
       this.reconnectAttempts = 0;
@@ -524,7 +474,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     }
     return {
       id: sent?.key?.id ?? '',
-      timestamp: this.toUnixSeconds(sent?.messageTimestamp),
+      timestamp: toUnixSeconds(sent?.messageTimestamp),
     };
   }
 
@@ -557,7 +507,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendImageMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
-    const { data, mimetype } = await this.resolveMediaBuffer(media);
+    const { data, mimetype } = await resolveMediaBuffer(media);
     return this.sendContent(chatId, {
       image: data,
       caption: media.caption,
@@ -568,7 +518,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendVideoMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
-    const { data, mimetype } = await this.resolveMediaBuffer(media);
+    const { data, mimetype } = await resolveMediaBuffer(media);
     return this.sendContent(chatId, {
       video: data,
       caption: media.caption,
@@ -579,13 +529,13 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendAudioMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
-    const { data, mimetype } = await this.resolveMediaBuffer(media);
+    const { data, mimetype } = await resolveMediaBuffer(media);
     return this.sendContent(chatId, { audio: data, mimetype, ptt: media.ptt ?? false });
   }
 
   async sendDocumentMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
-    const { data, mimetype } = await this.resolveMediaBuffer(media);
+    const { data, mimetype } = await resolveMediaBuffer(media);
     return this.sendContent(chatId, {
       document: data,
       mimetype,
@@ -597,7 +547,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendStickerMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
-    const { data } = await this.resolveMediaBuffer(media);
+    const { data } = await resolveMediaBuffer(media);
     return this.sendContent(chatId, { sticker: data });
   }
 
@@ -665,7 +615,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
         deleteForMe: {
           deleteMedia: true,
           key: target.key,
-          timestamp: this.toUnixSeconds(target.messageTimestamp),
+          timestamp: toUnixSeconds(target.messageTimestamp),
         },
       },
       chatId,
@@ -958,7 +908,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     options: StatusPostOptions,
   ): Promise<StatusResult> {
     this.ensureReady();
-    const { data, mimetype } = await this.resolveMediaBuffer(media);
+    const { data, mimetype } = await resolveMediaBuffer(media);
     const content: AnyMessageContent =
       kind === 'image'
         ? { image: data, caption: options.caption, mimetype }
@@ -1021,7 +971,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
         // `type !== 'notify'` filter silently drops that message (observed as "the first message
         // after a reconnect gets ignored"). A message sent AFTER this connection opened is live
         // regardless of which tag the batch carries; true backfill always predates it.
-        if (this.toUnixSeconds(msg.messageTimestamp) < this.connectedAt) {
+        if (toUnixSeconds(msg.messageTimestamp) < this.connectedAt) {
           continue;
         }
       }
@@ -1097,7 +1047,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
             to: this.sessionStore.toNeutralJid(to),
             type: 'revoked',
             body: '',
-            timestamp: this.toUnixSeconds(msg.messageTimestamp),
+            timestamp: toUnixSeconds(msg.messageTimestamp),
           };
           this.callbacks.onMessageRevoked?.(revoked);
           return;
@@ -1362,7 +1312,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
         body,
         contentType,
         isPtt: normalized.audioMessage?.ptt === true,
-        timestamp: this.toUnixSeconds(msg.messageTimestamp),
+        timestamp: toUnixSeconds(msg.messageTimestamp),
         pushName: msg.pushName ?? undefined,
         selfJid: this.normalizedSelfJid(),
         media,
@@ -1491,7 +1441,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       return null;
     }
     const body = extractBaileysBody(content);
-    const mentionedJids = this.extractMentionedJids(content);
+    const mentionedJids = extractMentionedJids(content);
     const incoming = buildIncomingMessageFromBaileys(
       {
         id: msg.key.id,
@@ -1501,7 +1451,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
         body,
         contentType,
         isPtt: content.audioMessage?.ptt === true,
-        timestamp: this.toUnixSeconds(msg.messageTimestamp),
+        timestamp: toUnixSeconds(msg.messageTimestamp),
         pushName: msg.pushName ?? undefined,
         selfJid: this.normalizedSelfJid(),
         // Populate the disappearing-messages timer using the same extraction the live path and the
@@ -1516,42 +1466,9 @@ export class BaileysAdapter implements IWhatsAppEngine {
     return incoming;
   }
 
-  /** Read `contextInfo.mentionedJid` off any content sub-type (normalized content). */
-  private extractMentionedJids(content: WAMessage['message']): string[] | undefined {
-    const sub =
-      content?.extendedTextMessage ??
-      content?.imageMessage ??
-      content?.videoMessage ??
-      content?.documentMessage;
-    const jids = (sub as { contextInfo?: { mentionedJid?: string[] | null } } | undefined)?.contextInfo
-      ?.mentionedJid;
-    return jids && jids.length > 0 ? jids : undefined;
-  }
-
   private normalizedSelfJid(): string {
-    const phone = this.extractPhone(this.sock?.user?.id);
+    const phone = extractPhone(this.sock?.user?.id);
     return phone ? `${phone}@s.whatsapp.net` : '';
-  }
-
-  /** Baileys timestamps are `number | Long`; normalize to unix seconds. */
-  private toUnixSeconds(ts: number | { toNumber(): number } | null | undefined): number {
-    if (ts == null) {
-      return Math.floor(Date.now() / 1000);
-    }
-    return typeof ts === 'number' ? ts : ts.toNumber();
-  }
-
-  /** Resolve a MediaInput's data (Buffer | base64 string | http(s) URL) to bytes + mimetype. */
-  private async resolveMediaBuffer(media: MediaInput): Promise<{ data: Buffer; mimetype: string }> {
-    if (Buffer.isBuffer(media.data)) {
-      return { data: media.data, mimetype: media.mimetype };
-    }
-    if (/^https?:\/\//i.test(media.data)) {
-      const fetched = await loadRemoteMediaBuffer(media.data);
-      // Caller's declared mimetype wins; fall back to the response content-type.
-      return { data: fetched.data, mimetype: media.mimetype || fetched.mimetype };
-    }
-    return { data: Buffer.from(media.data, 'base64'), mimetype: media.mimetype };
   }
 
   /** Build a minimal WhatsApp-compatible vCard from a neutral contact card. */
@@ -1617,7 +1534,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       // best-effort and off the response path, with no media re-download (matching the wwjs payload).
       void this.emitOwnSendEcho(sent);
     }
-    return { id: sent?.key?.id ?? '', timestamp: this.toUnixSeconds(sent?.messageTimestamp) };
+    return { id: sent?.key?.id ?? '', timestamp: toUnixSeconds(sent?.messageTimestamp) };
   }
 
   /**
@@ -1666,17 +1583,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       backgroundColor: options.backgroundColor,
       font: options.font,
     });
-    return this.toStatusResult(sent);
-  }
-
-  /** Shape a Baileys send result into a StatusResult; expiresAt is timestamp + 24h (WhatsApp status TTL). */
-  private toStatusResult(sent: WAMessage | undefined): StatusResult {
-    const ts = sent?.messageTimestamp ? new Date(this.toUnixSeconds(sent.messageTimestamp) * 1000) : new Date();
-    return {
-      statusId: sent?.key?.id ?? '',
-      timestamp: ts,
-      expiresAt: new Date(ts.getTime() + 24 * 3_600_000),
-    };
+    return toStatusResult(sent);
   }
 
   private unsupported(method: string): Promise<any> {
@@ -1695,13 +1602,5 @@ export class BaileysAdapter implements IWhatsAppEngine {
     }
     this.status = status;
     this.callbacks.onStateChanged?.(status);
-  }
-
-  /** `628999:12@s.whatsapp.net` / `628999@s.whatsapp.net` -> `628999`. */
-  private extractPhone(id: string | undefined): string | null {
-    if (!id) {
-      return null;
-    }
-    return id.split(':')[0].split('@')[0] || null;
   }
 }
