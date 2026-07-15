@@ -16,6 +16,7 @@ const Sessions = lazy(() => import('./pages/Sessions').then(m => ({ default: m.S
 const Chats = lazy(() => import('./pages/Chats').then(m => ({ default: m.Chats })));
 const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
 const Translate = lazy(() => import('./pages/Translate').then(m => ({ default: m.Translate })));
+const Glossary = lazy(() => import('./pages/Glossary').then(m => ({ default: m.Glossary })));
 const Templates = lazy(() => import('./pages/Templates').then(m => ({ default: m.Templates })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
 const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
@@ -114,6 +115,7 @@ function AppContent() {
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="templates" element={<Templates />} />
               <Route path="translate" element={<Translate />} />
+              <Route path="glossary" element={<Glossary />} />
               <Route path="message-tester" element={<MessageTester />} />
               {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
               {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
@@ -124,6 +126,7 @@ function AppContent() {
             <Route path="webhooks" element={<Navigate to="/settings/webhooks" replace />} />
             <Route path="templates" element={<Navigate to="/settings/templates" replace />} />
             <Route path="translate" element={<Navigate to="/settings/translate" replace />} />
+            <Route path="glossary" element={<Navigate to="/settings/glossary" replace />} />
             <Route path="message-tester" element={<Navigate to="/settings/message-tester" replace />} />
             <Route path="api-keys" element={<Navigate to="/settings/api-keys" replace />} />
             <Route path="infrastructure" element={<Navigate to="/settings/infrastructure" replace />} />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, X, Search, Languages, Plus, Trash2 } from 'lucide-react';
-import { translateApi, type TranslateConfig, type GlossaryTerm } from '../services/api';
+import { Loader2, Save, Check, AlertTriangle, X, Search, Languages } from 'lucide-react';
+import { translateApi, type TranslateConfig } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
@@ -29,12 +29,6 @@ export function Translate() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   const { data: groups = [], isLoading: loadingGroups } = useSessionGroupsQuery(sessionId, !!sessionId);
-
-  const [glossary, setGlossary] = useState<GlossaryTerm[]>([]);
-  const [glossarySrc, setGlossarySrc] = useState('');
-  const [glossaryTgt, setGlossaryTgt] = useState('');
-  const [glossaryFilter, setGlossaryFilter] = useState('');
-  const [glossaryBusy, setGlossaryBusy] = useState(false);
 
   // Load config on mount.
   useEffect(() => {
@@ -75,59 +69,6 @@ export function Translate() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
-
-  useEffect(() => {
-    translateApi
-      .getGlossary()
-      .then(setGlossary)
-      .catch(() => {});
-  }, []);
-
-  const filteredGlossary = useMemo(() => {
-    const q = glossaryFilter.trim().toLowerCase();
-    if (!q) return glossary;
-    return glossary.filter(g => `${g.source}\n${g.target}`.toLowerCase().includes(q));
-  }, [glossary, glossaryFilter]);
-
-  const addGlossaryTerm = async () => {
-    const zh = glossarySrc.trim();
-    const vi = glossaryTgt.trim();
-    if (!zh || !vi) return;
-    setGlossaryBusy(true);
-    try {
-      setGlossary(await translateApi.addGlossaryTerm(zh, vi));
-      setGlossarySrc('');
-      setGlossaryTgt('');
-      setToast({ type: 'success', message: t('translate.glossary.added', { defaultValue: 'Term added' }) });
-    } catch (err) {
-      setToast({
-        type: 'error',
-        message: t('translate.glossary.saveFailed', {
-          defaultValue: 'Failed: {{message}}',
-          message: err instanceof Error ? err.message : 'unknown',
-        }),
-      });
-    } finally {
-      setGlossaryBusy(false);
-    }
-  };
-
-  const removeGlossaryTerm = async (term: string) => {
-    setGlossaryBusy(true);
-    try {
-      setGlossary(await translateApi.removeGlossaryTerm(term));
-    } catch (err) {
-      setToast({
-        type: 'error',
-        message: t('translate.glossary.saveFailed', {
-          defaultValue: 'Failed: {{message}}',
-          message: err instanceof Error ? err.message : 'unknown',
-        }),
-      });
-    } finally {
-      setGlossaryBusy(false);
-    }
-  };
 
   const filteredGroups = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -313,85 +254,6 @@ export function Translate() {
                   </label>
                 );
               })
-            )}
-          </div>
-        </section>
-
-        <section className="translate-panel translate-glossary-panel">
-          <div className="translate-groups-head">
-            <h3 className="translate-panel-title">
-              {t('translate.glossary.title', { defaultValue: 'Glossary (中文 ⇄ Tiếng Việt)' })}
-              <span className="translate-selected-count">{glossary.length}</span>
-            </h3>
-          </div>
-          <p className="translate-glossary-hint">
-            {t('translate.glossary.hint', {
-              defaultValue: 'Terms are forced into every translation of the selected groups.',
-            })}
-          </p>
-
-          {canWrite && (
-            <div className="translate-glossary-add">
-              <input
-                type="text"
-                placeholder={t('translate.glossary.source', { defaultValue: '中文' })}
-                value={glossarySrc}
-                onChange={e => setGlossarySrc(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addGlossaryTerm()}
-              />
-              <span className="translate-glossary-arrow">→</span>
-              <input
-                type="text"
-                placeholder={t('translate.glossary.target', { defaultValue: 'Tiếng Việt' })}
-                value={glossaryTgt}
-                onChange={e => setGlossaryTgt(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && addGlossaryTerm()}
-              />
-              <button
-                className="btn-primary"
-                onClick={addGlossaryTerm}
-                disabled={glossaryBusy || !glossarySrc.trim() || !glossaryTgt.trim()}
-              >
-                <Plus size={16} />
-                {t('translate.glossary.add', { defaultValue: 'Add' })}
-              </button>
-            </div>
-          )}
-
-          <div className="translate-search">
-            <Search size={16} className="translate-search-icon" />
-            <input
-              type="text"
-              placeholder={t('translate.glossary.search', { defaultValue: 'Search terms...' })}
-              value={glossaryFilter}
-              onChange={e => setGlossaryFilter(e.target.value)}
-            />
-          </div>
-
-          <div className="translate-glossary-list">
-            {filteredGlossary.length === 0 ? (
-              <div className="translate-group-empty">
-                <Languages size={32} strokeWidth={1} />
-                <p>{t('translate.glossary.empty', { defaultValue: 'No glossary terms yet.' })}</p>
-              </div>
-            ) : (
-              filteredGlossary.map(g => (
-                <div key={g.source} className="translate-glossary-item">
-                  <span className="translate-glossary-src">{g.source}</span>
-                  <span className="translate-glossary-arrow">→</span>
-                  <span className="translate-glossary-tgt">{g.target}</span>
-                  {canWrite && (
-                    <button
-                      className="translate-glossary-del"
-                      onClick={() => removeGlossaryTerm(g.source)}
-                      disabled={glossaryBusy}
-                      title={t('translate.glossary.remove', { defaultValue: 'Remove' })}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))
             )}
           </div>
         </section>
