@@ -1,35 +1,24 @@
 import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import { nextReconnectState } from '../utils/reconnectState';
 import {
-  Search,
-  Send,
-  ArrowLeft,
   Loader2,
   User,
   Users,
   AlertCircle,
   MessageSquare,
-  Paperclip,
-  Smile,
-  X,
+  ArrowLeft,
   ChevronDown,
-  CornerUpLeft,
-  Trash2,
 } from 'lucide-react';
 import {
   sessionApi,
   messageApi,
   translateApi,
-  asMessageType,
   type Session,
   type Chat,
-  type MessageType,
   type SearchHit,
 } from '../services/api';
-import { mergeDeliveryStatus, type ChatMessageView } from '../utils/chatMessages';
-import { useWebSocket } from '../hooks/useWebSocket';
+import { type ChatMessageView } from '../utils/chatMessages';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useToast } from '../components/Toast';
@@ -41,58 +30,13 @@ import {
   messagesQueryKey,
 } from '../hooks/useChatMessages';
 import { useChatScrollPosition } from '../hooks/useChatScrollPosition';
-import MessageBody from '../components/chats/MessageBody';
+import { useChatRealtime } from '../hooks/useChatRealtime';
+import { getMediaSrc, messageTypeFromMime } from '../components/chats/chatMedia';
+import { ChatListSidebar } from '../components/chats/ChatListSidebar';
+import { MessageBubble } from '../components/chats/MessageBubble';
+import { MessageComposer } from '../components/chats/MessageComposer';
 import MediaLightbox, { type LightboxItem } from '../components/chats/MediaLightbox';
 import './Chats.css';
-
-type MessageMedia = { mimetype: string; filename?: string; data?: string; omitted?: boolean; sizeBytes?: number };
-
-// mergeDeliveryStatus (forward-only delivery-tick merge) is shared with mergeOrAppend in utils/chatMessages
-// so the WS append path and the ack path apply the exact same rule.
-
-interface IncomingWsMessage {
-  id: string;
-  chatId: string;
-  from: string;
-  to: string;
-  body: string;
-  type: string;
-  timestamp: number;
-  fromMe?: boolean;
-  isGroup?: boolean;
-  contact?: { name?: string; pushName?: string };
-  media?: MessageMedia;
-  quotedMessage?: { id: string; body: string };
-  // The backend emits `call` as a top-level field on the live `message.received` event (it's only
-  // folded into `metadata` on the persisted/history path), so declare it here to carry it through.
-  call?: { video: boolean; missed: boolean };
-  metadata?: ChatMessageView['metadata'];
-}
-
-// Map an attachment MIME type to the neutral MessageType for the optimistic outgoing bubble, so the
-// placeholder matches what the backend will persist (e.g. a PDF is `document`, not `application`).
-const messageTypeFromMime = (mimetype: string): MessageType => {
-  if (mimetype.startsWith('image/')) return 'image';
-  if (mimetype.startsWith('video/')) return 'video';
-  if (mimetype.startsWith('audio/')) return 'audio';
-  return 'document';
-};
-
-// Stable per-sender color bucket (0-7) for the WhatsApp-style group name label. Simple string hash so
-// the same sender always gets the same color; the 8 colors are defined as .sender-color-N in Chats.css.
-const senderColorIndex = (name: string): number => {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  return h % 8;
-};
-
-const getMediaSrc = (media?: MessageMedia): string => {
-  if (!media || !media.data) return '';
-  if (media.data.startsWith('data:') || media.data.startsWith('http://') || media.data.startsWith('https://')) {
-    return media.data;
-  }
-  return `data:${media.mimetype};base64,${media.data}`;
-};
 
 export function Chats() {
   const { t } = useTranslation();
@@ -231,196 +175,17 @@ export function Chats() {
   );
 
   // 3. WebSocket integration for real-time messages
-  const handleIncomingMessage = useCallback(
-    (event: { sessionId: string; message: Record<string, unknown> }) => {
-      if (event.sessionId !== selectedSessionId) return;
-
-      const newMsg = event.message as unknown as IncomingWsMessage;
-
-      const mappedMessage: ChatMessageView = {
-        id: newMsg.id,
-        waMessageId: newMsg.id,
-        chatId: newMsg.chatId,
-        from: newMsg.from,
-        to: newMsg.to,
-        body: newMsg.body,
-        type: asMessageType(newMsg.type),
-        direction: newMsg.fromMe ? 'outgoing' : 'incoming',
-        status: 'sent',
-        timestamp: newMsg.timestamp,
-        createdAt: new Date(newMsg.timestamp * 1000).toISOString(),
-        metadata: newMsg.metadata || {
-          media: newMsg.media,
-          quotedMessage: newMsg.quotedMessage,
-          call: newMsg.call,
-          senderName:
-            newMsg.isGroup && !newMsg.fromMe
-              ? (newMsg.contact?.name ?? newMsg.contact?.pushName)
-              : undefined,
-        },
-      };
-
-      // Always write to the React Query cache for this message's session — keeps non-active chats
-      // up to date so re-opening them shows fresh data without a refetch.
-      appendMessage(event.sessionId, newMsg.chatId, mappedMessage);
-
-      // If the message belongs to the currently visible chat, mark-as-read and run the scroll heuristic.
-      if (activeChat && newMsg.chatId === activeChat.id) {
-        markChatRead(activeChat.id);
-        if (!newMsg.fromMe) onMessageAppended('incoming');
-      }
-
-      // Update sidebar chat list
-      setChats(prevChats => {
-        const chatIndex = prevChats.findIndex(c => c.id === newMsg.chatId);
-        if (chatIndex === -1) {
-          // A message for a chat not in the sidebar. Suppress the refetch ONLY for an outgoing echo
-          // addressed as `@lid`: a LID-migrated contact echoes back `@lid` while the user sent to
-          // `@c.us`, and the sent bubble is already reconciled in the active chat, so refetching on
-          // every such send just churns the chat list (#583 R2). Incoming messages and ordinary
-          // outgoing sends to a genuinely new chat still refetch so the sidebar stays complete.
-          const isMigratedEcho = newMsg.fromMe && (newMsg.chatId?.endsWith('@lid') ?? false);
-          if (!isMigratedEcho) {
-            void loadChats(selectedSessionId);
-          }
-          return prevChats;
-        }
-
-        const updatedChats = [...prevChats];
-        const targetChat = { ...updatedChats[chatIndex] };
-        // A location message's body is the (multi-KB) base64 map thumbnail; show a label instead.
-        targetChat.lastMessage = newMsg.type === 'location' ? `📍 ${t('chats.media.location')}` : newMsg.body;
-        targetChat.timestamp = newMsg.timestamp;
-
-        if (!newMsg.fromMe && (!activeChat || activeChat.id !== targetChat.id)) {
-          targetChat.unreadCount = (targetChat.unreadCount || 0) + 1;
-        }
-
-        updatedChats.splice(chatIndex, 1);
-        updatedChats.unshift(targetChat);
-        return updatedChats;
-      });
-    },
-    [selectedSessionId, activeChat, loadChats, markChatRead, appendMessage, onMessageAppended, t],
-  );
-
-  const handleIncomingMessageAck = useCallback(
-    (event: { sessionId: string; messageId: string; status: ChatMessageView['status'] }) => {
-      if (event.sessionId !== selectedSessionId) return;
-
-      // Acks can arrive for any cached chat under this session. Walk every cache entry under
-      // ['messages', event.sessionId, *] and apply the forward-only delivery merge in place.
-      const caches = queryClient.getQueriesData<ChatMessageView[]>({
-        queryKey: ['messages', event.sessionId],
-      });
-      for (const [key, list] of caches) {
-        if (!list) continue;
-        const idx = list.findIndex(
-          m => m.id === event.messageId || m.waMessageId === event.messageId,
-        );
-        if (idx === -1) continue;
-        const target = list[idx];
-        // Backend now sends the neutral delivery status directly (no engine-specific ack codes).
-        // Merge forward-only so an out-of-order/replayed lower ack can't downgrade the tick.
-        const nextStatus = mergeDeliveryStatus(target.status, event.status) ?? target.status;
-        const next = list.slice();
-        next[idx] = { ...target, status: nextStatus };
-        queryClient.setQueryData(key, next);
-      }
-    },
-    [selectedSessionId, queryClient],
-  );
-
-  const handleIncomingMessageReaction = useCallback(
-    (event: { sessionId: string; messageId: string; reactions: Record<string, string> }) => {
-      if (event.sessionId !== selectedSessionId) return;
-
-      // Reactions update `metadata.reactions` while preserving `metadata.media` / `metadata.quotedMessage`,
-      // so we must read the prior message and deep-merge — `updateMessage`'s shallow merge would clobber
-      // the rest of metadata.
-      const caches = queryClient.getQueriesData<ChatMessageView[]>({
-        queryKey: ['messages', event.sessionId],
-      });
-      for (const [key, list] of caches) {
-        if (!list) continue;
-        const idx = list.findIndex(
-          m => m.id === event.messageId || m.waMessageId === event.messageId,
-        );
-        if (idx === -1) continue;
-        const target = list[idx];
-        const next = list.slice();
-        next[idx] = {
-          ...target,
-          metadata: { ...(target.metadata || {}), reactions: event.reactions },
-        };
-        queryClient.setQueryData(key, next);
-      }
-    },
-    [selectedSessionId, queryClient],
-  );
-
-  const handleIncomingMessageRevoked = useCallback(
-    (event: { sessionId: string; id: string; type: string }) => {
-      if (event.sessionId !== selectedSessionId) return;
-
-      // Walk every cached chat under this session, find the message by id or waMessageId and zero it
-      // — the backend emits an empty body; the localized "deleted" label is rendered below.
-      const caches = queryClient.getQueriesData<ChatMessageView[]>({
-        queryKey: ['messages', event.sessionId],
-      });
-      for (const [key, list] of caches) {
-        if (!list) continue;
-        const idx = list.findIndex(m => m.id === event.id || m.waMessageId === event.id);
-        if (idx === -1) continue;
-        const target = list[idx];
-        const next = list.slice();
-        next[idx] = { ...target, body: '', type: asMessageType(event.type) };
-        queryClient.setQueryData(key, next);
-      }
-    },
-    [selectedSessionId, queryClient],
-  );
-
-  const { isConnected, connectionFailed, reconnect, subscribe, unsubscribe } = useWebSocket({
-    onMessage: handleIncomingMessage,
-    onMessageAck: handleIncomingMessageAck,
-    onMessageReaction: handleIncomingMessageReaction,
-    onMessageRevoked: handleIncomingMessageRevoked,
+  const { connectionFailed, reconnect } = useChatRealtime({
+    selectedSessionId,
+    activeChat,
+    loadChats,
+    markChatRead,
+    appendMessage,
+    onMessageAppended,
+    queryClient,
+    setChats,
+    t,
   });
-
-  // A transient WebSocket gap means message.received/ack/revoke events were missed, and the chat
-  // cache uses staleTime: Infinity so it won't refetch on its own. On a reconnect (isConnected
-  // false→true after a prior connect), invalidate the active session's messages so the thread the
-  // gap left stale refreshes. The transition logic is unit-tested in utils/reconnectState.
-  const reconnectHadConnected = useRef(false);
-  const reconnectWasDisconnected = useRef(false);
-  useEffect(() => {
-    const decision = nextReconnectState({
-      isConnected,
-      hadConnected: reconnectHadConnected.current,
-      wasDisconnected: reconnectWasDisconnected.current,
-    });
-    reconnectHadConnected.current = decision.hadConnected;
-    reconnectWasDisconnected.current = decision.wasDisconnected;
-    if (decision.invalidate) {
-      queryClient.invalidateQueries({ queryKey: ['messages', selectedSessionId] });
-    }
-  }, [isConnected, selectedSessionId, queryClient]);
-
-  useEffect(() => {
-    if (selectedSessionId && isConnected) {
-      subscribe(selectedSessionId, [
-        'message.received',
-        'message.sent',
-        'message.ack',
-        'message.reaction',
-        'message.revoked',
-      ]);
-      return () => {
-        unsubscribe(selectedSessionId);
-      };
-    }
-  }, [selectedSessionId, isConnected, subscribe, unsubscribe]);
 
   // 4. Message history is fetched by useChatMessages (React Query). The active-chat side effects
   // (mark-as-read + clear sidebar unread badge) live in a small effect below.
@@ -801,96 +566,22 @@ export function Chats() {
       ) : (
         <div className={`chats-layout ${activeChat ? 'has-active-chat' : ''}`}>
           {/* LEFT SIDEBAR: session & chat rooms */}
-          <aside className="chats-sidebar">
-            <div className="sidebar-header-box">
-              {/* Session selector */}
-              <div className="session-select-group">
-                <label className="form-label">{t('chats.sessionLabel')}</label>
-                <select
-                  value={selectedSessionId}
-                  onChange={e => setSelectedSessionId(e.target.value)}
-                  className="session-selector"
-                >
-                  {sessions.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.phone || t('chats.noPhone')})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Search bar */}
-              <div className="chat-search-input">
-                <Search size={18} />
-                <input
-                  type="text"
-                  placeholder={t('chats.searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
-              </div>
-
-              {/* Only show groups selected for translation */}
-              <label className="chat-translate-filter">
-                <input
-                  type="checkbox"
-                  checked={onlyTranslateGroups}
-                  onChange={e => setOnlyTranslateGroups(e.target.checked)}
-                />
-                <span>{t('chats.onlyTranslateGroups', { defaultValue: '只顯示翻譯群組' })}</span>
-              </label>
-            </div>
-
-            {/* Chat list */}
-            <div className="chats-list">
-              {loadingChats ? (
-                <div className="chats-list-loading">
-                  <Loader2 className="animate-spin" size={24} />
-                  <span>{t('chats.loadingChats')}</span>
-                </div>
-              ) : filteredChats.length === 0 ? (
-                <div className="chats-list-empty">
-                  <span>{t('chats.empty')}</span>
-                </div>
-              ) : (
-                filteredChats.map(chat => {
-                  const isActive = activeChat?.id === chat.id;
-                  return (
-                    <div
-                      key={chat.id}
-                      className={`chat-item-card ${isActive ? 'active' : ''}`}
-                      onClick={() => setActiveChat(chat)}
-                    >
-                      <div className="chat-avatar">
-                        {chat.isGroup ? <Users size={20} /> : <User size={20} />}
-                      </div>
-
-                      <div className="chat-item-info">
-                        <div className="chat-item-top">
-                          <span className="chat-item-name" title={chat.name || chat.id}>
-                            {chat.name || chat.id.split('@')[0]}
-                          </span>
-                          {chat.timestamp && (
-                            <span className="chat-item-time">{formatChatTime(chat.timestamp)}</span>
-                          )}
-                        </div>
-                        <div className="chat-item-bottom">
-                          <span className="chat-item-snippet" title={formatLastMessageSnippet(chat)}>
-                            {formatLastMessageSnippet(chat) || (
-                              <span className="no-message">{t('chats.noMessageYet')}</span>
-                            )}
-                          </span>
-                          {chat.unreadCount > 0 && (
-                            <span className="chat-unread-badge">{chat.unreadCount}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </aside>
+          <ChatListSidebar
+            sessions={sessions}
+            selectedSessionId={selectedSessionId}
+            onSelectSession={setSelectedSessionId}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onlyTranslateGroups={onlyTranslateGroups}
+            onToggleTranslateGroups={setOnlyTranslateGroups}
+            filteredChats={filteredChats}
+            activeChat={activeChat}
+            onSelectChat={setActiveChat}
+            loadingChats={loadingChats}
+            formatChatTime={formatChatTime}
+            formatLastMessageSnippet={formatLastMessageSnippet}
+            t={t}
+          />
 
           {/* RIGHT VIEW: active chat room */}
           <main className="chats-room">
@@ -951,224 +642,23 @@ export function Chats() {
                         !!senderName &&
                         (prev?.direction !== 'incoming' || prev?.metadata?.senderName !== senderName);
 
-                      const isMediaMessage = msg.type !== 'text';
-                      const mediaInfo = msg.metadata?.media;
-
-                      const renderMedia = () => {
-                        if (msg.type === 'revoked') return null;
-                        // location/call have no downloadable media payload — render them before the
-                        // mediaInfo gate. The raw body (a base64 thumbnail / empty token) is suppressed below.
-                        if (msg.type === 'location') {
-                          // WhatsApp location messages carry a base64 JPEG map-preview thumbnail in `body`.
-                          const thumb = msg.body && msg.body.length > 100 ? `data:image/jpeg;base64,${msg.body}` : '';
-                          return (
-                            <div className="message-location">
-                              {thumb && (
-                                <img
-                                  src={thumb}
-                                  alt=""
-                                  style={{ maxWidth: 220, borderRadius: 8, display: 'block', marginBottom: 4 }}
-                                />
-                              )}
-                              <span className="message-media-omitted">📍 {t('chats.media.location')}</span>
-                            </div>
-                          );
-                        }
-                        if (msg.type === 'call') {
-                          const call = msg.metadata?.call;
-                          const callKey = call?.video
-                            ? call.missed
-                              ? 'callVideoMissed'
-                              : 'callVideo'
-                            : call?.missed
-                              ? 'callMissed'
-                              : 'call';
-                          return (
-                            <div className="message-media-omitted">
-                              {`${call?.video ? '📹' : '📞'} ${t(`chats.media.${callKey}`)}`}
-                            </div>
-                          );
-                        }
-                        if (!mediaInfo) return null;
-                        if (mediaInfo.omitted) {
-                          return <div className="message-media-omitted">📎 {t('chats.media.omitted')}</div>;
-                        }
-                        const mediaSrc = getMediaSrc(mediaInfo);
-                        if (!mediaSrc) return null;
-
-                        switch (msg.type) {
-                          case 'image':
-                          case 'sticker':
-                            return (
-                              <div className="message-media-image">
-                                <img
-                                  src={mediaSrc}
-                                  alt={mediaInfo.filename || t('chats.media.image')}
-                                  className="chat-image-media"
-                                  onClick={() => {
-                                    const idx = imageMedia.findIndex(x => x.id === msg.id);
-                                    if (idx >= 0) setLightboxIndex(idx);
-                                  }}
-                                />
-                              </div>
-                            );
-                          case 'video':
-                            return (
-                              <div className="message-media-video">
-                                <video src={mediaSrc} controls className="chat-video-media" />
-                              </div>
-                            );
-                          case 'audio':
-                          case 'voice':
-                            return (
-                              <div className="message-media-audio">
-                                <audio src={mediaSrc} controls className="chat-audio-media" />
-                              </div>
-                            );
-                          case 'document':
-                          default:
-                            return (
-                              <div className="message-media-document">
-                                <a
-                                  href={mediaSrc}
-                                  download={mediaInfo.filename || 'document'}
-                                  className="chat-document-media"
-                                >
-                                  📎 {mediaInfo.filename || t('chats.downloadDocument')}
-                                </a>
-                              </div>
-                            );
-                        }
-                      };
-
-                      const reactions = msg.metadata?.reactions || {};
-                      const hasReactions = Object.keys(reactions).length > 0;
-                      const isRevoked = msg.type === 'revoked';
-                      const isMasked = msg.type === 'masked';
-
                       return (
-                        <div
+                        <MessageBubble
                           key={msg.id}
-                          className={`message-bubble-wrapper ${isMe ? 'outgoing' : 'incoming'}`}
-                          data-wa-message-id={msg.waMessageId}
-                        >
-                          <div className="message-bubble-container">
-                            <div
-                              className={`message-bubble ${isMe ? 'outgoing' : 'incoming'} ${msg.status} ${
-                                isMediaMessage ? 'media-type' : ''
-                              } ${isRevoked ? 'revoked-type' : ''}`}
-                            >
-                              {/* Group sender label — first of a consecutive run, colored per sender */}
-                              {showSenderName && (
-                                <div className={`message-sender sender-color-${senderColorIndex(senderName!)}`}>
-                                  {senderName}
-                                </div>
-                              )}
-
-                              {/* Quoted message display */}
-                              {msg.metadata?.quotedMessage && (
-                                <div className="message-quote-box">
-                                  <MessageBody
-                                    text={msg.metadata.quotedMessage.body}
-                                    className="quote-body"
-                                  />
-                                </div>
-                              )}
-
-                              {renderMedia()}
-
-                              {isRevoked ? (
-                                <div className="message-text">{t('chats.messageDeleted')}</div>
-                              ) : isMasked ? (
-                                <div className="message-text message-masked">{t('chats.messageMasked')}</div>
-                              ) : (
-                                msg.body &&
-                                (!mediaInfo || msg.body !== mediaInfo.filename) &&
-                                msg.type !== 'location' &&
-                                msg.type !== 'call' && (
-                                  <MessageBody text={msg.body} className="message-text" />
-                                )
-                              )}
-
-                              <div className="message-meta">
-                                <span className="message-time">{formattedTime}</span>
-                                {isMe && (
-                                  <span className={`message-status-icon ${msg.status}`}>
-                                    {msg.status === 'pending' && '🕒'}
-                                    {msg.status === 'sent' && '✓'}
-                                    {msg.status === 'delivered' && '✓✓'}
-                                    {msg.status === 'read' && '✓✓'}
-                                    {msg.status === 'failed' && '⚠️'}
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Reactions display */}
-                              {hasReactions && (
-                                <div className="message-reactions-badge">
-                                  {Object.values(reactions)
-                                    .slice(0, 3)
-                                    .map((emoji, idx) => (
-                                      <span key={idx} className="reaction-emoji-span">
-                                        {emoji}
-                                      </span>
-                                    ))}
-                                  {Object.keys(reactions).length > 1 && (
-                                    <span className="reactions-count-span">
-                                      {Object.keys(reactions).length}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Message actions menu (hover) */}
-                            {!isRevoked && (
-                              <div className="message-actions-menu">
-                                <button
-                                  type="button"
-                                  className="action-btn"
-                                  onClick={() => setReplyingTo(msg)}
-                                  title={t('chats.actions.reply')}
-                                >
-                                  <CornerUpLeft size={14} />
-                                </button>
-
-                                <div className="reaction-trigger-wrapper">
-                                  <button
-                                    type="button"
-                                    className="action-btn reaction-btn"
-                                    title={t('chats.actions.react')}
-                                  >
-                                    <Smile size={14} />
-                                  </button>
-                                  <div className="reaction-quick-popover">
-                                    {['👍', '❤️', '😂', '😮', '😢', '🙏'].map(emoji => (
-                                      <button
-                                        key={emoji}
-                                        type="button"
-                                        onClick={() => handleReactMessage(msg, emoji)}
-                                      >
-                                        {emoji}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {isMe && msg.status !== 'pending' && (
-                                  <button
-                                    type="button"
-                                    className="action-btn delete-btn"
-                                    onClick={() => handleDeleteMessage(msg)}
-                                    title={t('chats.actions.delete')}
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                          msg={msg}
+                          isMe={isMe}
+                          formattedTime={formattedTime}
+                          showSenderName={showSenderName}
+                          senderName={senderName}
+                          onReply={setReplyingTo}
+                          onReact={handleReactMessage}
+                          onDelete={handleDeleteMessage}
+                          onOpenLightbox={msgId => {
+                            const idx = imageMedia.findIndex(x => x.id === msgId);
+                            if (idx >= 0) setLightboxIndex(idx);
+                          }}
+                          t={t}
+                        />
                       );
                     })
                   )}
@@ -1189,113 +679,27 @@ export function Chats() {
                   </button>
                 )}
 
-                {/* Attachment preview banner */}
-                {attachment && (
-                  <div className="attachment-preview-banner">
-                    {previewUrl ? (
-                      <img src={previewUrl} alt={attachment.filename} className="preview-thumbnail" />
-                    ) : (
-                      <div className="preview-file-icon">📎</div>
-                    )}
-                    <div className="preview-file-info">
-                      <span className="preview-filename">{attachment.filename}</span>
-                      <span className="preview-filesize">({(attachment.file.size / 1024).toFixed(1)} KB)</span>
-                    </div>
-                    <button className="btn-remove-attachment" onClick={handleRemoveAttachment}>
-                      <X size={18} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Popular emojis panel */}
-                {showEmojiPicker && (
-                  <div className="chats-emoji-picker">
-                    <div className="emoji-grid">
-                      {popularEmojis.map(emoji => (
-                        <button
-                          key={emoji}
-                          type="button"
-                          className="emoji-btn"
-                          onClick={() => handleEmojiClick(emoji)}
-                        >
-                          {emoji}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Replying preview banner */}
-                {replyingTo && (
-                  <div className="replying-preview-banner">
-                    <div className="replying-preview-content">
-                      <div className="replying-to-title">
-                        {t('chats.replyingTo', {
-                          name:
-                            replyingTo.direction === 'outgoing'
-                              ? t('chats.you')
-                              : activeChat.name || activeChat.id.split('@')[0],
-                        })}
-                      </div>
-                      <div className="replying-to-body">
-                        {replyingTo.type !== 'text' ? `[${replyingTo.type}]` : replyingTo.body}
-                      </div>
-                    </div>
-                    <button className="btn-close-reply" onClick={() => setReplyingTo(null)}>
-                      <X size={18} />
-                    </button>
-                  </div>
-                )}
-
-                {/* Message input bar */}
-                <footer className="room-input-footer">
-                  <form onSubmit={handleSend} className="input-form">
-                    <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} />
-
-                    <button
-                      type="button"
-                      onClick={triggerFileSelect}
-                      disabled={!canWrite || sending}
-                      className="btn-input-accessory"
-                      title={t('chats.attachTitle')}
-                    >
-                      <Paperclip size={20} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                      disabled={!canWrite || sending}
-                      className={`btn-input-accessory ${showEmojiPicker ? 'active' : ''}`}
-                      title={t('chats.emojiTitle')}
-                    >
-                      <Smile size={20} />
-                    </button>
-
-                    <input
-                      type="text"
-                      placeholder={
-                        canWrite
-                          ? attachment
-                            ? t('chats.captionPlaceholder')
-                            : t('chats.messagePlaceholder')
-                          : t('chats.noPermission')
-                      }
-                      value={messageInput}
-                      onChange={e => setMessageInput(e.target.value)}
-                      disabled={!canWrite || sending}
-                      className="message-text-input"
-                    />
-                    <button
-                      type="submit"
-                      disabled={!canWrite || (!messageInput.trim() && !attachment) || sending}
-                      className="btn-send-message"
-                      aria-label={t('chats.send')}
-                    >
-                      {sending ? <Loader2 className="animate-spin" size={18} /> : <Send size={18} />}
-                    </button>
-                  </form>
-                </footer>
+                <MessageComposer
+                  attachment={attachment}
+                  previewUrl={previewUrl}
+                  onRemoveAttachment={handleRemoveAttachment}
+                  showEmojiPicker={showEmojiPicker}
+                  onToggleEmojiPicker={() => setShowEmojiPicker(!showEmojiPicker)}
+                  popularEmojis={popularEmojis}
+                  onEmojiClick={handleEmojiClick}
+                  replyingTo={replyingTo}
+                  onCancelReply={() => setReplyingTo(null)}
+                  activeChat={activeChat}
+                  fileInputRef={fileInputRef}
+                  onFileChange={handleFileChange}
+                  onTriggerFileSelect={triggerFileSelect}
+                  messageInput={messageInput}
+                  onMessageInputChange={setMessageInput}
+                  onSubmit={handleSend}
+                  canWrite={canWrite}
+                  sending={sending}
+                  t={t}
+                />
               </div>
             ) : (
               <div className="chats-room-placeholder">
