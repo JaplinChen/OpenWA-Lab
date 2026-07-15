@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
   MessageSquare,
+  Languages,
+  BookMarked,
   FileText,
   LogOut,
   Settings,
@@ -27,6 +29,8 @@ interface LayoutProps {
 const allNavItems = [
   { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false },
   { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
+  { to: '/translate', icon: Languages, key: 'translate' as const, adminOnly: false },
+  { to: '/glossary', icon: BookMarked, key: 'glossary' as const, adminOnly: false },
   { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false },
   { to: '/settings', icon: Settings, key: 'settings' as const, adminOnly: false },
 ];

@@ -109,14 +109,14 @@ function AppContent() {
           <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>
             <Route index element={<Dashboard />} />
             <Route path="chats" element={<Chats />} />
+            <Route path="translate" element={<Translate />} />
+            <Route path="glossary" element={<Glossary />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings userRole={role} />}>
               <Route index element={<Navigate to="sessions" replace />} />
               <Route path="sessions" element={<Sessions />} />
               <Route path="webhooks" element={<Webhooks />} />
               <Route path="templates" element={<Templates />} />
-              <Route path="translate" element={<Translate />} />
-              <Route path="glossary" element={<Glossary />} />
               <Route path="message-tester" element={<MessageTester />} />
               {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
               {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
@@ -126,8 +126,8 @@ function AppContent() {
             <Route path="sessions" element={<Navigate to="/settings/sessions" replace />} />
             <Route path="webhooks" element={<Navigate to="/settings/webhooks" replace />} />
             <Route path="templates" element={<Navigate to="/settings/templates" replace />} />
-            <Route path="translate" element={<Navigate to="/settings/translate" replace />} />
-            <Route path="glossary" element={<Navigate to="/settings/glossary" replace />} />
+            <Route path="settings/translate" element={<Navigate to="/translate" replace />} />
+            <Route path="settings/glossary" element={<Navigate to="/glossary" replace />} />
             <Route path="message-tester" element={<Navigate to="/settings/message-tester" replace />} />
             <Route path="api-keys" element={<Navigate to="/settings/api-keys" replace />} />
             <Route path="infrastructure" element={<Navigate to="/settings/infrastructure" replace />} />
