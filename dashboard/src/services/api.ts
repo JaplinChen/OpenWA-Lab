@@ -1,4 +1,4 @@
-// API Service Layer for OpenWA Dashboard
+// API Service Layer for OpenWA-Lab Dashboard
 // Centralized API client with TypeScript types
 
 // Resolve the API base URL. By default this is the same-origin relative path '/api',
@@ -208,7 +208,7 @@ export interface HealthStatus {
 }
 
 export interface InfraStatus {
-  // `builtIn` = OpenWA's own bundled container is actually running and backing this service (live),
+  // `builtIn` = OpenWA-Lab's own bundled container is actually running and backing this service (live),
   // not just the saved intent — falls back to the saved flag when Docker is unavailable. (#488)
   database: { connected: boolean; type: string; host: string; builtIn: boolean };
   redis: { enabled: boolean; connected: boolean; host: string; port: number; builtIn: boolean };
@@ -354,7 +354,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   const url = `${API_BASE_URL}${endpoint}`;
 
   // Get API key from sessionStorage for authentication
-  const apiKey = sessionStorage.getItem('openwa_api_key');
+  const apiKey = sessionStorage.getItem('openwalab_api_key');
 
   // For FormData (file uploads) let the browser set multipart/form-data + boundary itself.
   const isFormData = options.body instanceof FormData;
@@ -369,7 +369,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   if (response.status === 401) {
     // The stored API key is invalid/expired/revoked — clear it and return to login
     // so the user isn't stuck on a dashboard that 401s every request.
-    sessionStorage.removeItem('openwa_api_key');
+    sessionStorage.removeItem('openwalab_api_key');
     if (typeof window !== 'undefined') {
       window.location.assign('/');
       // The page is navigating away — halt this request's promise chain so callers neither
@@ -399,13 +399,13 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 /** Like {@link request} but returns the raw response text — e.g. a plugin's HTML config-UI bundle. */
 async function requestText(endpoint: string): Promise<string> {
-  const apiKey = sessionStorage.getItem('openwa_api_key');
+  const apiKey = sessionStorage.getItem('openwalab_api_key');
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
     headers: { ...(apiKey ? { 'X-API-Key': apiKey } : {}) },
   });
 
   if (response.status === 401) {
-    sessionStorage.removeItem('openwa_api_key');
+    sessionStorage.removeItem('openwalab_api_key');
     if (typeof window !== 'undefined') {
       window.location.assign('/');
       return new Promise<string>(() => {});

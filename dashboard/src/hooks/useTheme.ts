@@ -3,11 +3,11 @@ import { useState, useEffect, useCallback } from 'react';
 export type Theme = 'light' | 'dark' | 'system';
 export type ThemePalette = 'openwa' | 'blue' | 'graphite' | 'indigo' | 'amber' | 'rose' | 'teal';
 
-const THEME_KEY = 'openwa_theme';
-const PALETTE_KEY = 'openwa_palette';
+const THEME_KEY = 'openwalab_theme';
+const PALETTE_KEY = 'openwalab_palette';
 
 export const paletteOptions: Array<{ value: ThemePalette; label: string; color: string }> = [
-  { value: 'openwa', label: 'OpenWA', color: '#25d366' },
+  { value: 'openwa', label: 'OpenWA-Lab', color: '#25d366' },
   { value: 'blue', label: 'Blue', color: '#2563eb' },
   { value: 'graphite', label: 'Graphite', color: '#64748b' },
   { value: 'indigo', label: 'Indigo', color: '#4f46e5' },

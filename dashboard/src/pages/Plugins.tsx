@@ -968,7 +968,7 @@ export default function Plugins() {
                   <p className="install-hint">
                     {t(
                       'plugins.installModal.catalogHint',
-                      'Install directly from the OpenWA plugin catalog. The .zip is fetched server-side through the SSRF guard, then validated and sandboxed.',
+                      'Install directly from the OpenWA-Lab plugin catalog. The .zip is fetched server-side through the SSRF guard, then validated and sandboxed.',
                     )}
                   </p>
                   {catalogLoading ? (
