@@ -60,6 +60,8 @@
     "light": "فاتح",
     "dark": "داكن",
     "system": "النظام",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic داكن",
     "label": "المظهر: {{value}}",
     "appearance": "المظهر",
     "mode": "الوضع",

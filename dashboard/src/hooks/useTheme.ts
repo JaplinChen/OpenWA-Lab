@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-export type Theme = 'light' | 'dark' | 'system';
+export type Theme = 'light' | 'dark' | 'system' | 'anthropic' | 'anthropic-dark';
 export type ThemePalette = 'openwa' | 'blue' | 'graphite' | 'indigo' | 'amber' | 'rose' | 'teal';
 
 const THEME_KEY = 'openwalab_theme';
@@ -17,7 +17,13 @@ export const paletteOptions: Array<{ value: ThemePalette; label: string; color: 
 ];
 
 function isTheme(value: string | null): value is Theme {
-  return value === 'light' || value === 'dark' || value === 'system';
+  return (
+    value === 'light' ||
+    value === 'dark' ||
+    value === 'system' ||
+    value === 'anthropic' ||
+    value === 'anthropic-dark'
+  );
 }
 
 function isPalette(value: string | null): value is ThemePalette {
@@ -27,7 +33,7 @@ function isPalette(value: string | null): value is ThemePalette {
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
-    return isTheme(saved) ? saved : 'system';
+    return isTheme(saved) ? saved : 'anthropic';
   });
   const [palette, setPaletteState] = useState<ThemePalette>(() => {
     const saved = localStorage.getItem(PALETTE_KEY);
@@ -77,7 +83,15 @@ export function useTheme() {
 
   // Get the resolved theme (what's actually displayed)
   const resolvedTheme =
-    theme === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+    theme === 'system'
+      ? window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light'
+      : theme === 'anthropic'
+        ? 'light'
+        : theme === 'anthropic-dark'
+          ? 'dark'
+          : theme;
 
   return { theme, setTheme, toggleTheme, resolvedTheme, palette, setPalette, paletteOptions };
 }

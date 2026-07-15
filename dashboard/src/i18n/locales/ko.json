@@ -60,6 +60,8 @@
     "light": "라이트",
     "dark": "다크",
     "system": "시스템",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic 다크",
     "label": "테마: {{value}}",
     "appearance": "화면 모드",
     "mode": "모드",

@@ -60,6 +60,8 @@
     "light": "Clair",
     "dark": "Sombre",
     "system": "Système",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic Sombre",
     "label": "Thème : {{value}}",
     "appearance": "Apparence",
     "mode": "Mode",

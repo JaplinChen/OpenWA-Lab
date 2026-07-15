@@ -60,6 +60,8 @@
     "light": "లైట్",
     "dark": "డార్క్",
     "system": "సిస్టమ్",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic డార్క్",
     "label": "థీమ్: {{value}}",
     "appearance": "రూపం",
     "mode": "మోడ్",

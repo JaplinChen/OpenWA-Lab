@@ -60,6 +60,8 @@
     "light": "בהיר",
     "dark": "כהה",
     "system": "מערכת",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic כהה",
     "label": "ערכת נושא: {{value}}",
     "appearance": "מראה",
     "mode": "מצב",
