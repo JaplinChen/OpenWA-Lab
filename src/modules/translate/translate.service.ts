@@ -254,7 +254,10 @@ export class TranslateService implements OnModuleInit {
     const author = msg.author || msg.from;
     const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
     const reply = this.glossary.command(rest, canMutate);
-    await this.messageService.sendText(sessionId, { chatId: msg.chatId, text: BOT_MARKER + reply });
+    // ponytail: reply in DM so the term list doesn't flood the group
+    const target = msg.isGroup ? author : msg.chatId;
+    if (!target) return;
+    await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
   }
 
   private detectPair(text: string): Pair | null {
