@@ -53,4 +53,12 @@ describe('TranslateService glossary', () => {
     expect(detect('giao hàng hôm nay')?.key).toBe('vi:zh-tw');
     expect(detect('12345')).toBeNull();
   });
+
+  it('mixed script decides by dominant text, not first CJK char', () => {
+    const detect = (service as unknown as { detectPair: (t: string) => { key: string } | null }).detectPair.bind(service);
+    // A Vietnamese message @-mentioning a Chinese name must still translate TO Chinese.
+    expect(detect('Báo cáo Giám đốc @VPIC1 陳嘉元, phòng 201 đã hoạt động.')?.key).toBe('vi:zh-tw');
+    // A Chinese message quoting a Vietnamese place name stays Chinese→Vietnamese.
+    expect(detect('我下週去 Đà Nẵng 出差三天談合約事宜')?.key).toBe('zh-tw:vi');
+  });
 });
