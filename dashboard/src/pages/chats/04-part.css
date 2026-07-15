@@ -125,9 +125,12 @@
   flex-direction: row;
 }
 
-/* Hover Menu */
+/* Hover Menu — absolutely positioned so it never shrinks the bubble (no reflow/height jump) */
 .chats-page .message-actions-menu{
   display: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
   align-items: center;
   gap: 0.25rem;
   background: var(--bg-white);
@@ -136,6 +139,16 @@
   border-radius: 20px;
   padding: 2px 6px;
   z-index: 5;
+}
+
+.chats-page .message-bubble-wrapper.incoming .message-actions-menu{
+  left: 100%;
+  margin-left: 0.5rem;
+}
+
+.chats-page .message-bubble-wrapper.outgoing .message-actions-menu{
+  right: 100%;
+  margin-right: 0.5rem;
 }
 
 .chats-page .message-bubble-container:hover .message-actions-menu{
