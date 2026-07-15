@@ -29,12 +29,18 @@ branch="auto/${slug:-change}"
 git checkout -b "$branch"
 git commit -m "$msg" -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 git push -u origin "$branch"
-# Retry PR creation: after a push, GitHub can take ~10s to make the new branch
-# resolvable to the PR API ("No commits between..." / "Head sha can't be blank").
-for attempt in $(seq 1 6); do
+# A just-pushed branch isn't immediately usable for a PR (GitHub returns
+# "No commits between..." / "Head sha can't be blank" for a while). Poll the API
+# until the branch resolves, THEN create — deterministic instead of guessing sleeps.
+echo "waiting for GitHub to register $branch..." >&2
+for _ in $(seq 1 30); do
+  gh api "repos/$repo/branches/$branch" >/dev/null 2>&1 && break
+  sleep 2
+done
+# Head is qualified with the owner so a fork PR targets THIS repo, not its upstream parent.
+for attempt in $(seq 1 5); do
   gh pr create --repo "$repo" --base main --head "$owner:$branch" --title "$msg" --body "$msg" && break
-  [ "$attempt" -eq 6 ] && { echo "PR create failed after 6 attempts (~18s)" >&2; exit 1; }
-  echo "PR create not ready (attempt $attempt) — retrying in 3s..." >&2
+  [ "$attempt" -eq 5 ] && { echo "PR create failed after retries" >&2; exit 1; }
   sleep 3
 done
 gh pr merge "$branch" --repo "$repo" --squash --delete-branch
