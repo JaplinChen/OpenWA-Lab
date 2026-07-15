@@ -3,17 +3,10 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard,
-  Smartphone,
   MessageSquare,
-  Webhook,
-  Key,
   FileText,
-  ClipboardList,
   LogOut,
-  Send,
-  Server,
-  Puzzle,
-  Languages as LanguagesIcon,
+  Settings,
   Sun,
   Moon,
   Monitor,
@@ -36,17 +29,9 @@ interface LayoutProps {
 
 const allNavItems = [
   { to: '/', icon: LayoutDashboard, key: 'dashboard' as const, adminOnly: false },
-  { to: '/sessions', icon: Smartphone, key: 'sessions' as const, adminOnly: false },
   { to: '/chats', icon: MessageSquare, key: 'chats' as const, adminOnly: false },
-  { to: '/webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
-  { to: '/templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
-  { to: '/translate', icon: LanguagesIcon, key: 'translate' as const, adminOnly: false },
-  { to: '/api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true },
-  { to: '/message-tester', icon: Send, key: 'messageTester' as const, adminOnly: false },
-  // Backend /infra/* is ADMIN-only; hide the nav item from non-admins (UX + defense-in-depth).
-  { to: '/infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
-  { to: '/plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },
   { to: '/logs', icon: FileText, key: 'logs' as const, adminOnly: false },
+  { to: '/settings', icon: Settings, key: 'settings' as const, adminOnly: false },
 ];
 
 const themeIcons = { light: Sun, dark: Moon, system: Monitor };
@@ -151,7 +136,8 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
   const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
 
   const currentLang = resolveSupportedLanguage(i18n.resolvedLanguage || i18n.language);
-  const languageLabel = languageOptions.find(option => option.value === currentLang)?.compactLabel ?? 'EN';
+  const currentLangOption = languageOptions.find(option => option.value === currentLang);
+  const languageLabel = currentLangOption?.label ?? 'English';
   const changeLanguage = (language: SupportedLanguage) => {
     setIsLanguageMenuOpen(false);
     void i18n.changeLanguage(language);
@@ -231,15 +217,14 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
         <div className="sidebar-footer">
           <div className="language-menu" ref={languageMenuRef}>
             <button
-              className="theme-toggle-btn"
+              className="theme-toggle-btn icon-only"
               onClick={() => setIsLanguageMenuOpen(open => !open)}
-              title={t('common.language')}
+              title={`${t('common.language')}: ${languageLabel}`}
               aria-label={t('common.language')}
               aria-haspopup="menu"
               aria-expanded={isLanguageMenuOpen}
             >
               <Languages size={18} />
-              {!isCollapsed && <span>{languageLabel}</span>}
             </button>
             {isLanguageMenuOpen && (
               <div className="language-menu-list" role="menu" aria-label={t('common.language')}>
@@ -259,7 +244,7 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
           </div>
           <div className="appearance-menu" ref={appearanceMenuRef}>
             <button
-              className="theme-toggle-btn"
+              className="theme-toggle-btn icon-only"
               onClick={() => setIsAppearanceMenuOpen(open => !open)}
               title={t('theme.label', { value: themeLabel })}
               aria-label={t('theme.appearance')}
@@ -273,7 +258,6 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
               >
                 <ThemeIcon size={14} />
               </span>
-              {!isCollapsed && <span>{themeLabel}</span>}
             </button>
             {isAppearanceMenuOpen && (
               <div className="appearance-menu-list" role="menu" aria-label={t('theme.appearance')}>
@@ -331,9 +315,8 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
               </div>
             )}
           </div>
-          <button className="logout-btn" onClick={onLogout} title={isCollapsed ? t('common.logout') : undefined}>
+          <button className="logout-btn icon-only" onClick={onLogout} title={t('common.logout')} aria-label={t('common.logout')}>
             <LogOut size={20} />
-            {!isCollapsed && <span>{t('common.logout')}</span>}
           </button>
         </div>
       </aside>

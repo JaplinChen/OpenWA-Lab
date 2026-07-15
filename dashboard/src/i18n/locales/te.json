@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "లోడ్ అవుతోంది...",
     "save": "సేవ్ చేయి",
@@ -75,7 +75,9 @@
     "messageTester": "మెసేజ్ టెస్టర్",
     "infrastructure": "ఇన్‌ఫ్రాస్ట్రక్చర్",
     "plugins": "ప్లగిన్స్",
-    "logs": "లాగ్స్"
+    "logs": "లాగ్స్",
+    "translate": "అనువాద సమూహాలు",
+    "settings": "సెట్టింగ్‌లు"
   },
   "chats": {
     "media": {

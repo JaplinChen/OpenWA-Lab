@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "ממשק WhatsApp API",
     "loading": "טוען...",
     "save": "שמירה",
@@ -75,7 +75,9 @@
     "messageTester": "בדיקת הודעות",
     "infrastructure": "תשתית",
     "plugins": "תוספים",
-    "logs": "לוגים"
+    "logs": "לוגים",
+    "translate": "קבוצות תרגום",
+    "settings": "הגדרות"
   },
   "chats": {
     "media": {

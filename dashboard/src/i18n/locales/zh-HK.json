@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "正在載入...",
     "save": "儲存",
@@ -71,7 +71,8 @@
     "chats": "聊天",
     "webhooks": "Webhooks",
     "templates": "Templates",
-    "translate": "翻譯",
+    "settings": "設定",
+    "translate": "翻譯群組",
     "apiKeys": "API 金鑰",
     "messageTester": "訊息測試器",
     "infrastructure": "基礎架構",

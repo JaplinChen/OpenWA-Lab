@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "Caricamento...",
     "save": "Salva",
@@ -75,7 +75,9 @@
     "messageTester": "Messaggio di prova",
     "infrastructure": "Infrastruttura",
     "plugins": "Plugin",
-    "logs": "Log"
+    "logs": "Log",
+    "translate": "Gruppi di traduzione",
+    "settings": "Impostazioni"
   },
   "chats": {
     "media": {
