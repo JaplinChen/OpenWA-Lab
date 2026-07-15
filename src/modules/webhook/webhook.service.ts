@@ -11,48 +11,30 @@ import { FindManyOptions, In, LessThan, Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import * as crypto from 'crypto';
 import { Webhook } from './entities/webhook.entity';
 import { WebhookDeliveryFailure } from './entities/webhook-delivery-failure.entity';
-import { recordWebhookDeliveryFailure, statusCodeFromError } from './utils/record-delivery-failure';
 import { CreateWebhookDto, UpdateWebhookDto } from './dto';
 import { createLogger } from '../../common/services/logger.service';
-import { incrementWebhookDeliveryFailures } from '../../common/metrics/webhook-delivery-metrics';
 import { ListOptions, resolveListWindow } from '../../common/utils/paginate';
 import { QUEUE_NAMES } from '../queue/queue-names';
-import { generateIdempotencyKey, generateDeliveryId } from './utils/idempotency.util';
+import { generateIdempotencyKey } from './utils/idempotency.util';
 import { evaluateFilters } from './filters/filter-evaluator';
 import { LidMappingStoreService } from '../../engine/identity/lid-mapping-store.service';
 import { userPart } from '../../engine/identity/wa-id';
 import {
   assertSafeFetchUrl,
-  withSafeFetch,
   isSsrfProtectionEnabled,
   SsrfBlockedError,
   SSRF_BLOCKED_CLIENT_MESSAGE,
-  redactSsrfError,
 } from '../../common/security/ssrf-guard';
 import { HookManager } from '../../core/hooks';
 import { ConcurrencyLimiter } from '../../common/utils/concurrency-limiter';
+import { WebhookJobData } from './webhook.types';
+import { deliverToWebhook, testWebhook, type WebhookDeliveryDeps } from './webhook-dispatch';
 
-export interface WebhookPayload {
-  event: string;
-  timestamp: string;
-  sessionId: string;
-  idempotencyKey: string;
-  deliveryId: string;
-  data: Record<string, unknown>;
-}
-
-export interface WebhookJobData {
-  webhookId: string;
-  url: string;
-  event: string;
-  payload: WebhookPayload;
-  headers: Record<string, string>;
-  attempt: number;
-  maxRetries: number;
-}
+// Re-exported so existing importers (and webhook.service.spec.ts) keep resolving these from
+// './webhook.service' after the split into webhook.types.ts.
+export type { WebhookPayload, WebhookJobData } from './webhook.types';
 
 @Injectable()
 export class WebhookService implements OnModuleInit, OnModuleDestroy {
@@ -227,55 +209,7 @@ export class WebhookService implements OnModuleInit, OnModuleDestroy {
 
   async test(sessionId: string, webhookId: string): Promise<{ success: boolean; statusCode?: number; error?: string }> {
     const webhook = await this.findOne(sessionId, webhookId);
-
-    const testPayload: WebhookPayload = {
-      event: 'test',
-      timestamp: new Date().toISOString(),
-      sessionId,
-      idempotencyKey: generateIdempotencyKey('test', { webhookId: webhook.id }),
-      deliveryId: generateDeliveryId(),
-      data: {
-        message: 'This is a test webhook from OpenWA',
-        webhookId: webhook.id,
-        url: webhook.url,
-      },
-    };
-
-    const body = JSON.stringify(testPayload);
-    const headers: Record<string, string> = {
-      // Custom headers FIRST so the system headers below always win.
-      ...this.sanitizeCustomHeaders(webhook.headers),
-      'Content-Type': 'application/json',
-      'User-Agent': 'OpenWA-Webhook/1.0.0',
-      'X-OpenWA-Event': 'test',
-      'X-OpenWA-Idempotency-Key': testPayload.idempotencyKey,
-      'X-OpenWA-Delivery-Id': testPayload.deliveryId,
-      'X-OpenWA-Retry-Count': '0',
-    };
-
-    if (webhook.secret) {
-      headers['X-OpenWA-Signature'] = this.generateSignature(body, webhook.secret);
-    }
-
-    try {
-      return await withSafeFetch(
-        webhook.url,
-        {
-          method: 'POST',
-          headers,
-          body,
-          // Use the configured WEBHOOK_TIMEOUT (single source of truth across queued/test/direct paths).
-          signal: AbortSignal.timeout(this.configService.get<number>('webhook.timeout', 10000)),
-        },
-        response => ({ success: response.ok, statusCode: response.status }),
-        { guard: isSsrfProtectionEnabled() },
-      );
-    } catch (error) {
-      return {
-        success: false,
-        error: redactSsrfError(error, this.logger, 'webhook test'),
-      };
-    }
+    return testWebhook({ configService: this.configService, logger: this.logger }, webhook, sessionId);
   }
 
   async dispatch(sessionId: string, event: string, data: Record<string, unknown>): Promise<void> {
@@ -307,301 +241,23 @@ export class WebhookService implements OnModuleInit, OnModuleDestroy {
     const occurredAt = new Date().toISOString();
     const baseIdempotencyKey = generateIdempotencyKey(event, { ...data, sessionId }, occurredAt);
 
-    // Dispatch to all matching webhooks concurrently — one slow/hanging receiver must not head-of-line-
-    // block delivery to the sibling webhooks of the same event (the direct/fallback paths await a
-    // recursive retry with backoff sleeps).
-    const deliverOne = async (webhook: Webhook): Promise<void> => {
-      // Generate unique delivery ID for each webhook
-      const deliveryId = generateDeliveryId();
-
-      // Salt the base key with webhook.id so two DISTINCT webhooks subscribed to the same event (e.g.
-      // duplicate URLs) get DISTINCT idempotency keys — otherwise a receiver dedup'ing purely on the
-      // header would drop the sibling delivery as a replay. webhook.id is constant across retries of
-      // THIS webhook (incl. the queue-add→direct fallback), so its key stays stable.
-      const idempotencyKey = `${baseIdempotencyKey}_${webhook.id}`;
-
-      const payload: WebhookPayload = {
-        event,
-        timestamp: new Date().toISOString(),
-        sessionId,
-        idempotencyKey,
-        deliveryId,
-        // Give each webhook its own copy of the event data: a webhook:before hook that mutates
-        // payload.data in place would otherwise bleed that change into every later webhook for this
-        // event (they all shared one object reference).
-        data: structuredClone(data),
-      };
-
-      // Execute hook before webhook dispatch - plugins can modify payload
-      const { continue: shouldContinue, data: hookResult } = await this.hookManager.execute(
-        'webhook:before',
-        { sessionId, event, payload },
-        { sessionId, source: 'WebhookService' },
-      );
-
-      if (!shouldContinue) {
-        this.logger.debug(`Webhook dispatch cancelled by plugin for ${event}`, {
-          webhookId: webhook.id,
-          action: 'webhook_cancelled_by_plugin',
-        });
-        return;
-      }
-
-      // Use the plugin-modified payload, falling back to the original if a before-hook returned a
-      // result without a `payload` key — otherwise we'd POST an `undefined` body.
-      const finalPayload = (hookResult as { payload?: WebhookPayload }).payload ?? payload;
-
-      // The idempotency + delivery ids are server-generated and are the documented dedup key
-      // (receivers dedupe on the X-OpenWA-Idempotency-Key header). Re-assert them onto the post-hook
-      // payload so a webhook:before plugin can't desync the signed body field from the header.
-      finalPayload.idempotencyKey = idempotencyKey;
-      finalPayload.deliveryId = deliveryId;
-
-      // Build headers — custom headers FIRST so the system headers below always win.
-      const headers: Record<string, string> = {
-        ...this.sanitizeCustomHeaders(webhook.headers),
-        'Content-Type': 'application/json',
-        'User-Agent': 'OpenWA-Webhook/1.0.0',
-        'X-OpenWA-Event': event,
-        'X-OpenWA-Idempotency-Key': idempotencyKey,
-        'X-OpenWA-Delivery-Id': deliveryId,
-        'X-OpenWA-Retry-Count': '0',
-      };
-
-      // Use queue if available, otherwise fallback to direct delivery
-      if (this.queueEnabled && this.webhookQueue) {
-        try {
-          // finalPayload comes from the (untrusted) webhook:before hook result, so JSON.stringify can
-          // throw (BigInt / circular). Keep serialization + signing INSIDE the try so a poisoned payload
-          // is caught here (one webhook dropped + logged) instead of aborting the whole dispatch loop
-          // and rejecting the fire-and-forget dispatch() promise.
-          const signature = webhook.secret ? this.generateSignature(JSON.stringify(finalPayload), webhook.secret) : '';
-
-          if (webhook.secret) {
-            headers['X-OpenWA-Signature'] = signature;
-          }
-
-          const jobData: WebhookJobData = {
-            webhookId: webhook.id,
-            url: webhook.url,
-            event,
-            payload: finalPayload,
-            headers,
-            attempt: 1,
-            maxRetries: webhook.retryCount,
-          };
-
-          await this.webhookQueue.add(`webhook-${webhook.id}`, jobData, {
-            attempts: webhook.retryCount,
-            backoff: {
-              type: 'exponential',
-              delay: this.configService.get<number>('webhook.retryDelay', 5000),
-            },
-          });
-
-          // Execute hook after successful queue (NOT delivery - that happens in processor)
-          await this.hookManager.execute(
-            'webhook:queued',
-            { sessionId, event, webhookId: webhook.id, deliveryId },
-            { sessionId, source: 'WebhookService' },
-          );
-
-          this.logger.debug(`Webhook job queued for ${webhook.id}`, {
-            webhookId: webhook.id,
-            event,
-            idempotencyKey,
-            deliveryId,
-            action: 'webhook_queued',
-          });
-        } catch (error) {
-          // Execute hook on queue error (not delivery error - that happens in processor)
-          await this.hookManager.execute(
-            'webhook:error',
-            { sessionId, event, webhookId: webhook.id, error: `Queue failed: ${String(error)}` },
-            { sessionId, source: 'WebhookService' },
-          );
-
-          this.logger.error(`Failed to queue webhook ${webhook.id}`, String(error), {
-            webhookId: webhook.id,
-            action: 'webhook_queue_failed',
-          });
-
-          // Fallback: deliver directly when the queue add failed (e.g. Redis unreachable with the
-          // producer's enableOfflineQueue:false). This is at-least-once — if add() actually reached
-          // Redis before rejecting, the queued job AND this fallback may both POST. Both paths carry the
-          // same X-OpenWA-Idempotency-Key / X-OpenWA-Delivery-Id, so a conformant receiver dedupes.
-          try {
-            await this.deliverWebhook(webhook, finalPayload, headers);
-
-            await this.hookManager.execute(
-              'webhook:delivered',
-              { sessionId, event, webhookId: webhook.id, deliveryId, fallback: 'queue_failed' },
-              { sessionId, source: 'WebhookService' },
-            );
-
-            await this.hookManager.execute(
-              'webhook:after',
-              { sessionId, event, webhookId: webhook.id, success: true, fallback: 'queue_failed' },
-              { sessionId, source: 'WebhookService' },
-            );
-          } catch (fallbackError) {
-            await this.hookManager.execute(
-              'webhook:error',
-              {
-                sessionId,
-                event,
-                webhookId: webhook.id,
-                error: `Queue fallback delivery failed: ${redactSsrfError(fallbackError, this.logger, 'webhook fallback delivery')}`,
-              },
-              { sessionId, source: 'WebhookService' },
-            );
-
-            this.logger.error(`Queue fallback delivery failed for webhook ${webhook.id}`, String(fallbackError), {
-              webhookId: webhook.id,
-              action: 'webhook_queue_fallback_failed',
-            });
-          }
-        }
-      } else {
-        // Direct delivery when queue is disabled
-        try {
-          await this.deliverWebhook(webhook, finalPayload, headers);
-
-          // Execute hook after successful delivery
-          await this.hookManager.execute(
-            'webhook:delivered',
-            { sessionId, event, webhookId: webhook.id, deliveryId },
-            { sessionId, source: 'WebhookService' },
-          );
-
-          // Legacy hook for backward compatibility
-          await this.hookManager.execute(
-            'webhook:after',
-            { sessionId, event, webhookId: webhook.id, success: true },
-            { sessionId, source: 'WebhookService' },
-          );
-        } catch (error) {
-          // Execute hook on error
-          await this.hookManager.execute(
-            'webhook:error',
-            { sessionId, event, webhookId: webhook.id, error: redactSsrfError(error, this.logger, 'webhook delivery') },
-            { sessionId, source: 'WebhookService' },
-          );
-
-          this.logger.error(`Failed to deliver webhook ${webhook.id}`, String(error), {
-            webhookId: webhook.id,
-            action: 'webhook_delivery_failed',
-          });
-        }
-      }
-    };
     // Bound fan-out: deliver to all matching webhooks concurrently, but cap in-flight deliveries at
     // WEBHOOK_DISPATCH_CONCURRENCY so an event matching many webhooks (or slow receivers) can't open an
     // unbounded number of outbound sockets at once. allSettled preserves the per-webhook isolation.
-    const tasks = matchingWebhooks.map(webhook => this.dispatchLimiter.run(() => deliverOne(webhook)));
+    // The per-webhook delivery engine (hook orchestration, queue/direct fallback) lives in
+    // webhook-dispatch.ts; deps are read live here so a test toggling queueEnabled still steers it.
+    const deps: WebhookDeliveryDeps = {
+      queueEnabled: this.queueEnabled,
+      webhookQueue: this.webhookQueue,
+      webhookRepository: this.webhookRepository,
+      failureRepository: this.failureRepository,
+      hookManager: this.hookManager,
+      configService: this.configService,
+      logger: this.logger,
+    };
+    const tasks = matchingWebhooks.map(webhook =>
+      this.dispatchLimiter.run(() => deliverToWebhook(deps, webhook, { event, sessionId, baseIdempotencyKey, data })),
+    );
     await Promise.allSettled(tasks);
-  }
-
-  /**
-   * @deprecated Use job queue dispatch instead. This is kept for fallback.
-   */
-  private async deliverWebhook(
-    webhook: Webhook,
-    payload: WebhookPayload,
-    headers: Record<string, string>,
-    attempt = 1,
-  ): Promise<void> {
-    const body = JSON.stringify(payload);
-
-    // Update retry count header
-    headers['X-OpenWA-Retry-Count'] = String(attempt - 1);
-
-    // Add signature if secret is configured and not already present
-    if (webhook.secret && !headers['X-OpenWA-Signature']) {
-      headers['X-OpenWA-Signature'] = this.generateSignature(body, webhook.secret);
-    }
-
-    try {
-      const { ok, status, statusText } = await withSafeFetch(
-        webhook.url,
-        {
-          method: 'POST',
-          headers,
-          body,
-          signal: AbortSignal.timeout(this.configService.get<number>('webhook.timeout', 10000)),
-        },
-        response => ({ ok: response.ok, status: response.status, statusText: response.statusText }),
-        { guard: isSsrfProtectionEnabled() },
-      );
-
-      if (!ok) {
-        throw new Error(`HTTP ${status}: ${statusText}`);
-      }
-
-      // Update last triggered timestamp
-      await this.webhookRepository.update(webhook.id, {
-        lastTriggeredAt: new Date(),
-      });
-
-      this.logger.debug(`Webhook delivered to ${webhook.id}`, {
-        webhookId: webhook.id,
-        deliveryId: payload.deliveryId,
-        action: 'webhook_delivered',
-      });
-    } catch (error) {
-      this.logger.error(`Webhook delivery failed for ${webhook.id}`, String(error), {
-        webhookId: webhook.id,
-        attempt,
-        deliveryId: payload.deliveryId,
-        action: 'webhook_delivery_failed',
-      });
-
-      if (attempt < webhook.retryCount) {
-        const delay = this.configService.get<number>('webhook.retryDelay', 5000);
-        await this.delay(delay * attempt);
-        return this.deliverWebhook(webhook, payload, headers, attempt + 1);
-      }
-      // All direct-path retries exhausted — persist a durable failure record before giving up, mirroring
-      // the queued processor's final-attempt path so the queue-disabled path isn't a blind spot.
-      const errMessage = redactSsrfError(error);
-      await recordWebhookDeliveryFailure(this.failureRepository, this.logger, {
-        webhookId: webhook.id,
-        sessionId: payload.sessionId,
-        event: payload.event,
-        url: webhook.url,
-        idempotencyKey: payload.idempotencyKey,
-        deliveryId: payload.deliveryId,
-        attempts: attempt,
-        lastStatusCode: statusCodeFromError(errMessage),
-        lastError: errMessage,
-      });
-      incrementWebhookDeliveryFailures();
-      throw error;
-    }
-  }
-
-  /**
-   * Drop operator-supplied custom headers that target reserved names (Content-Type or any
-   * X-OpenWA-* header) so a webhook config cannot forge the signature/event/idempotency
-   * headers. Spread the result BEFORE the system headers so system always wins.
-   */
-  private sanitizeCustomHeaders(custom: Record<string, string> | null | undefined): Record<string, string> {
-    const safe: Record<string, string> = {};
-    for (const [key, value] of Object.entries(custom ?? {})) {
-      if (!/^(content-type|x-openwa-)/i.test(key)) {
-        safe[key] = value;
-      }
-    }
-    return safe;
-  }
-
-  private generateSignature(payload: string, secret: string): string {
-    const hmac = crypto.createHmac('sha256', secret);
-    hmac.update(payload);
-    return `sha256=${hmac.digest('hex')}`;
-  }
-
-  private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
