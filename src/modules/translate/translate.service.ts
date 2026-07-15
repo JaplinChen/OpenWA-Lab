@@ -6,21 +6,7 @@ import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
-
-// Invisible marker (ported from WA-Translate) prepended to bot output so the bot never re-translates
-// its own messages. U+2063 is a zero-width invisible separator — it does not alter the visible text.
-const BOT_MARKER = '⁣⁣';
-
-const ZH_RE = /[㐀-鿿豈-﫿]/;
-const VI_RE = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
-
-interface Pair {
-  key: string; // glossary lookup key, matches WA-Translate glossary.json (e.g. "zh-tw:vi")
-  source: string;
-  targetLabel: string;
-}
-const ZH_TO_VI: Pair = { key: 'zh-tw:vi', source: '繁體中文', targetLabel: '越南文 (Tiếng Việt)' };
-const VI_TO_ZH: Pair = { key: 'vi:zh-tw', source: '越南文', targetLabel: '繁體中文' };
+import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep } from './translate-lang';
 
 const CONFIG_PATH = 'data/translate-config.json';
 
@@ -257,20 +243,9 @@ export class TranslateService implements OnModuleInit {
     await this.messageService.sendText(sessionId, { chatId: msg.chatId, text: BOT_MARKER + reply });
   }
 
+  // Thin instance wrapper over the pure detector (kept a method so the spec's private-method poke works).
   private detectPair(text: string): Pair | null {
-    const hasVi = VI_RE.test(text);
-    const hasZh = ZH_RE.test(text);
-    // Mixed (e.g. a Vietnamese message @-mentioning a Chinese name): decide by dominant script.
-    // Checking ZH first would misread any Vietnamese message carrying a CJK name as Chinese and
-    // never translate it to Chinese — the actual bug this guards against.
-    if (hasVi && hasZh) {
-      const cjk = (text.match(/[㐀-鿿豈-﫿]/g) || []).length;
-      const latin = (text.match(/[A-Za-z]/g) || []).length;
-      return latin >= cjk ? VI_TO_ZH : ZH_TO_VI;
-    }
-    if (hasVi) return VI_TO_ZH;
-    if (hasZh) return ZH_TO_VI;
-    return null;
+    return detectPair(text);
   }
 
   private enqueue<T>(task: () => Promise<T>): Promise<T> {
@@ -279,22 +254,8 @@ export class TranslateService implements OnModuleInit {
     return run;
   }
 
-  private buildPrompt(text: string, pair: Pair): string {
-    const glossarySection = this.glossary.section(pair.key);
-    return [
-      '你是專業翻譯引擎，只做翻譯。',
-      `請把以下內容從 ${pair.source} 翻譯成 ${pair.targetLabel}。`,
-      '規則：',
-      '1) 僅輸出翻譯結果，不要解釋。',
-      '2) 保留人名、網址、程式碼、數字與專有名詞（術語表另有指定者除外）。',
-      '3) 若原文主要不是可翻譯自然語言，回傳原文。',
-      glossarySection,
-      text,
-    ].join('\n');
-  }
-
   private async translate(text: string, pair: Pair): Promise<string> {
-    const prompt = this.buildPrompt(text, pair);
+    const prompt = buildPrompt(text, pair, this.glossary.section(pair.key));
     const res = await fetch(this.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -311,8 +272,4 @@ export class TranslateService implements OnModuleInit {
     if (!out) throw new Error('Ollama empty response');
     return out;
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }
