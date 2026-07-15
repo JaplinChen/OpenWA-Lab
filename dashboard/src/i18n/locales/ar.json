@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "واجهة برمجة واتساب",
     "loading": "جارٍ التحميل...",
     "save": "حفظ",
@@ -75,7 +75,9 @@
     "messageTester": "اختبار الرسائل",
     "infrastructure": "البنية التحتية",
     "plugins": "الإضافات",
-    "logs": "السجلات"
+    "logs": "السجلات",
+    "translate": "مجموعات الترجمة",
+    "settings": "الإعدادات"
   },
   "chats": {
     "media": {

@@ -22,6 +22,7 @@ const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.Api
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
 const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 const Plugins = lazy(() => import('./pages/Plugins'));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,16 +106,28 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<Layout onLogout={handleLogout} userRole={role} />}>
             <Route index element={<Dashboard />} />
-            <Route path="sessions" element={<Sessions />} />
             <Route path="chats" element={<Chats />} />
-            <Route path="webhooks" element={<Webhooks />} />
-            <Route path="translate" element={<Translate />} />
-            <Route path="templates" element={<Templates />} />
-            {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
             <Route path="logs" element={<Logs />} />
-            <Route path="message-tester" element={<MessageTester />} />
-            {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
-            {role === 'admin' && <Route path="plugins" element={<Plugins />} />}
+            <Route path="settings" element={<Settings userRole={role} />}>
+              <Route index element={<Navigate to="sessions" replace />} />
+              <Route path="sessions" element={<Sessions />} />
+              <Route path="webhooks" element={<Webhooks />} />
+              <Route path="templates" element={<Templates />} />
+              <Route path="translate" element={<Translate />} />
+              <Route path="message-tester" element={<MessageTester />} />
+              {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
+              {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
+              {role === 'admin' && <Route path="plugins" element={<Plugins />} />}
+            </Route>
+            {/* Redirect legacy top-level routes into the Settings section */}
+            <Route path="sessions" element={<Navigate to="/settings/sessions" replace />} />
+            <Route path="webhooks" element={<Navigate to="/settings/webhooks" replace />} />
+            <Route path="templates" element={<Navigate to="/settings/templates" replace />} />
+            <Route path="translate" element={<Navigate to="/settings/translate" replace />} />
+            <Route path="message-tester" element={<Navigate to="/settings/message-tester" replace />} />
+            <Route path="api-keys" element={<Navigate to="/settings/api-keys" replace />} />
+            <Route path="infrastructure" element={<Navigate to="/settings/infrastructure" replace />} />
+            <Route path="plugins" element={<Navigate to="/settings/plugins" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

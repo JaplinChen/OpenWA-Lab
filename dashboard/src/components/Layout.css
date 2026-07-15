@@ -167,9 +167,22 @@
 .sidebar-footer {
   padding: 0.75rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   border-top: 1px solid var(--border);
+}
+
+.theme-toggle-btn.icon-only,
+.logout-btn.icon-only {
+  gap: 0;
+  padding: 0.6rem;
+}
+
+.language-menu .theme-toggle-btn.icon-only,
+.appearance-menu .theme-toggle-btn.icon-only {
+  width: auto;
 }
 
 .sidebar.collapsed .sidebar-footer {
