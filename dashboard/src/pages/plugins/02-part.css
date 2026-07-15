@@ -1,0 +1,247 @@
+
+.plugins-page .plugin-type-label{
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plugins-page .plugin-provides{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-bottom: 1rem;
+}
+
+.plugins-page .provides-tag{
+  padding: 0.25rem 0.5rem;
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  border-radius: 4px;
+}
+
+.plugins-page .plugin-error{
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.plugins-page .plugin-error-text{
+  color: #ef4444;
+  font-size: 0.75rem;
+}
+
+.plugins-page .plugin-actions{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.plugins-page .btn-toggle{
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+/* Positive action (Enable / Activate): the one solid brand-green CTA, so an action never reads
+   the same as the passive "Active" state below. */
+.plugins-page .btn-toggle.enable{
+  background: var(--primary, #25d366);
+  border: 1px solid var(--primary, #25d366);
+  color: #fff;
+}
+
+.plugins-page .btn-toggle.enable:hover{
+  background: #16a34a;
+  border-color: #16a34a;
+}
+
+.plugins-page .btn-toggle.disable{
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.plugins-page .btn-toggle.disable:hover{
+  background: rgba(239, 68, 68, 0.2);
+}
+
+.plugins-page .btn-toggle:disabled{
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Passive states (Active / Required) are NOT actions — render them as quiet neutral chips, with
+   only a small green check as the "it's on" signal, so they're clearly distinct from the green CTA. */
+.plugins-page .btn-required{
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.plugins-page .btn-required svg{
+  color: var(--text-muted);
+}
+
+.plugins-page .btn-active{
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.plugins-page .btn-active svg{
+  color: #16a34a;
+}
+
+.plugins-page .btn-action{
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  padding: 0;
+}
+
+.plugins-page .btn-action:hover{
+  background: var(--bg-white);
+  border-color: var(--text-muted);
+}
+
+.plugins-page .btn-action svg{
+  color: var(--text-secondary);
+}
+
+/* Empty State */
+.plugins-page .empty-state{
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.plugins-page .empty-state svg{
+  color: var(--text-muted);
+  margin-bottom: 1rem;
+}
+
+.plugins-page .empty-state h3{
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.plugins-page .empty-state p{
+  color: var(--text-muted);
+}
+
+/* Config Modal */
+.plugins-page .config-modal{
+  max-width: 640px;
+  width: 90%;
+}
+
+.plugins-page .config-info-banner{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  color: var(--warning);
+  font-size: 0.875rem;
+}
+
+.plugins-page .config-form .form-group{
+  margin-bottom: 1.25rem;
+}
+
+.plugins-page .config-form .form-group label{
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.plugins-page .config-form .form-group input, .plugins-page .config-form .form-group select, .plugins-page .config-form .form-group textarea{
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  background: var(--bg-light);
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.plugins-page .config-form .form-group textarea{
+  font-family: inherit;
+  resize: vertical;
+  min-height: 4.5rem;
+}
+
+.plugins-page .config-form .form-group input:focus, .plugins-page .config-form .form-group select:focus, .plugins-page .config-form .form-group textarea:focus{
+  outline: none;
+  border-color: var(--primary);
+  background: var(--bg-white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+/* Nested object — a bordered group of sub-fields. */
+.plugins-page .config-form .config-fieldset{
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem 0.25rem;
+  margin: 0 0 1.25rem;
+  min-width: 0;
+}
+
+.plugins-page .config-form .config-fieldset > legend{
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 0.4rem;
+}
+
+/* Array-of-rows — repeating rows with add/remove. */
+.plugins-page .config-form .config-array{
+  margin-bottom: 1.25rem;
+}

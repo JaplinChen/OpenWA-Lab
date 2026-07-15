@@ -1,0 +1,250 @@
+.webhooks-page{
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
+/* Webhook create/edit modal: roomier than the default 480px (filters need width). */
+.webhooks-page .modal:not(.modal-sm){
+  max-width: 640px;
+}
+
+/* Consistent vertical rhythm between top-level form blocks in the webhook modals.
+   Direct-child only, so nested FilterBuilder inputs/selects are untouched. */
+.webhooks-page .modal-body > input, .webhooks-page .modal-body > select, .webhooks-page .modal-body > .event-tags{
+  margin-bottom: 0.75rem;
+}
+
+.webhooks-page .modal-body > .event-tags{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.webhooks-page .page-header{
+  margin-bottom: 2rem;
+}
+
+.webhooks-page .header-content{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* H1 inherited from global */
+
+.webhooks-page .btn-primary{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.webhooks-page .btn-primary:hover{
+  background: var(--primary-hover);
+}
+
+.webhooks-page .webhooks-content{
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 1.5rem;
+}
+
+.webhooks-page .webhooks-list-container{
+  width: 100%;
+  min-width: 0;
+}
+
+.webhooks-page .webhooks-card-list{
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.webhooks-page .webhook-card{
+  background: var(--bg-white);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.webhooks-page .webhook-card:hover{
+  box-shadow: var(--shadow-md);
+}
+
+.webhooks-page .webhook-card-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-light);
+  gap: 1rem;
+}
+
+.webhooks-page .webhook-url-row{
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.webhooks-page .webhook-url-icon{
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.webhooks-page .webhook-url{
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  background: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.webhooks-page .webhook-card-actions{
+  display: flex;
+  gap: 0.375rem;
+  flex-shrink: 0;
+}
+
+.webhooks-page .webhook-card-body{
+  padding: 1rem 1.25rem;
+  overflow: hidden;
+}
+
+.webhooks-page .webhook-meta{
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 0.875rem;
+}
+
+.webhooks-page .webhook-meta-item{
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.webhooks-page .webhook-meta-label{
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.webhooks-page .webhook-meta-value{
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.webhooks-page .webhook-events{
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.webhooks-page .empty-table-state{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.webhooks-page .empty-table-state svg{
+  margin-bottom: 1rem;
+  opacity: 0.4;
+  color: var(--text-muted);
+}
+
+.webhooks-page .empty-table-state h3{
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+}
+
+.webhooks-page .empty-table-state p{
+  margin: 0;
+  font-size: 0.875rem;
+  max-width: 300px;
+}
+
+.webhooks-page .events-cell{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+.webhooks-page .event-tag{
+  font-size: 0.75rem;
+  padding: 0.25rem 0.625rem;
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+  color: var(--primary);
+  border-radius: 6px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  cursor: default;
+  font-family: 'JetBrains Mono', monospace;
+  letter-spacing: -0.01em;
+}
+
+/* Modal event tags - clickable (webhooks only) */
+.webhooks-page .modal-body .event-tag{
+  font-size: 0.8125rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.webhooks-page .modal-body .event-tag:hover{
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.webhooks-page .modal-body .event-tag.selected{
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.webhooks-page .modal-body .event-tag .tag-check-icon {
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+/* Ensure modal event tags have proper unselected & selected styles in dark mode */
+.webhooks-page [data-theme='dark'] .modal-body .event-tag,
+:root:not([data-theme='light']) .webhooks-page .modal-body .event-tag {
+  background: var(--bg-light);
+  color: var(--text-secondary);
+  border-color: var(--border);
+}

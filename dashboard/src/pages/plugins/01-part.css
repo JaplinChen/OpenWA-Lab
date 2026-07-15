@@ -1,0 +1,250 @@
+.plugins-page{
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Engine Card */
+.plugins-page .engine-card{
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.plugins-page .engine-header{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.plugins-page .engine-info{
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.plugins-page .engine-icon-wrapper{
+  width: 48px;
+  height: 48px;
+  background: rgba(34, 197, 94, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.plugins-page .engine-icon-wrapper svg{
+  color: #22c55e;
+}
+
+.plugins-page .engine-title{
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.plugins-page .engine-name{
+  font-size: 0.875rem;
+  color: #22c55e;
+}
+
+.plugins-page .engine-features{
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(34, 197, 94, 0.15);
+}
+
+.plugins-page .features-label{
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.plugins-page .features-list{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.plugins-page .feature-tag{
+  padding: 0.25rem 0.5rem;
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+  border-radius: 4px;
+  font-size: 0.75rem;
+}
+
+/* Plugins Grid */
+.plugins-page .plugins-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+/* Plugin Card */
+.plugins-page .plugin-card{
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.plugins-page .plugin-card:hover{
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.plugins-page .plugin-card-header{
+  padding: 1.25rem 1.25rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.plugins-page .plugin-info{
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.plugins-page .plugin-icon-wrapper{
+  width: 42px;
+  height: 42px;
+  background: var(--bg-light);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.plugins-page .plugin-icon-wrapper svg{
+  color: var(--text-secondary);
+}
+
+/* Calm, low-saturation type tints on the icon only — no loud gradient header, no alarming red. */
+.plugins-page .type-engine .plugin-icon-wrapper{
+  background: rgba(34, 197, 94, 0.12);
+}
+.plugins-page .type-engine .plugin-icon-wrapper svg{
+  color: #16a34a;
+}
+.plugins-page .type-extension .plugin-icon-wrapper{
+  background: rgba(99, 102, 241, 0.12);
+}
+.plugins-page .type-extension .plugin-icon-wrapper svg{
+  color: #6366f1;
+}
+.plugins-page .type-storage .plugin-icon-wrapper{
+  background: rgba(13, 148, 136, 0.12);
+}
+.plugins-page .type-storage .plugin-icon-wrapper svg{
+  color: #0d9488;
+}
+.plugins-page .type-queue .plugin-icon-wrapper{
+  background: rgba(217, 119, 6, 0.12);
+}
+.plugins-page .type-queue .plugin-icon-wrapper svg{
+  color: #d97706;
+}
+.plugins-page .type-auth .plugin-icon-wrapper{
+  background: rgba(147, 51, 234, 0.12);
+}
+.plugins-page .type-auth .plugin-icon-wrapper svg{
+  color: #9333ea;
+}
+
+.plugins-page .plugin-name{
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.plugins-page .plugin-version{
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.plugins-page .plugin-builtin-badge{
+  padding: 0.1875rem 0.5rem;
+  background: var(--bg-light);
+  color: var(--text-muted);
+  font-size: 0.625rem;
+  font-weight: 600;
+  border-radius: 5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.plugins-page .plugin-card-body{
+  padding: 1.25rem;
+}
+
+.plugins-page .plugin-description{
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.plugins-page .plugin-status-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.plugins-page .plugin-status{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plugins-page .status-dot{
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.plugins-page .status-dot.enabled{
+  background: #22c55e;
+}
+
+.plugins-page .status-dot.disabled{
+  background: #eab308;
+}
+
+.plugins-page .status-dot.error{
+  background: #ef4444;
+}
+
+.plugins-page .status-dot.installed{
+  background: #64748b;
+}
+
+.plugins-page .status-text{
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}

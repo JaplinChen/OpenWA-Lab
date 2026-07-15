@@ -1,0 +1,252 @@
+
+.plugins-page .config-form .config-array > label{
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+}
+
+.plugins-page .config-form .config-array-row{
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.plugins-page .config-form .config-array-row-body{
+  flex: 1;
+  min-width: 0;
+  border-left: 2px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.plugins-page .config-form .config-array-remove{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-light);
+  color: var(--danger, #e5484d);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plugins-page .config-form .config-array-remove:hover{
+  background: var(--danger, #e5484d);
+  color: #fff;
+  border-color: var(--danger, #e5484d);
+}
+
+.plugins-page .config-form .config-array-add{
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 0.85rem;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.plugins-page .config-form .config-array-add:hover{
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* Sandboxed-iframe config editor (B-full). */
+.plugins-page .plugin-config-ui-frame{
+  display: block;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-white);
+}
+
+.plugins-page .config-ui-status{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: var(--text-muted);
+}
+
+.plugins-page .config-ui-error{
+  padding: 1rem;
+  text-align: center;
+  color: var(--danger, #e5484d);
+}
+
+.plugins-page .config-form .form-group small{
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.plugins-page .config-form .form-group .required-mark{
+  color: var(--danger, #e5484d);
+}
+
+.plugins-page .toggle-group{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: var(--bg-light);
+  border-radius: 8px;
+}
+
+.plugins-page .toggle-info{
+  flex: 1;
+}
+
+.plugins-page .toggle-info label{
+  display: block !important;
+  margin-bottom: 0.25rem !important;
+}
+
+.plugins-page .toggle-info small{
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.plugins-page .toggle-switch{
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+  flex-shrink: 0;
+}
+
+.plugins-page .toggle-switch input{
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.plugins-page .toggle-slider{
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border);
+  transition: 0.3s;
+  border-radius: 26px;
+}
+
+.plugins-page .toggle-slider:before{
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.plugins-page .toggle-switch input:checked + .toggle-slider{
+  background-color: var(--primary, #22c55e);
+}
+
+.plugins-page .toggle-switch input:checked + .toggle-slider:before{
+  transform: translateX(22px);
+}
+
+.plugins-page .no-config{
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.plugins-page .no-config p{
+  margin-top: 1rem;
+}
+
+.plugins-page .btn-primary{
+  padding: 0.75rem 1.5rem;
+  background: var(--primary, #22c55e);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.plugins-page .btn-primary:hover{
+  background: #16a34a;
+}
+
+.plugins-page .btn-primary:disabled{
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .plugins-page{
+    padding: 1rem;
+  }
+
+  .plugins-page .plugins-grid{
+    grid-template-columns: 1fr;
+  }
+
+  .plugins-page .engine-header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+}
+
+/* ── Two-column control layout: status rail + plugin catalog ─────────────── */
+.plugins-page .plugins-layout{
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+}
+
+.plugins-page .plugins-rail{
+  flex: 0 0 280px;
+  position: sticky;
+  top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem;
+}
+
+.plugins-page .plugins-main{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plugins-page .rail-label{
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 0.625rem;
+}

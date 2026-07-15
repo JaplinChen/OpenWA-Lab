@@ -1,0 +1,241 @@
+
+.chats-page .input-form{
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.chats-page .message-text-input{
+  flex: 1;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  font-size: 0.9375rem;
+  background: var(--bg-light);
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.chats-page .message-text-input:focus{
+  border-color: var(--primary);
+  background: var(--bg-white);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.chats-page .btn-send-message{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  background: var(--primary);
+  border: none;
+  border-radius: 50%;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+}
+
+.chats-page .btn-send-message:hover:not(:disabled){
+  background: var(--primary-hover);
+  transform: scale(1.05);
+}
+
+.chats-page .btn-send-message:disabled{
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* =============================================================================
+   GENERAL CHATS STYLES & ERROR STATES
+   ============================================================================= */
+.chats-page .chats-loading-container, .chats-page .chats-error-state{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 4rem 2rem;
+  margin-top: 1rem;
+  text-align: center;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-sm);
+  flex: 1;
+}
+
+.chats-page .chats-error-state h3{
+  font-size: 1.25rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--text-primary);
+}
+
+.chats-page .chats-error-state p{
+  font-size: 0.9375rem;
+  max-width: 450px;
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.chats-page .text-warn{
+  color: #ea580c;
+}
+
+/* Real-time connection-lost banner */
+.chats-page .chats-reconnect-banner{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 6px;
+  background: rgba(234, 88, 12, 0.1);
+  color: #ea580c;
+  font-size: 0.875rem;
+}
+
+.chats-page .chats-reconnect-banner button{
+  margin-left: auto;
+}
+
+/* =============================================================================
+   ATTACHMENT PREVIEW & EMOJI PICKER
+   ============================================================================= */
+.chats-page .btn-input-accessory{
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.chats-page .btn-input-accessory:hover{
+  background: var(--bg-light);
+  color: var(--text-primary);
+}
+
+.chats-page .btn-input-accessory.active{
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--primary);
+}
+
+.chats-page .attachment-preview-banner{
+  background: var(--bg-white);
+  border-top: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-sizing: border-box;
+}
+
+.chats-page .preview-thumbnail{
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.chats-page .preview-file-icon{
+  width: 48px;
+  height: 48px;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+
+.chats-page .preview-file-info{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.chats-page .preview-filename{
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chats-page .preview-filesize{
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.chats-page .btn-remove-attachment{
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.375rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.chats-page .btn-remove-attachment:hover{
+  background: rgba(239, 68, 68, 0.12);
+  color: var(--error);
+}
+
+.chats-page .chats-emoji-picker{
+  background: var(--bg-white);
+  border-top: 1px solid var(--border);
+  padding: 0.75rem 1.5rem;
+  box-sizing: border-box;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.chats-page .emoji-grid{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chats-page .emoji-btn{
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  padding: 0.375rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chats-page .emoji-btn:hover{
+  background: var(--bg-light);
+  transform: scale(1.15);
+}
+
+.chats-page .message-bubble.media-type{
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
