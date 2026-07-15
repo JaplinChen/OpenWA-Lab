@@ -2,13 +2,13 @@
 
 ## 1.1 Executive Summary
 
-**OpenWA** is an open-source platform that provides an HTTP API for WhatsApp integration. This project is built as a free and fully open-source alternative to paid solutions such as WAHA Plus.
+**OpenWA-Lab** is an open-source platform that provides an HTTP API for WhatsApp integration. This project is built as a free and fully open-source alternative to paid solutions such as WAHA Plus.
 
 ### Core Values
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      OpenWA Values                          │
+│                      OpenWA-Lab Values                      │
 ├─────────────────────────────────────────────────────────────┤
 │  🆓 100% Free         │  No paywalled features               │
 │  📖 Open Source       │  MIT License, fork friendly          │
@@ -40,7 +40,7 @@ flowchart LR
         P4[Data privacy concerns]
     end
     
-    subgraph Solution["✅ OpenWA Solution"]
+    subgraph Solution["✅ OpenWA-Lab Solution"]
         S1[100% Free & Open Source]
         S2[All features included]
         S3[Self-hosted, no lock-in]
@@ -55,7 +55,7 @@ flowchart LR
 
 ### Pain Points Addressed
 
-| Pain Point | OpenWA Solution |
+| Pain Point | OpenWA-Lab Solution |
 |------------|------------------|
 | WAHA Plus charges for multi-session | Free unlimited multi-session |
 | Dashboard only in paid tiers | Free dashboard |
@@ -69,7 +69,7 @@ flowchart LR
 
 ```mermaid
 mindmap
-  root((OpenWA Goals))
+  root((OpenWA-Lab Goals))
     Functional
       Complete REST API
       Multi-session
@@ -197,12 +197,12 @@ quadrantChart
     WAHA Core: [0.2, 0.4]
     Whapi.cloud: [0.8, 0.75]
     Green API: [0.6, 0.6]
-    OpenWA: [0.1, 0.85]
+    OpenWA-Lab: [0.1, 0.85]
 ```
 
 ### Feature Comparison
 
-| Feature | OpenWA | WAHA Core | WAHA Plus | Whapi.cloud |
+| Feature | OpenWA-Lab | WAHA Core | WAHA Plus | Whapi.cloud |
 |---------|--------|-----------|-----------|-------------|
 | Price | Free | Free | $50+/mo | $30+/mo |
 | Open Source | ✅ | ❌ | ❌ | ❌ |

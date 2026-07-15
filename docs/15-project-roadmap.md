@@ -4,7 +4,7 @@
 
 ```mermaid
 timeline
-    title OpenWA Release Timeline
+    title OpenWA-Lab Release Timeline
 
     section v0.0.1 - MVP
         Month 1-3 : Foundation & Engine

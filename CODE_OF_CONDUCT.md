@@ -2,7 +2,7 @@
 
 ## Our pledge
 
-We as members, contributors, and maintainers pledge to make participation in the OpenWA
+We as members, contributors, and maintainers pledge to make participation in the OpenWA-Lab
 community a welcoming, respectful, and inclusive experience for everyone, regardless of
 background or identity.
 

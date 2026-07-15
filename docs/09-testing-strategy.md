@@ -2,7 +2,7 @@
 
 ## 9.1 Current Status
 
-OpenWA now has an active Jest test suite covering the backend core, engine adapters, security helpers,
+OpenWA-Lab now has an active Jest test suite covering the backend core, engine adapters, security helpers,
 database migrations, plugin hooks, and smoke-level e2e boot paths. This document describes the current
 test layout and the expected testing workflow for contributors.
 
@@ -234,7 +234,7 @@ For production-compose changes:
 
 ```bash
 docker compose up -d --build
-docker compose logs -f openwa-api
+docker compose logs -f openwa-lab-api
 ```
 
 Live WhatsApp checks require an operator-owned account and should not be part of CI:

@@ -13,7 +13,7 @@ interface LoginProps {
 
 export function Login({ onLogin }: LoginProps) {
   const { t, i18n } = useTranslation();
-  const [apiKey, setApiKey] = useState('');
+  const [apiKey, setApiKey] = useState(import.meta.env.VITE_DEV_API_KEY ?? '');
   const [showKey, setShowKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,7 +58,7 @@ export function Login({ onLogin }: LoginProps) {
     <div className="login-container">
       <div className="login-card">
         <div className="login-logo">
-          <img src="/openwa_logo.webp" alt="OpenWA" className="logo-icon" />
+          <img src="/openwa_logo.webp" alt="OpenWA-Lab" className="logo-icon" />
           <span className="version-info">
             {t('login.version', {
               version: __APP_VERSION__,
@@ -109,7 +109,7 @@ export function Login({ onLogin }: LoginProps) {
         <p className="login-help">
           {t('login.help')}{' '}
           <a
-            href="https://github.com/rmyndharis/OpenWA/blob/main/docs/01-project-overview.md"
+            href="https://github.com/JaplinChen/OpenWA-Lab/blob/main/docs/01-project-overview.md"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -121,7 +121,7 @@ export function Login({ onLogin }: LoginProps) {
       <footer className="login-footer">
         <span>{t('login.footer')}</span>
         <a
-          href="https://github.com/rmyndharis/OpenWA"
+          href="https://github.com/JaplinChen/OpenWA-Lab"
           target="_blank"
           rel="noopener noreferrer"
           className="github-link"

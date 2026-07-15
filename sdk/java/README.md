@@ -1,6 +1,6 @@
-# OpenWA Java SDK
+# OpenWA-Lab Java SDK
 
-Official Java client for the [OpenWA](https://github.com/rmyndharis/OpenWA)
+Official Java client for the [OpenWA-Lab](https://github.com/JaplinChen/OpenWA-Lab)
 WhatsApp API Gateway.
 
 Hand-written against the exact API surface (paths, DTOs, response shapes) and
@@ -40,7 +40,7 @@ client.sessions.start("my-session");
 MessageResponse result = client.messages.sendText("my-session",
     SendTextRequest.builder()
         .chatId("628123456789@c.us")
-        .text("Hello from the OpenWA Java SDK!")
+        .text("Hello from the OpenWA-Lab Java SDK!")
         .build());
 
 System.out.println(result.messageId());

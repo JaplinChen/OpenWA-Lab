@@ -2,7 +2,7 @@
 
 ## 07.1 Overview
 
-This collection gives a runnable cURL for every OpenWA REST endpoint. The examples assume two environment variables — set them once and reuse them:
+This collection gives a runnable cURL for every OpenWA-Lab REST endpoint. The examples assume two environment variables — set them once and reuse them:
 
 ```bash
 export BASE=http://localhost:2785
@@ -240,7 +240,7 @@ Send a plain text message.
 curl -X POST "$BASE/api/sessions/my-session/messages/send-text" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "chatId": "628123456789@c.us", "text": "Hello from OpenWA!" }'
+  -d '{ "chatId": "628123456789@c.us", "text": "Hello from OpenWA-Lab!" }'
 ```
 
 #### POST /api/sessions/:sessionId/messages/send-template
@@ -636,7 +636,7 @@ curl -X POST "$BASE/api/sessions/$SESSION_ID/templates" \
   -d '{
     "name": "order-confirmation",
     "body": "Hi {{customer}}, your order {{orderId}} has shipped.",
-    "header": "OpenWA Store",
+    "header": "OpenWA-Lab Store",
     "footer": "Reply STOP to unsubscribe."
   }'
 ```
@@ -813,7 +813,7 @@ curl -X GET "$BASE/api/sessions/$SESSION_ID/status/6281234567890@c.us" \
 curl -X POST "$BASE/api/sessions/$SESSION_ID/status/send-text" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "text": "Hello from OpenWA!", "backgroundColor": "#25D366", "font": 2 }'
+  -d '{ "text": "Hello from OpenWA-Lab!", "backgroundColor": "#25D366", "font": 2 }'
 ```
 
 ```bash

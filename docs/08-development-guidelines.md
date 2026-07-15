@@ -3,7 +3,7 @@
 ## 8.1 Project Structure
 
 ```
-openwa/
+openwa-lab/
 ├── src/
 │   ├── main.ts                    # Application entry
 │   ├── app.module.ts              # Root module
@@ -610,8 +610,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/rmyndharis/OpenWA.git
-cd OpenWA
+git clone https://github.com/JaplinChen/OpenWA-Lab.git
+cd OpenWA-Lab
 
 # 2. Install dependencies (also installs dashboard dependencies)
 npm install
@@ -674,7 +674,7 @@ docker compose --profile full up -d
 
 ### Environment Variables
 
-OpenWA supports multiple infrastructure configurations. Choose based on your needs:
+OpenWA-Lab supports multiple infrastructure configurations. Choose based on your needs:
 
 #### Minimal Profile (Development / Single Session)
 
@@ -697,7 +697,7 @@ STORAGE_LOCAL_PATH=./data/media
 REDIS_ENABLED=false
 QUEUE_ENABLED=false
 
-# Optional: seed a known admin key. If omitted, OpenWA generates a random key and writes data/.api-key.
+# Optional: seed a known admin key. If omitted, OpenWA-Lab generates a random key and writes data/.api-key.
 API_MASTER_KEY=
 
 # Session
@@ -1106,7 +1106,7 @@ constructor(
 
 **Check logs:**
 ```bash
-docker compose logs openwa-api --tail 100
+docker compose logs openwa-lab-api --tail 100
 ```
 
 **Common causes:**
@@ -1125,7 +1125,7 @@ docker run --shm-size=2gb openwa
 Or in docker-compose.yml:
 ```yaml
 services:
-  openwa-api:
+  openwa-lab-api:
     shm_size: '2gb'
 ```
 ```

@@ -165,11 +165,25 @@
 }
 
 .sidebar-footer {
+  position: relative;
   padding: 0.75rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   border-top: 1px solid var(--border);
+}
+
+.theme-toggle-btn.icon-only,
+.logout-btn.icon-only {
+  gap: 0;
+  padding: 0.6rem;
+}
+
+.language-menu .theme-toggle-btn.icon-only,
+.appearance-menu .theme-toggle-btn.icon-only {
+  width: auto;
 }
 
 .sidebar.collapsed .sidebar-footer {
@@ -226,7 +240,7 @@
 
 .language-menu,
 .appearance-menu {
-  position: relative;
+  position: static;
 }
 
 .language-menu .theme-toggle-btn,
@@ -236,8 +250,8 @@
 
 .language-menu-list {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 0.75rem;
+  right: 0.75rem;
   bottom: calc(100% + 0.35rem);
   display: flex;
   flex-direction: column;
@@ -286,8 +300,8 @@
 
 .appearance-menu-list {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 0.75rem;
+  right: 0.75rem;
   bottom: calc(100% + 0.35rem);
   display: flex;
   flex-direction: column;

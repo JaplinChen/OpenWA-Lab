@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "API de WhatsApp",
     "loading": "Cargando...",
     "save": "Guardar",
@@ -75,7 +75,9 @@
     "infrastructure": "Infraestructura",
     "plugins": "Plugins",
     "logs": "Registros",
-    "templates": "Plantillas"
+    "templates": "Plantillas",
+    "translate": "Grupos de traducción",
+    "settings": "Ajustes"
   },
   "chats": {
     "media": {
@@ -145,7 +147,7 @@
     "connectionError": "No se puede conectar al servidor. Por favor, inténtalo de nuevo.",
     "help": "¿Necesitas ayuda?",
     "viewDocs": "Ver documentación",
-    "footer": "Hecho con ❤️ por Yudhi Armyndharis y la comunidad OpenWA",
+    "footer": "Hecho con ❤️ por Yudhi Armyndharis y la comunidad OpenWA-Lab",
     "version": "v{{version}} · {{date}}"
   },
   "dashboard": {
@@ -588,7 +590,7 @@
       "postgres": "PostgreSQL",
       "postgresDesc": "Base de datos para producción",
       "useBuiltIn": "Usar contenedor PostgreSQL integrado",
-      "builtInDesc": "OpenWA gestionará un contenedor PostgreSQL por ti",
+      "builtInDesc": "OpenWA-Lab gestionará un contenedor PostgreSQL por ti",
       "dbName": "Nombre de la base de datos",
       "schema": "Esquema",
       "schemaDesc": "Esquema de PostgreSQL (ignorado para SQLite). Predeterminado 'public'. El esquema debe existir previamente.",
@@ -624,7 +626,7 @@
       "enable": "Habilitar Redis",
       "enableDesc": "Necesario para caché, almacenamiento de sesiones y colas BullMQ",
       "useBuiltIn": "Usar contenedor Redis integrado",
-      "builtInDesc": "OpenWA gestionará un contenedor Redis por ti",
+      "builtInDesc": "OpenWA-Lab gestionará un contenedor Redis por ti",
       "queueTitle": "Habilitar sistema de colas BullMQ",
       "queueDesc": "Usa colas de mensajes para entrega fiable de mensajes y webhooks",
       "statsTitle": "Estadísticas de colas",
@@ -646,7 +648,7 @@
       "s3": "Amazon S3",
       "s3Desc": "Almacenamiento en la nube (compatible con S3)",
       "useBuiltIn": "Usar contenedor MinIO integrado",
-      "builtInDesc": "OpenWA gestionará un contenedor MinIO (compatible con S3) por ti",
+      "builtInDesc": "OpenWA-Lab gestionará un contenedor MinIO (compatible con S3) por ti",
       "storagePath": "Ruta de almacenamiento",
       "bucket": "Nombre del bucket",
       "region": "Región",
@@ -694,7 +696,7 @@
       "importFailed": "No se pudieron importar los datos",
       "importOk": "Datos importados",
       "importConfirm": "La importación REEMPLAZARÁ todos los datos actuales con la copia de seguridad ({{rows}} filas). Esto no se puede deshacer. ¿Continuar?",
-      "invalidFile": "Ese archivo no es una copia de seguridad de datos válida de OpenWA.",
+      "invalidFile": "Ese archivo no es una copia de seguridad de datos válida de OpenWA-Lab.",
       "importTooLarge": "La copia de seguridad supera el límite de la solicitud. Aumenta BODY_SIZE_LIMIT en el servidor e inténtalo de nuevo."
     },
     "statusLoadError": "No se pudo cargar el estado actual de la infraestructura. Actualiza para reintentar."
@@ -722,7 +724,7 @@
     "engineSwitchHint": "Establécelo como el motor activo en Ajustes y luego reinicia",
     "empty": {
       "title": "No se encontraron plugins",
-      "description": "Instala plugins para ampliar la funcionalidad de OpenWA"
+      "description": "Instala plugins para ampliar la funcionalidad de OpenWA-Lab"
     },
     "config": {
       "title": "Configurar {{name}}",

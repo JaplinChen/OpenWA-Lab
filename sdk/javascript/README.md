@@ -1,6 +1,6 @@
 # @rmyndharis/openwa
 
-Official JavaScript/TypeScript SDK for the [OpenWA](https://github.com/rmyndharis/OpenWA) WhatsApp API Gateway.
+Official JavaScript/TypeScript SDK for the [OpenWA-Lab](https://github.com/JaplinChen/OpenWA-Lab) WhatsApp API Gateway.
 
 Ships dual CJS + ESM builds with bundled type declarations.
 
@@ -26,7 +26,7 @@ await client.sessions.start('my-session');
 
 const result = await client.messages.sendText('my-session', {
   chatId: '628123456789@c.us',
-  text: 'Hello from the OpenWA SDK!',
+  text: 'Hello from the OpenWA-Lab SDK!',
 });
 console.log(result.messageId);
 ```

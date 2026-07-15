@@ -80,7 +80,7 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 # Create app user for security
-RUN groupadd -r openwa && useradd -r -g openwa openwa
+RUN groupadd -r openwa-lab && useradd -r -g openwa-lab openwa-lab
 
 WORKDIR /app
 
@@ -98,7 +98,7 @@ RUN if [ "$TARGETARCH" = arm64 ]; then \
     else \
         mkdir -p /opt/puppeteer && \
         PUPPETEER_CACHE_DIR=/opt/puppeteer ./node_modules/.bin/puppeteer browsers install 'chrome@146.0.7680.31' && \
-        chown -R openwa:openwa /opt/puppeteer && \
+        chown -R openwa-lab:openwa-lab /opt/puppeteer && \
         chrome_path=$(find /opt/puppeteer/chrome/linux*/chrome-linux64/chrome | head -n 1) && \
         test -n "$chrome_path" && \
         ln -s "$chrome_path" /usr/local/bin/puppeteer-chrome; \
@@ -114,20 +114,20 @@ COPY --from=builder /app/dashboard/dist ./dashboard/dist
 
 # Create data directories with correct ownership
 RUN mkdir -p ./data/sessions ./data/media && \
-    chown -R openwa:openwa /app
+    chown -R openwa-lab:openwa-lab /app
 
-# The non-root openwa user has no home of its own (`useradd -r`, no -m). Chromium resolves the home
+# The non-root openwa-lab user has no home of its own (`useradd -r`, no -m). Chromium resolves the home
 # dir from the passwd entry via glib's getpwuid() — it IGNORES $HOME — so it tries to read/write
-# /home/openwa, which does not exist. On hardened/read-only hosts that makes the browser HARD-CRASH
+# /home/openwa-lab, which does not exist. On hardened/read-only hosts that makes the browser HARD-CRASH
 # at launch (SIGTRAP/int3, logged as "chrome_crashpad_handler: --database is required"). The robust
 # fix is to point Chromium's config + cache at writable, pre-created dirs via XDG_* (honored directly,
-# bypassing the passwd lookup); docker-entrypoint.sh creates them owned by openwa. On a read_only
+# bypassing the passwd lookup); docker-entrypoint.sh creates them owned by openwa-lab. On a read_only
 # rootfs these live on the tmpfs /tmp. HOME is kept for any other HOME-relative tooling. See #254/#242.
 ENV HOME=/app/data
 ENV XDG_CONFIG_HOME=/tmp/.config
 ENV XDG_CACHE_HOME=/tmp/.cache
 
-# Copy entrypoint: runs as root to fix named-volume ownership, then drops to openwa via gosu
+# Copy entrypoint: runs as root to fix named-volume ownership, then drops to openwa-lab via gosu
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
@@ -140,6 +140,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 
 # dumb-init is PID 1 and handles signal forwarding.
 # It execs docker-entrypoint.sh (as root), which fixes volume ownership and
-# then drops to the openwa user via gosu before starting the node process.
+# then drops to the openwa-lab user via gosu before starting the node process.
 ENTRYPOINT ["dumb-init", "--", "/usr/local/bin/docker-entrypoint.sh"]
 CMD ["node", "dist/main"]

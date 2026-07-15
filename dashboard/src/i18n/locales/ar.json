@@ -6,7 +6,7 @@
     }
   },
   "common": {
-    "appName": "OpenWA",
+    "appName": "OpenWA-Lab",
     "appSubtitle": "واجهة برمجة واتساب",
     "loading": "جارٍ التحميل...",
     "save": "حفظ",
@@ -75,7 +75,9 @@
     "messageTester": "اختبار الرسائل",
     "infrastructure": "البنية التحتية",
     "plugins": "الإضافات",
-    "logs": "السجلات"
+    "logs": "السجلات",
+    "translate": "مجموعات الترجمة",
+    "settings": "الإعدادات"
   },
   "chats": {
     "media": {
@@ -145,7 +147,7 @@
     "connectionError": "تعذّر الاتصال بالخادم. يرجى المحاولة مرة أخرى.",
     "help": "هل تحتاج مساعدة؟",
     "viewDocs": "عرض التوثيق",
-    "footer": "صُنع بـ ❤️ بواسطة Yudhi Armyndharis ومجتمع OpenWA",
+    "footer": "صُنع بـ ❤️ بواسطة Yudhi Armyndharis ومجتمع OpenWA-Lab",
     "version": "v{{version}} · {{date}}"
   },
   "dashboard": {
@@ -592,7 +594,7 @@
       "postgres": "PostgreSQL",
       "postgresDesc": "قاعدة بيانات جاهزة للإنتاج",
       "useBuiltIn": "استخدام حاوية PostgreSQL المدمجة",
-      "builtInDesc": "سيدير OpenWA حاوية PostgreSQL نيابةً عنك",
+      "builtInDesc": "سيدير OpenWA-Lab حاوية PostgreSQL نيابةً عنك",
       "dbName": "اسم قاعدة البيانات",
       "schema": "المخطط",
       "schemaDesc": "مخطط PostgreSQL (يُتجاهل لـ SQLite). الافتراضي 'public'. يجب أن يكون المخطط موجوداً مسبقاً.",
@@ -628,7 +630,7 @@
       "enable": "تفعيل Redis",
       "enableDesc": "مطلوب للتخزين المؤقت وتخزين الجلسات وقوائم BullMQ",
       "useBuiltIn": "استخدام حاوية Redis المدمجة",
-      "builtInDesc": "سيدير OpenWA حاوية Redis نيابةً عنك",
+      "builtInDesc": "سيدير OpenWA-Lab حاوية Redis نيابةً عنك",
       "queueTitle": "تفعيل نظام قوائم BullMQ",
       "queueDesc": "استخدام قوائم الرسائل لتوصيل موثوق للرسائل والويب هوك",
       "statsTitle": "إحصائيات القوائم",
@@ -650,7 +652,7 @@
       "s3": "Amazon S3",
       "s3Desc": "تخزين سحابي (متوافق مع S3)",
       "useBuiltIn": "استخدام حاوية MinIO المدمجة",
-      "builtInDesc": "سيدير OpenWA حاوية MinIO (متوافقة مع S3) نيابةً عنك",
+      "builtInDesc": "سيدير OpenWA-Lab حاوية MinIO (متوافقة مع S3) نيابةً عنك",
       "storagePath": "مسار التخزين",
       "bucket": "اسم الحاوية",
       "region": "المنطقة",
@@ -698,7 +700,7 @@
       "importFailed": "تعذّر استيراد البيانات",
       "importOk": "تمّ استيراد البيانات",
       "importConfirm": "سيؤدّي الاستيراد إلى استبدال جميع البيانات الحالية بالنسخة الاحتياطية ({{rows}} صفًّا). لا يمكن التراجع عن هذا الإجراء. هل تريد المتابعة؟",
-      "invalidFile": "هذا الملفّ ليس نسخة احتياطية صالحة لبيانات OpenWA.",
+      "invalidFile": "هذا الملفّ ليس نسخة احتياطية صالحة لبيانات OpenWA-Lab.",
       "importTooLarge": "النسخة الاحتياطية أكبر من حدّ الطلب. زِد قيمة BODY_SIZE_LIMIT على الخادم ثم أعد المحاولة."
     },
     "statusLoadError": "تعذّر تحميل حالة البنية التحتية الحالية. حدّث الصفحة لإعادة المحاولة."
@@ -726,7 +728,7 @@
     "engineSwitchHint": "عيّنها كمحرك نشط في الإعدادات، ثم أعد التشغيل",
     "empty": {
       "title": "لم يتم العثور على إضافات",
-      "description": "ثبّت إضافات لتوسيع وظائف OpenWA"
+      "description": "ثبّت إضافات لتوسيع وظائف OpenWA-Lab"
     },
     "config": {
       "title": "إعداد {{name}}",

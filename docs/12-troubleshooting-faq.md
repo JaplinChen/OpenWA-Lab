@@ -21,7 +21,7 @@ docker compose ps
 docker compose logs --tail=50
 
 # System resources
-docker stats openwa
+docker stats openwa-lab
 ```
 
 ### Diagnostic Flowchart
@@ -147,7 +147,7 @@ netstat -tlnp | grep 3000
 kill -9 $(lsof -t -i:2785)
 
 # Check Docker logs
-docker compose logs openwa
+docker compose logs openwa-lab
 
 # Common fixes
 docker compose down --volumes  # Reset volumes
@@ -171,7 +171,7 @@ curl -H "X-API-Key: $API_KEY" \
   http://localhost:2785/api/sessions/{sessionId}
 
 # Check WhatsApp engine logs
-docker compose logs openwa 2>&1 | grep -i "whatsapp\|puppeteer\|browser"
+docker compose logs openwa-lab 2>&1 | grep -i "whatsapp\|puppeteer\|browser"
 
 # Check auth folder
 ls -la ./data/.wwebjs_auth/session-{sessionId}/
@@ -190,7 +190,7 @@ ls -la ./data/.wwebjs_auth/session-{sessionId}/
 ```bash
 # Clear auth and restart
 rm -rf ./data/.wwebjs_auth/session-{sessionId}
-docker compose restart openwa
+docker compose restart openwa-lab
 
 # If using proxy
 export PROXY_URL=http://proxy:8080
@@ -209,7 +209,7 @@ stuck. Often seen on ARM64 (e.g. Raspberry Pi) after upgrading to v0.2.x.
 stalls the post-link sync. (If you also see `chrome_crashpad_handler: --database is required` *and the
 session never starts at all*, that is a different problem — see "Session fails to launch …" below.)
 
-**Fix:** OpenWA reconciles a missed `ready` event when WhatsApp Web is connected, the injected
+**Fix:** OpenWA-Lab reconciles a missed `ready` event when WhatsApp Web is connected, the injected
 runtime is available, and whatsapp-web.js has populated the linked account identity. If your
 environment still hits a WA-Web compatibility hang, pin a known-good WA-Web version with
 `WWEBJS_WEB_VERSION`:
@@ -252,13 +252,13 @@ Restart the container after setting it. Leave it unset to keep the default (3000
 `trap int3` / `Trace/breakpoint trap (core dumped)`. Seen on hardened, `read_only` containers.
 
 **Cause:** Chromium resolves its home directory from the passwd entry (glibc `getpwuid()`) and **ignores
-`$HOME`**. The non-root `openwa` user has no home dir, so Chromium tries to use `/home/openwa`, which does
+`$HOME`**. The non-root `openwa-lab` user has no home dir, so Chromium tries to use `/home/openwa-lab`, which does
 not exist on the read-only rootfs — and aborts at launch. (Setting `HOME=` does **not** help, and
 `--crash-dumps-dir` is a no-op for the crashpad database on Debian/Ubuntu system Chromium.)
 
 **Fix:** Give Chromium writable, pre-created config/cache dirs via `XDG_CONFIG_HOME` / `XDG_CACHE_HOME`.
 The bundled image and `docker-compose.yml` already do this (the entrypoint creates them on the tmpfs `/tmp`,
-owned by `openwa`). If you run a custom container, ensure both are set to a writable, existing path:
+owned by `openwa-lab`). If you run a custom container, ensure both are set to a writable, existing path:
 
 ```bash
 XDG_CONFIG_HOME=/tmp/.config
@@ -519,7 +519,7 @@ curl -H "X-API-Key: $API_KEY" \
   http://localhost:2785/api/sessions/{sessionId}/webhooks
 
 # No webhook-delivery log API — check the server logs / audit trail instead
-docker compose logs openwa 2>&1 | grep -i webhook
+docker compose logs openwa-lab 2>&1 | grep -i webhook
 
 # Test webhook endpoint
 curl -X POST http://your-webhook-url \
@@ -558,7 +558,7 @@ webhook:
 
 ```bash
 # Check memory usage
-docker stats openwa --no-stream
+docker stats openwa-lab --no-stream
 
 # Check process memory (Prometheus text; read openwa_process_resident_memory_bytes)
 curl -H "Authorization: Bearer $METRICS_TOKEN" \
@@ -573,7 +573,7 @@ curl -H "Authorization: Bearer $METRICS_TOKEN" \
 ```yaml
 # docker-compose.yml - Set memory limits
 services:
-  openwa:
+  openwa-lab:
     deploy:
       resources:
         limits:
@@ -736,7 +736,7 @@ sudo chown -R $(id -u):$(id -g) ./data/
 # Or use Docker's user mapping
 # docker-compose.yml
 services:
-  openwa:
+  openwa-lab:
     user: "1000:1000"  # Your UID:GID
 ```
 
@@ -752,33 +752,33 @@ services:
 ```yaml
 # docker-compose.yml - Ensure proper networking
 services:
-  openwa:
+  openwa-lab:
     networks:
-      - openwa-network
+      - openwa-lab-network
     extra_hosts:
       - "host.docker.internal:host-gateway"  # Access host from container
 
   postgres:
     networks:
-      - openwa-network
+      - openwa-lab-network
 
 networks:
-  openwa-network:
+  openwa-lab-network:
     driver: bridge
 ```
 
 ```bash
 # Test connectivity from container
-docker exec openwa ping postgres
-docker exec openwa curl http://host.docker.internal:8080
+docker exec openwa-lab ping postgres
+docker exec openwa-lab curl http://host.docker.internal:8080
 ```
 
 ## 12.7 Frequently Asked Questions
 
 ### General Questions
 
-**Q: Is OpenWA safe to use?**
-> A: OpenWA uses unofficial WhatsApp Web API. While we implement best practices to avoid detection, there's inherent risk of account restrictions. We recommend:
+**Q: Is OpenWA-Lab safe to use?**
+> A: OpenWA-Lab uses unofficial WhatsApp Web API. While we implement best practices to avoid detection, there's inherent risk of account restrictions. We recommend:
 > - Use dedicated phone number (not personal)
 > - Don't send spam or bulk unsolicited messages
 > - Follow WhatsApp's Terms of Service
@@ -793,7 +793,7 @@ docker exec openwa curl http://host.docker.internal:8080
 > With `ENGINE_TYPE=baileys` (browser-free), RAM per session is significantly lower — you can run more sessions on the same hardware. Exact figures depend on message volume and group membership.
 
 **Q: Can I use WhatsApp Business account?**
-> A: Yes, OpenWA works with both personal and WhatsApp Business accounts. Note that WhatsApp Business API (official Meta API) is different and not supported.
+> A: Yes, OpenWA-Lab works with both personal and WhatsApp Business accounts. Note that WhatsApp Business API (official Meta API) is different and not supported.
 
 **Q: How to avoid getting banned?**
 > Best practices:
@@ -837,7 +837,7 @@ curl -X POST http://localhost:2785/api/sessions/{id}/messages/reply \
 **Q: How to use with n8n?**
 > See [n8n Integration Guide](./22-n8n-integration.md). Quick setup:
 > 1. Add HTTP Request node
-> 2. Set URL: `http://openwa:2785/api/sessions/{id}/messages/send-text`
+> 2. Set URL: `http://openwa-lab:2785/api/sessions/{id}/messages/send-text`
 > 3. Add header: `X-API-Key: your-key`
 > 4. Configure webhook trigger for incoming messages
 
@@ -869,23 +869,23 @@ server {
 
 **Q: How to run behind Traefik / Coolify?**
 
-Traefik forwards WebSocket upgrades automatically, so OpenWA's single-port Socket.IO channel works with a normal HTTP router. Two things keep a public deployment stable:
+Traefik forwards WebSocket upgrades automatically, so OpenWA-Lab's single-port Socket.IO channel works with a normal HTTP router. Two things keep a public deployment stable:
 
-**1. Let Traefik reach the container over the Docker network — don't _also_ publish the host port.** This is the most common cause of intermittent `504`s on Coolify/Traefik. If OpenWA publishes its port to the host (`ports: ["2785:2785"]`) **and** Traefik also routes to it, every request additionally traverses Docker's userland `docker-proxy`. OpenWA holds a long-lived Socket.IO connection per client (HTTP long-poll → WebSocket upgrade), so those held-open connections accumulate across both hops and gradually exhaust the connection pool to the single upstream — the Dashboard, API, and real-time channel then `504` together "after some time", while `curl http://localhost:2785/api/health/ready` keeps returning `200`. Front it with Traefik on a shared network and **expose** the port internally instead of **publishing** it:
+**1. Let Traefik reach the container over the Docker network — don't _also_ publish the host port.** This is the most common cause of intermittent `504`s on Coolify/Traefik. If OpenWA-Lab publishes its port to the host (`ports: ["2785:2785"]`) **and** Traefik also routes to it, every request additionally traverses Docker's userland `docker-proxy`. OpenWA-Lab holds a long-lived Socket.IO connection per client (HTTP long-poll → WebSocket upgrade), so those held-open connections accumulate across both hops and gradually exhaust the connection pool to the single upstream — the Dashboard, API, and real-time channel then `504` together "after some time", while `curl http://localhost:2785/api/health/ready` keeps returning `200`. Front it with Traefik on a shared network and **expose** the port internally instead of **publishing** it:
 
 ```yaml
 services:
-  openwa:
+  openwa-lab:
     image: ghcr.io/rmyndharis/openwa:latest
     expose:
       - '2785' # internal only — drop any public `ports:` mapping when Traefik is on this network
     networks: [proxy]
     labels:
       - traefik.enable=true
-      - traefik.http.routers.openwa.rule=Host(`api.example.com`)
-      - traefik.http.routers.openwa.entrypoints=websecure
-      - traefik.http.routers.openwa.tls.certresolver=le
-      - traefik.http.services.openwa.loadbalancer.server.port=2785
+      - traefik.http.routers.openwa-lab.rule=Host(`api.example.com`)
+      - traefik.http.routers.openwa-lab.entrypoints=websecure
+      - traefik.http.routers.openwa-lab.tls.certresolver=le
+      - traefik.http.services.openwa-lab.loadbalancer.server.port=2785
 networks:
   proxy:
     external: true # the network your Traefik already runs on
@@ -906,7 +906,7 @@ entryPoints:
         idleTimeout: 600s
 ```
 
-Remember OpenWA is **single-port**: the Dashboard, REST API, and Socket.IO all share `:2785` behind one router, so a choked upstream takes all three down at once. A Dashboard stuck on "Connecting…" while `localhost` is healthy is the proxy hop, not the app.
+Remember OpenWA-Lab is **single-port**: the Dashboard, REST API, and Socket.IO all share `:2785` behind one router, so a choked upstream takes all three down at once. A Dashboard stuck on "Connecting…" while `localhost` is healthy is the proxy hop, not the app.
 
 **Q: How to backup sessions automatically?**
 ```bash
@@ -1018,7 +1018,7 @@ available_events:
 ### Before Asking for Help
 
 1. **Check this FAQ** - Most common issues are covered
-2. **Check logs** - `docker compose logs openwa --tail=100`
+2. **Check logs** - `docker compose logs openwa-lab --tail=100`
 3. **Try basic troubleshooting** - Restart, clear cache, etc.
 4. **Search GitHub issues** - Your issue might be already reported
 
@@ -1028,7 +1028,7 @@ When creating GitHub issue, include:
 
 ```markdown
 ## Environment
-- OpenWA version: x.x.x
+- OpenWA-Lab version: x.x.x
 - Docker version: x.x.x
 - OS: Ubuntu 22.04 / macOS / Windows
 - Database: SQLite / PostgreSQL
@@ -1061,8 +1061,8 @@ When creating GitHub issue, include:
 
 ### Community Resources
 
-- **GitHub Issues**: [github.com/rmyndharis/OpenWA/issues](https://github.com/rmyndharis/OpenWA/issues)
-- **Discussions**: [github.com/rmyndharis/OpenWA/discussions](https://github.com/rmyndharis/OpenWA/discussions)
+- **GitHub Issues**: [github.com/JaplinChen/OpenWA-Lab/issues](https://github.com/JaplinChen/OpenWA-Lab/issues)
+- **Discussions**: [github.com/JaplinChen/OpenWA-Lab/discussions](https://github.com/JaplinChen/OpenWA-Lab/discussions)
 - **Discord**: [discord.gg/openwa](https://discord.gg/openwa) (if available)
 - **Stack Overflow**: Tag with `openwa`
 ---

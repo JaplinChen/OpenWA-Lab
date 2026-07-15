@@ -291,7 +291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **PostgreSQL schema selection via `POSTGRES_SCHEMA`.** OpenWA's tables and the TypeORM migration ledger can now be placed in a dedicated Postgres schema (default `public` preserves historical behavior). Set `POSTGRES_SCHEMA` to isolate OpenWA from other apps sharing a database, or to use a managed-Postgres project schema. The schema must already exist (the built-in container creates it; for external Postgres run `CREATE SCHEMA <name>;` once). SQLite ignores this setting. The dashboard Infrastructure page exposes the field, and the environment variable is validated as a legal, non-reserved Postgres identifier at boot.
+- **PostgreSQL schema selection via `POSTGRES_SCHEMA`.** OpenWA-Lab's tables and the TypeORM migration ledger can now be placed in a dedicated Postgres schema (default `public` preserves historical behavior). Set `POSTGRES_SCHEMA` to isolate OpenWA-Lab from other apps sharing a database, or to use a managed-Postgres project schema. The schema must already exist (the built-in container creates it; for external Postgres run `CREATE SCHEMA <name>;` once). SQLite ignores this setting. The dashboard Infrastructure page exposes the field, and the environment variable is validated as a legal, non-reserved Postgres identifier at boot.
 
 ### Changed
 
@@ -441,7 +441,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Incoming WhatsApp Business interactive messages no longer arrive with an empty body on the Baileys engine.** Messages sent as interactive/button/template shapes — which businesses use for one-time codes and verification prompts — were saved with `type: "unknown"` and a blank body, dropping the text (e.g. an OTP) entirely. The engine now extracts the display text from `interactiveMessage`, `buttonsMessage`, `templateMessage`, and `interactiveResponseMessage` into the message body and classifies them as `text`, so the content is retrievable over the standard messages API and rendered in the dashboard. (#562)
-- **Deleting a message "for everyone" now reliably flags it as revoked, and `message.revoked` carries the original message id.** On the whatsapp-web.js engine the revoke event's `id` is the _revocation notification_ — a distinct message whose id never matched the stored row — so the stored message was silently never marked revoked, and webhook/WebSocket consumers had no id to reconcile against. The `message.revoked` payload now includes an optional `revokedId` (the original deleted message's id) that both engines populate; OpenWA flags the stored message on `revokedId` (falling back to `id`), and consumers should match the same way. Purely additive and backward-compatible — on Baileys `id` and `revokedId` coincide. (#567) Thanks @JibayMcs.
+- **Deleting a message "for everyone" now reliably flags it as revoked, and `message.revoked` carries the original message id.** On the whatsapp-web.js engine the revoke event's `id` is the _revocation notification_ — a distinct message whose id never matched the stored row — so the stored message was silently never marked revoked, and webhook/WebSocket consumers had no id to reconcile against. The `message.revoked` payload now includes an optional `revokedId` (the original deleted message's id) that both engines populate; OpenWA-Lab flags the stored message on `revokedId` (falling back to `id`), and consumers should match the same way. Purely additive and backward-compatible — on Baileys `id` and `revokedId` coincide. (#567) Thanks @JibayMcs.
 
 ## [0.7.17] - 2026-07-01
 
@@ -535,7 +535,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - **Hook re-entrancy is now blocked for sandboxed plugins too.** A plugin running in the worker-thread sandbox could re-fire the hook it was handling by issuing a capability call (for example, sending a message from within a `message:sending` handler), because the re-entrancy guard did not span the worker boundary — looping the event back into the plugin without bound. The host now runs each worker-initiated capability call inside the in-flight hook context, so such a re-fire is short-circuited exactly as it already was for in-process plugins. (#532)
-- **Docker container teardown is constrained to OpenWA-managed services.** The `POST /infra/restart` endpoint passed its `profilesToRemove` list straight to container removal, which resolved containers by a name substring — so an unrecognized or empty profile could stop and remove an unrelated container. Teardown is now restricted to the managed allowlist (`postgres`, `redis`, `minio`) and container resolution requires an exact `openwa-<service>` name match. (#534)
+- **Docker container teardown is constrained to OpenWA-Lab-managed services.** The `POST /infra/restart` endpoint passed its `profilesToRemove` list straight to container removal, which resolved containers by a name substring — so an unrecognized or empty profile could stop and remove an unrelated container. Teardown is now restricted to the managed allowlist (`postgres`, `redis`, `minio`) and container resolution requires an exact `openwa-<service>` name match. (#534)
 - **Failed API-key authentication attempts are now recorded in the audit log.** Rejected or denied keys (invalid, disabled/expired, IP- or session-scope-denied, or insufficient role) previously left no audit entry; the gateway now logs an `api_key_auth_failed` event with the client IP, method, path, and reason, giving administrators a forensic trail for credential probing. Audit logging stays best-effort and never affects the request outcome. (#535)
 - **The SSRF guard blocks the deprecated IPv6 site-local range (`fec0::/10`).** Webhook and server-side media URLs are now rejected when they resolve into `fec0::/10`, closing a gap alongside the already-blocked unique-local and link-local ranges. (#536)
 - **Session-scoped MCP tools require a session id before authorization.** A session-scoped tool invoked without a session id is now rejected, so a session-restricted API key can't be used to drive such a tool against a session outside its scope. (#536)
@@ -660,7 +660,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - whatsapp-web.js sessions that scanned the QR then immediately disconnected (looping `qr → authenticating → disconnected`) when no `WWEBJS_WEB_VERSION` was pinned — the common Docker default. The engine now auto-resolves the current known-good WhatsApp Web build from the wppconnect `wa-version` registry and pins it, instead of relying on whatsapp-web.js's auto-select which could latch onto an incompatible bleeding-edge build that authenticates but never reaches "ready". `WWEBJS_WEB_VERSION=off` keeps the old native auto-select; an explicit version still pins exactly. (#488)
 - Dashboard message-analytics charts no longer silently vanish on PostgreSQL: `/stats/messages` (top-chats) ordered by an unquoted mixed-case alias (`ORDER BY messageCount`), which PostgreSQL case-folds and rejects with `column "messagecount" does not exist` (500). It now orders by the aggregate directly, so the query — and the dashboard charts it feeds — work on PostgreSQL as they already did on SQLite. The chart section also shows a clear notice on a real error instead of rendering nothing (it previously treated every error as a non-admin 403 and hid itself). (#488)
 - The Infrastructure page now shows what is **actually running** for the database, Redis, storage, and engine — the badge/selected card follow the live `/infra/status` instead of the saved `data/.env.generated`, which could disagree when a setting is supplied via environment variable. Previously a stack running PostgreSQL via `DATABASE_TYPE=postgres` showed "SQLite" (the first-run default still in the saved file). `/infra/status` now also reports `redis.enabled`. (#488)
-- The "Use Built-in PostgreSQL/Redis/MinIO Container" toggles now reflect whether OpenWA's **bundled container is actually running** and backing the service (detected from the labeled container + the configured host), not just the saved intent — so a Postgres stack started via the `postgres` compose profile correctly shows built-in, and a stopped/external one shows off. Falls back to the saved flag when Docker isn't reachable. (#488)
+- The "Use Built-in PostgreSQL/Redis/MinIO Container" toggles now reflect whether OpenWA-Lab's **bundled container is actually running** and backing the service (detected from the labeled container + the configured host), not just the saved intent — so a Postgres stack started via the `postgres` compose profile correctly shows built-in, and a stopped/external one shows off. Falls back to the saved flag when Docker isn't reachable. (#488)
 - Switching **away** from a built-in backend (built-in → external/disabled) now tears down the bundled container reliably even after a page reload: removal is derived server-side from the saved `*_BUILTIN` flags + the running labeled containers, instead of only trusting the browser's in-memory list (which reset on reload and left the container orphaned). Named volumes are preserved, so re-enabling reuses the data. (#488)
 - Dashboard "by type" message chart: each message type now gets a stable, distinct color keyed by type name (with a deterministic hash fallback) instead of a rotating array-index palette, so a slice keeps its color when the set of present types changes between requests and types past the eighth no longer collide. (#486)
 - Removed the oversized decorative watermark icons bleeding through the dashboard stat cards. (#488)
@@ -1204,7 +1204,7 @@ consumer that stored or compared the old ids will see the new value.
 ### Added
 
 - **Opt-in deep chat history (`deep=true`).** `GET /sessions/:id/messages/:chatId/history` was capped at
-  100 messages per request — OpenWA's own bound, not a WhatsApp limit, since whatsapp-web.js can load
+  100 messages per request — OpenWA-Lab's own bound, not a WhatsApp limit, since whatsapp-web.js can load
   earlier messages on demand. A new `deep=true` query raises the ceiling to 2000 so callers can reach
   weeks/months back. Deep mode is metadata-only (it ignores `includeMedia`, since base64 for up to 2000
   messages would be an enormous payload). The default path is unchanged (default 50, max 100). The Baileys
@@ -1291,7 +1291,7 @@ now returns `501` — settings are environment-derived and read-only at runtime 
 ### Documentation
 
 - **Documented chat-history limits.** A new guide explains the difference between the local message-history
-  endpoint (`GET /sessions/:id/messages`, reads OpenWA's database) and the bounded live-history endpoint
+  endpoint (`GET /sessions/:id/messages`, reads OpenWA-Lab's database) and the bounded live-history endpoint
   (`GET /sessions/:id/messages/:chatId/history`, asks the engine): live history defaults to `limit=50` and is
   clamped to `[1, 100]` (so `limit=999` returns 100, not the full account history), and is a recent-history
   helper rather than a complete server-side import. (#356)
@@ -1491,7 +1491,7 @@ full` now starts the optional datastores (postgres, redis, minio). If you relied
 
 ## [0.3.0] - 2026-06-18
 
-Engine pluggability and plugin extensibility. OpenWA can now run on a second, browser-free WhatsApp engine
+Engine pluggability and plugin extensibility. OpenWA-Lab can now run on a second, browser-free WhatsApp engine
 (Baileys) as a peer to whatsapp-web.js, and bot-shaped features can ship as first-party extension plugins
 on a scoped capability layer instead of living in core (#265).
 
@@ -2277,7 +2277,7 @@ bugs. Backward compatible except for the two upgrade notes below.
 
 ### 🎉 Initial Release
 
-OpenWA v0.1.0 is the first stable release featuring a complete WhatsApp API Gateway with all core functionality.
+OpenWA-Lab v0.1.0 is the first stable release featuring a complete WhatsApp API Gateway with all core functionality.
 
 ### Core Features
 

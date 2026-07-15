@@ -229,7 +229,7 @@ For IPv6, use a library that supports IPv6 parsing (e.g., `ipaddr.js`) when perf
 
 ### In Transit
 
-OpenWA serves plain HTTP on its port; terminate **TLS at your reverse proxy / load balancer** (nginx, Traefik, Caddy) and expose the gateway only over HTTPS in production. The API key is bearer-equivalent and is sent on every request, so it must never traverse plaintext `http://` outside local development.
+OpenWA-Lab serves plain HTTP on its port; terminate **TLS at your reverse proxy / load balancer** (nginx, Traefik, Caddy) and expose the gateway only over HTTPS in production. The API key is bearer-equivalent and is sent on every request, so it must never traverse plaintext `http://` outside local development.
 
 ### At Rest
 
@@ -366,7 +366,7 @@ const corsOptions = {
 
 ```mermaid
 sequenceDiagram
-    participant OW as OpenWA
+    participant OW as OpenWA-Lab
     participant WH as Webhook Endpoint
     
     OW->>OW: Create payload
@@ -380,7 +380,7 @@ sequenceDiagram
 ### Signature Verification
 
 ```typescript
-// OpenWA: Generate signature
+// OpenWA-Lab: Generate signature
 function signPayload(payload: object, secret: string): string {
   const hmac = crypto.createHmac('sha256', secret);
   hmac.update(JSON.stringify(payload));
@@ -535,7 +535,7 @@ flowchart TB
 | Webhook secrets | Database — **plaintext**; never returned by the API | Per webhook |
 | Session auth state | File system (data volume) — **not encrypted** | Never (tied to the WA session) |
 
-> There is no application `ENCRYPTION_KEY` — OpenWA does not encrypt data at rest (see §4.4). The rotation cadences above are operational recommendations, not enforced by the app.
+> There is no application `ENCRYPTION_KEY` — OpenWA-Lab does not encrypt data at rest (see §4.4). The rotation cadences above are operational recommendations, not enforced by the app.
 
 ### Environment Variables Security
 
@@ -552,7 +552,7 @@ docker secret create db_password ./secret.txt
 
 ### Docker Secrets
 
-> **Caveat:** the `*_FILE` convention shown below requires a secret-file reader in the app (see "Reading Secrets" below), which is **not currently implemented** — OpenWA reads secrets straight from environment variables. Until that helper exists, pass secrets as plain env vars (e.g. an `.env` file with restricted permissions) rather than `_FILE` paths.
+> **Caveat:** the `*_FILE` convention shown below requires a secret-file reader in the app (see "Reading Secrets" below), which is **not currently implemented** — OpenWA-Lab reads secrets straight from environment variables. Until that helper exists, pass secrets as plain env vars (e.g. an `.env` file with restricted permissions) rather than `_FILE` paths.
 
 ```yaml
 # docker-compose.prod.yml
@@ -580,7 +580,7 @@ secrets:
 
 ### Reading Secrets in Application
 
-> **Not implemented as shown.** OpenWA does **not** read `<NAME>_FILE` Docker-secret files — there is no `getSecret()` helper today. Secrets come straight from `process.env`, layered at boot as `process.env` → `.env` → `data/.env.generated` (`override:false`, so a real environment value wins). The function below is a suggested pattern to add if you want Docker-secret `_FILE` support; as-is, `DATABASE_PASSWORD_FILE` / `ENCRYPTION_KEY_FILE` are not consulted.
+> **Not implemented as shown.** OpenWA-Lab does **not** read `<NAME>_FILE` Docker-secret files — there is no `getSecret()` helper today. Secrets come straight from `process.env`, layered at boot as `process.env` → `.env` → `data/.env.generated` (`override:false`, so a real environment value wins). The function below is a suggested pattern to add if you want Docker-secret `_FILE` support; as-is, `DATABASE_PASSWORD_FILE` / `ENCRYPTION_KEY_FILE` are not consulted.
 
 ```typescript
 // config/secrets.ts
@@ -609,7 +609,7 @@ const dbPassword = getSecret('DATABASE_PASSWORD');
 
 ### Key Rotation Procedure
 
-> **Not applicable today.** OpenWA stores no encrypted-at-rest data (see §4.4), so there is no data-encryption key to rotate and no `rotateEncryptionKey()` in the codebase. The flow below is illustrative for if/when field-level encryption is added. To rotate the `API_MASTER_KEY` or `API_KEY_PEPPER`, use the API-key endpoints (§4.2) — rotating the pepper invalidates existing key hashes.
+> **Not applicable today.** OpenWA-Lab stores no encrypted-at-rest data (see §4.4), so there is no data-encryption key to rotate and no `rotateEncryptionKey()` in the codebase. The flow below is illustrative for if/when field-level encryption is added. To rotate the `API_MASTER_KEY` or `API_KEY_PEPPER`, use the API-key endpoints (§4.2) — rotating the pepper invalidates existing key hashes.
 
 ```mermaid
 flowchart TB
