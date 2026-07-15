@@ -496,25 +496,25 @@ Tested on 2 vCPU / 4GB RAM nodes:
 ### Prometheus Metrics (Future)
 
 ```yaml
-# prometheus/openwa-rules.yaml
+# prometheus/openwa-lab-rules.yaml
 groups:
-  - name: openwa
+  - name: openwa-lab
     rules:
       - alert: HighMemoryUsage
-        expr: container_memory_usage_bytes{container="openwa"} > 1.8e9
+        expr: container_memory_usage_bytes{container="openwa-lab"} > 1.8e9
         for: 5m
         labels:
           severity: warning
         annotations:
-          summary: 'OpenWA node high memory usage'
+          summary: 'OpenWA-Lab node high memory usage'
 
       - alert: NodeDown
-        expr: up{job="openwa"} == 0
+        expr: up{job="openwa-lab"} == 0
         for: 1m
         labels:
           severity: critical
         annotations:
-          summary: 'OpenWA node is down'
+          summary: 'OpenWA-Lab node is down'
 ```
 
 ### Health Check Endpoints
