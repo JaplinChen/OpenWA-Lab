@@ -16,6 +16,7 @@ if git diff --cached --quiet; then
 fi
 
 repo="$(gh repo view --json nameWithOwner -q .nameWithOwner)"
+owner="${repo%%/*}"  # qualify the head ref so a fork PR targets this repo, not its upstream parent
 
 # Branch slug from the message: strip "type:", non-alnum -> '-', lowercased, capped.
 slug=$(printf '%s' "$msg" \
@@ -30,7 +31,7 @@ git commit -m "$msg" -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>
 git push -u origin "$branch"
 # Retry PR creation: GitHub can lag registering the just-pushed branch sha.
 for attempt in 1 2 3; do
-  gh pr create --repo "$repo" --base main --head "$branch" --title "$msg" --body "$msg" && break
+  gh pr create --repo "$repo" --base main --head "$owner:$branch" --title "$msg" --body "$msg" && break
   [ "$attempt" -eq 3 ] && { echo "PR create failed after 3 attempts" >&2; exit 1; }
   echo "PR create failed (attempt $attempt) — retrying in 2s..." >&2
   sleep 2
