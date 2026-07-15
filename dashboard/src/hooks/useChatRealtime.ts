@@ -119,7 +119,7 @@ export function useChatRealtime({
         return updatedChats;
       });
     },
-    [selectedSessionId, activeChat, loadChats, markChatRead, appendMessage, onMessageAppended, t],
+    [selectedSessionId, activeChat, loadChats, markChatRead, appendMessage, onMessageAppended, setChats, t],
   );
 
   const handleIncomingMessageAck = useCallback(

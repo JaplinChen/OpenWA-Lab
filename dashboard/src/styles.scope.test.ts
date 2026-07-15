@@ -16,6 +16,21 @@ function stripComments(css: string): string {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
 
+// A page stylesheet may be an `@import` barrel pointing at part files under a sibling dir (the CSS is
+// split to keep each file small). Inline those local part imports so the scope check sees the real
+// rules; external `@import url(...)` (fonts) are left out — they carry no page-scoped selectors.
+function resolveImports(css: string, baseDir: string): string {
+  return css.replace(/@import\s+(?:url\()?\s*["']([^"')]+)["']\s*\)?\s*;/g, (match, spec: string) => {
+    if (!spec.startsWith('.') || !spec.endsWith('.css')) return '';
+    const p = join(baseDir, spec);
+    try {
+      return resolveImports(readFileSync(p, 'utf8'), dirname(p));
+    } catch {
+      return match;
+    }
+  });
+}
+
 // Top-level (and @media-nested) selectors, excluding @keyframes/@font-face bodies.
 function selectors(css: string): string[] {
   const out: string[] = [];
@@ -46,7 +61,7 @@ const files = readdirSync(PAGES_DIR).filter(f => f.endsWith('.css'));
 
 for (const file of files) {
   test(`${file}: every rule is scoped under its page root`, () => {
-    const css = stripComments(readFileSync(join(PAGES_DIR, file), 'utf8'));
+    const css = stripComments(resolveImports(readFileSync(join(PAGES_DIR, file), 'utf8'), PAGES_DIR));
     const sels = selectors(css);
     assert.ok(sels.length > 0, `${file} produced no selectors (parse error?)`);
     // The page root is the first bare single-class selector (each page CSS opens with `.x-page { … }`).
