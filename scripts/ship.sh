@@ -28,7 +28,13 @@ branch="auto/${slug:-change}"
 git checkout -b "$branch"
 git commit -m "$msg" -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 git push -u origin "$branch"
-gh pr create --repo "$repo" --base main --head "$branch" --title "$msg" --body "$msg"
+# Retry PR creation: GitHub can lag registering the just-pushed branch sha.
+for attempt in 1 2 3; do
+  gh pr create --repo "$repo" --base main --head "$branch" --title "$msg" --body "$msg" && break
+  [ "$attempt" -eq 3 ] && { echo "PR create failed after 3 attempts" >&2; exit 1; }
+  echo "PR create failed (attempt $attempt) — retrying in 2s..." >&2
+  sleep 2
+done
 gh pr merge "$branch" --repo "$repo" --squash --delete-branch
 git checkout main
 git pull --ff-only origin main
