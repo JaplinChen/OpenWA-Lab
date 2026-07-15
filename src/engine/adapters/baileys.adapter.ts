@@ -3,8 +3,7 @@ import * as path from 'path';
 import * as qrcode from 'qrcode';
 import type * as BaileysLib from '@whiskeysockets/baileys';
 import type { AnyMessageContent, MiscMessageGenerationOptions, WAMessage, WASocket } from '@whiskeysockets/baileys';
-import { buildIncomingMessageFromBaileys, extractBaileysBody, mapBaileysStatus } from './baileys-message-mapper';
-import { userPart } from '../identity/wa-id';
+import { mapBaileysStatus } from './baileys-message-mapper';
 import { mapBaileysGroup, mapBaileysGroupInfo } from './baileys-group-mapper';
 import type { ILogger } from '@whiskeysockets/baileys/lib/Utils/logger.js';
 import {
@@ -43,24 +42,11 @@ import { ChannelNotFoundError } from '../../common/errors/channel-not-found.erro
 import { createLogger } from '../../common/services/logger.service';
 import { BaileysAdapterConfig } from '../types/baileys.types';
 import { BAILEYS_BROWSER, createBaileysLogger, createSilentLogger } from './baileys-logger';
-import {
-  extractMentionedJids,
-  toUnixSeconds,
-  extractPhone,
-  resolveMediaBuffer,
-  toStatusResult,
-} from './baileys-adapter.helpers';
+import { toUnixSeconds, extractPhone, resolveMediaBuffer, toStatusResult } from './baileys-adapter.helpers';
 import { BaileysSessionStore } from './baileys-session-store';
+import { InboundMapperCtx, mapMessage, mapHistoryMessage } from './baileys-inbound-mapper';
 import { buildVCard } from './vcard';
-import {
-  capInboundMedia,
-  coerceDeclaredSize,
-  inboundMediaConcurrency,
-  inboundMediaMaxBytes,
-  inboundMediaTimeoutMs,
-  isMediaDownloadEnabled,
-  withInboundDownloadTimeout,
-} from './inbound-media-cap';
+import { inboundMediaConcurrency, inboundMediaTimeoutMs, withInboundDownloadTimeout } from './inbound-media-cap';
 import { ConcurrencyLimiter } from '../../common/utils/concurrency-limiter';
 
 export class BaileysAdapter implements IWhatsAppEngine {
@@ -1070,7 +1056,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       }
 
       // --- Normal message: enrich + emit ---
-      const incoming = await this.mapMessage(msg, contentType, { skipMediaDownload: opts?.skipMedia });
+      const incoming = await mapMessage(this.mapperCtx, msg, contentType, { skipMediaDownload: opts?.skipMedia });
       if (msg.key.fromMe === true) {
         this.callbacks.onMessageCreate?.(incoming);
       } else {
@@ -1143,213 +1129,6 @@ export class BaileysAdapter implements IWhatsAppEngine {
     return withInboundDownloadTimeout(download, inboundMediaTimeoutMs(), () => stream?.destroy?.());
   }
 
-  private async mapMessage(
-    msg: WAMessage,
-    contentType: string | undefined,
-    opts?: { skipMediaDownload?: boolean },
-  ): Promise<IncomingMessage> {
-    const b = await this.loadLib();
-    const content = msg.message ?? {};
-    // Read body/isPtt off the NORMALIZED content: a disappearing message (ephemeralMessage), a captioned
-    // document (documentWithCaptionMessage) and viewOnce/edited wrappers nest the real text/caption under
-    // an inner message, so the raw wrapper exposes none at top level. Identity no-op when unwrapped.
-    const normalized = b.normalizeMessageContent(content) ?? content;
-
-    // Body: text first, then media caption, then WhatsApp Business interactive shapes (#562).
-    const body = extractBaileysBody(normalized);
-
-    // --- location ---
-    // ILocationMessage has name/address; ILiveLocationMessage does not — use the static variant only.
-    let location: IncomingMessage['location'];
-    if (contentType === 'locationMessage' || contentType === 'liveLocationMessage') {
-      // Read off the NORMALIZED content: an ephemeral/disappearing-chat location nests under the wrapper,
-      // so the raw `content.locationMessage` is undefined and the coordinates would be silently dropped.
-      const lm = normalized.locationMessage ?? normalized.liveLocationMessage;
-      if (lm) {
-        const staticLm = normalized.locationMessage; // only ILocationMessage has name/address
-        location = {
-          latitude: lm.degreesLatitude ?? 0,
-          longitude: lm.degreesLongitude ?? 0,
-          description: staticLm?.name ?? undefined,
-          address: staticLm?.address ?? undefined,
-        };
-      }
-    }
-
-    // --- media (image / video / audio / document / sticker) ---
-    let media: IncomingMessage['media'];
-    const isMediaType =
-      contentType === 'imageMessage' ||
-      contentType === 'videoMessage' ||
-      contentType === 'audioMessage' ||
-      contentType === 'documentMessage' ||
-      contentType === 'documentWithCaptionMessage' ||
-      contentType === 'stickerMessage';
-    if (isMediaType) {
-      // The outbound "sent" echo passes skipMediaDownload: the sender already holds the media, and for
-      // parity with the wwjs message.sent (which carries no media buffer) we emit only the marker here.
-      if (opts?.skipMediaDownload || !isMediaDownloadEnabled()) {
-        // Emit the omitted marker so the media field is present (webhook/n8n/dashboard contract).
-        // mimetype is available pre-download from the message content.
-        const normalizedContent = b.normalizeMessageContent(content) ?? content;
-        const subMessage =
-          normalizedContent.imageMessage ??
-          normalizedContent.videoMessage ??
-          normalizedContent.audioMessage ??
-          normalizedContent.documentMessage ??
-          normalizedContent.stickerMessage;
-        media = {
-          mimetype: subMessage?.mimetype ?? '',
-          filename: normalizedContent.documentMessage?.fileName ?? undefined,
-          omitted: true,
-          sizeBytes: coerceDeclaredSize(subMessage?.fileLength),
-        };
-      } else {
-        // normalizeMessageContent unwraps documentWithCaptionMessage / viewOnceMessage / ephemeralMessage
-        // so we reach the inner media sub-message — needed BEFORE download for the declared-size pre-gate.
-        const normalizedContent = b.normalizeMessageContent(content) ?? content;
-        const subMessage =
-          normalizedContent.imageMessage ??
-          normalizedContent.videoMessage ??
-          normalizedContent.audioMessage ??
-          normalizedContent.documentMessage ??
-          normalizedContent.stickerMessage;
-        const mimetype = subMessage?.mimetype ?? '';
-        const filename = normalizedContent.documentMessage?.fileName ?? undefined;
-        const maxBytes = inboundMediaMaxBytes();
-        const declared = coerceDeclaredSize(subMessage?.fileLength);
-
-        if (declared > maxBytes) {
-          // Pre-download gate: an honest over-cap sender's media is never decrypted into heap at all
-          // (Baileys integrity-checks content against the declared size, so this is a robust bound).
-          media = { mimetype, filename, omitted: true, sizeBytes: declared };
-          this.logger.warn('Inbound media declared size exceeds MEDIA_DOWNLOAD_MAX_BYTES; skipped download', {
-            msgId: msg.key.id,
-            sizeBytes: declared,
-          });
-        } else {
-          try {
-            // Stream-download with a running-total abort so a sender who understates fileLength still
-            // can't materialise an over-cap blob. For under-cap media this yields the identical buffer.
-            const buf = await this.downloadInboundMediaCapped(msg, maxBytes);
-            if (buf === null) {
-              media = { mimetype, filename, omitted: true, sizeBytes: maxBytes };
-              this.logger.warn(
-                'Inbound media download aborted (over MEDIA_DOWNLOAD_MAX_BYTES or past MEDIA_DOWNLOAD_TIMEOUT_MS); emitting omitted marker',
-                { msgId: msg.key.id },
-              );
-            } else {
-              // capInboundMedia is the last line (lazy base64, never persist/webhook/broadcast an over-cap
-              // blob); the real heap bound is the pre-gate + streaming abort + concurrency limiter.
-              media = capInboundMedia({
-                mimetype,
-                filename,
-                sizeBytes: buf.byteLength,
-                toBase64: () => buf.toString('base64'),
-              });
-            }
-          } catch (err) {
-            this.logger.debug('Failed to download inbound media; emitting message without media', {
-              error: err instanceof Error ? err.message : String(err),
-              msgId: msg.key.id,
-            });
-          }
-        }
-      }
-    }
-
-    // --- quoted message + disappearing-messages timer ---
-    let quotedMessage: IncomingMessage['quotedMessage'];
-    // Read context off the NORMALIZED content: a live disappearing message arrives wrapped in
-    // `ephemeralMessage` (also viewOnce / documentWithCaption), whose inner content carries the
-    // contextInfo. The raw wrapper exposes none at top level, so both the quote and the timer
-    // (`contextInfo.expiration`) would be missed if we read the raw content here.
-    const normalizedForContext = b.normalizeMessageContent(content) ?? content;
-    const subForContext =
-      normalizedForContext.extendedTextMessage ??
-      normalizedForContext.imageMessage ??
-      normalizedForContext.videoMessage ??
-      normalizedForContext.audioMessage ??
-      normalizedForContext.documentMessage ??
-      normalizedForContext.stickerMessage ??
-      normalizedForContext.locationMessage;
-    const contextInfo = (
-      subForContext as
-        | {
-            contextInfo?: {
-              stanzaId?: string | null;
-              quotedMessage?: Record<string, unknown> | null;
-              expiration?: number | null;
-              mentionedJid?: string[] | null;
-            };
-          }
-        | undefined
-    )?.contextInfo;
-    if (contextInfo?.quotedMessage && contextInfo.stanzaId) {
-      const qm = contextInfo.quotedMessage as {
-        conversation?: string | null;
-        extendedTextMessage?: { text?: string | null } | null;
-        imageMessage?: { caption?: string | null } | null;
-        videoMessage?: { caption?: string | null } | null;
-        documentMessage?: { caption?: string | null } | null;
-      };
-      const qBody =
-        qm.conversation ??
-        qm.extendedTextMessage?.text ??
-        qm.imageMessage?.caption ??
-        qm.videoMessage?.caption ??
-        qm.documentMessage?.caption ??
-        '';
-      quotedMessage = { id: contextInfo.stanzaId, body: qBody };
-    }
-
-    const incoming = buildIncomingMessageFromBaileys(
-      {
-        id: msg.key.id ?? '',
-        remoteJid: msg.key.remoteJid!,
-        fromMe: msg.key.fromMe === true,
-        participant: msg.key.participant ?? undefined,
-        body,
-        contentType,
-        isPtt: normalized.audioMessage?.ptt === true,
-        timestamp: toUnixSeconds(msg.messageTimestamp),
-        pushName: msg.pushName ?? undefined,
-        selfJid: this.normalizedSelfJid(),
-        media,
-        location,
-        quotedMessage,
-        ephemeralDuration: contextInfo?.expiration ?? undefined,
-        mentionedJids: contextInfo?.mentionedJid ?? undefined,
-      },
-      jid => this.sessionStore.toNeutralJid(jid),
-    );
-    incoming.body = this.resolveMentionNames(incoming.body, contextInfo?.mentionedJid ?? undefined);
-    return incoming;
-  }
-
-  /**
-   * Replace `@<number>` mention tokens in a message body with the mentioned contact's display name, so
-   * the dashboard shows `@Alice` instead of `@6894043275414`. Resolves each raw mentioned JID through the
-   * session store (saved name → verifiedName → pushName); tokens with no known name are left untouched.
-   */
-  private resolveMentionNames(body: string, mentionedJids?: string[]): string {
-    if (!body || !mentionedJids?.length) {
-      return body;
-    }
-    let out = body;
-    for (const jid of mentionedJids) {
-      const digits = userPart(jid);
-      if (!digits) {
-        continue;
-      }
-      const name = this.sessionStore.displayName(jid);
-      if (name && name !== digits) {
-        out = out.split(`@${digits}`).join(`@${name}`);
-      }
-    }
-    return out;
-  }
-
   /**
    * Persist the bulk history Baileys pushes on connect (`messaging-history.set`) - the only
    * pre-connection history source. Maps each message media-free and hands the batch to the dispatch-free
@@ -1373,7 +1152,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       // Seed the chat's last-message preview + sort time (newest wins); else history-only chats
       // would read "No messages yet".
       this.sessionStore.recordMessage(msg);
-      const incoming = this.mapHistoryMessage(b, msg);
+      const incoming = mapHistoryMessage(this.mapperCtx, b, msg);
       if (incoming) {
         mapped.push(incoming);
       }
@@ -1417,53 +1196,17 @@ export class BaileysAdapter implements IWhatsAppEngine {
   }
 
   /**
-   * Media-free WAMessage -> IncomingMessage map for bulk history (downloading media for thousands of
-   * messages would be ruinous; the type is kept, the payload dropped). Returns null for protocol /
-   * reaction / key / empty messages, which carry nothing for the chat view.
+   * Collaborators for the inbound mappers. Rebuilt per access and passing `sock`-reading operations as
+   * closures, so a reconnect's new socket is always picked up (never snapshotted).
    */
-  private mapHistoryMessage(b: typeof BaileysLib, msg: WAMessage): IncomingMessage | null {
-    const raw = msg.message;
-    if (!raw || !msg.key?.remoteJid || !msg.key.id) {
-      return null;
-    }
-    // Unwrap ephemeral/viewOnce/documentWithCaption/edited wrappers so the real type and body surface —
-    // else a disappearing-chat message maps to type 'unknown' with an empty body. Identity no-op when
-    // already unwrapped. Derive ONE contentType from the normalized content for both the skip-filter and
-    // the type mapping, and reuse extractBaileysBody (the same body extraction the live path uses).
-    const content = b.normalizeMessageContent(raw) ?? raw;
-    const contentType = b.getContentType(content);
-    if (
-      !contentType ||
-      contentType === 'protocolMessage' ||
-      contentType === 'reactionMessage' ||
-      contentType === 'senderKeyDistributionMessage'
-    ) {
-      return null;
-    }
-    const body = extractBaileysBody(content);
-    const mentionedJids = extractMentionedJids(content);
-    const incoming = buildIncomingMessageFromBaileys(
-      {
-        id: msg.key.id,
-        remoteJid: msg.key.remoteJid,
-        fromMe: msg.key.fromMe === true,
-        participant: msg.key.participant ?? undefined,
-        body,
-        contentType,
-        isPtt: content.audioMessage?.ptt === true,
-        timestamp: toUnixSeconds(msg.messageTimestamp),
-        pushName: msg.pushName ?? undefined,
-        selfJid: this.normalizedSelfJid(),
-        // Populate the disappearing-messages timer using the same extraction the live path and the
-        // session-store cache share (`msg.ephemeralDuration` primary, `contextInfo.expiration` fallback),
-        // so the history sink can apply the STORE_EPHEMERAL_MESSAGES opt-out symmetrically with onMessage.
-        ephemeralDuration: this.sessionStore.extractEphemeralDuration(msg),
-        mentionedJids,
-      },
-      jid => this.sessionStore.toNeutralJid(jid),
-    );
-    incoming.body = this.resolveMentionNames(incoming.body, mentionedJids);
-    return incoming;
+  private get mapperCtx(): InboundMapperCtx {
+    return {
+      loadLib: () => this.loadLib(),
+      sessionStore: this.sessionStore,
+      logger: this.logger,
+      normalizedSelfJid: () => this.normalizedSelfJid(),
+      downloadMedia: (msg, maxBytes) => this.downloadInboundMediaCapped(msg, maxBytes),
+    };
   }
 
   private normalizedSelfJid(): string {
@@ -1551,7 +1294,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       const contentType = b.getContentType(normalizedRoot);
       // protocol / reaction / empty own messages carry no neutral "sent" content.
       if (!contentType || contentType === 'protocolMessage' || contentType === 'reactionMessage') return;
-      const neutral = await this.mapMessage(sent, contentType, { skipMediaDownload: true });
+      const neutral = await mapMessage(this.mapperCtx, sent, contentType, { skipMediaDownload: true });
       this.callbacks.onMessageCreate(neutral);
     } catch (err) {
       this.logger.warn('Failed to emit own-send echo', {
