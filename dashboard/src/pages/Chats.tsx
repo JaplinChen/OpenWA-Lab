@@ -13,12 +13,14 @@ import {
   Paperclip,
   Smile,
   X,
+  ChevronDown,
   CornerUpLeft,
   Trash2,
 } from 'lucide-react';
 import {
   sessionApi,
   messageApi,
+  translateApi,
   asMessageType,
   type Session,
   type Chat,
@@ -96,6 +98,11 @@ export function Chats() {
   const [chats, setChats] = useState<Chat[]>([]);
   const [loadingChats, setLoadingChats] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  // Translation-group filter: show only the groups selected on the Translate page.
+  const [translateGroupIds, setTranslateGroupIds] = useState<Set<string>>(new Set());
+  const [onlyTranslateGroups, setOnlyTranslateGroups] = useState<boolean>(true);
+  // Show the "scroll to newest" button only when scrolled up away from the bottom.
+  const [showScrollDown, setShowScrollDown] = useState<boolean>(false);
 
   // Selected chat & message history
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -156,6 +163,15 @@ export function Chats() {
     };
     void loadSessions();
   }, [t, showErrorToast]);
+
+  // Load the translation-group list so the chat list can be filtered to it. Best-effort: on failure
+  // the set stays empty and the toggle simply shows nothing until translate config is reachable.
+  useEffect(() => {
+    void translateApi
+      .getConfig()
+      .then(cfg => setTranslateGroupIds(new Set(cfg.groupIds)))
+      .catch(() => undefined);
+  }, []);
 
   // 2. Fetch chats when active session changes
   const loadChats = useCallback(
@@ -684,11 +700,13 @@ export function Chats() {
     [t],
   );
 
-  const filteredChats = chats.filter(
-    c =>
+  const filteredChats = chats.filter(c => {
+    if (onlyTranslateGroups && !translateGroupIds.has(c.id)) return false;
+    return (
       c.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.id.toLowerCase().includes(searchQuery.toLowerCase()),
-  );
+      c.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   // Image media items for the lightbox, in render order. `getMediaSrc` reconstructs a usable src
   // from either a base64 payload or a URL — the ChatMessageView shape stores both in `data`.
@@ -777,6 +795,16 @@ export function Chats() {
                   onChange={e => setSearchQuery(e.target.value)}
                 />
               </div>
+
+              {/* Only show groups selected for translation */}
+              <label className="chat-translate-filter">
+                <input
+                  type="checkbox"
+                  checked={onlyTranslateGroups}
+                  onChange={e => setOnlyTranslateGroups(e.target.checked)}
+                />
+                <span>{t('chats.onlyTranslateGroups', { defaultValue: '只顯示翻譯群組' })}</span>
+              </label>
             </div>
 
             {/* Chat list */}
@@ -849,7 +877,14 @@ export function Chats() {
                 </header>
 
                 {/* Messages body */}
-                <div className="room-messages" ref={messagesContainerRef}>
+                <div
+                  className="room-messages"
+                  ref={messagesContainerRef}
+                  onScroll={e => {
+                    const el = e.currentTarget;
+                    setShowScrollDown(el.scrollHeight - el.scrollTop - el.clientHeight > 200);
+                  }}
+                >
                   {loadingMessages ? (
                     <div className="messages-loading">
                       <Loader2 className="animate-spin" size={32} />
@@ -1087,6 +1122,21 @@ export function Chats() {
                     })
                   )}
                 </div>
+
+                {/* Jump to newest message */}
+                {showScrollDown && (
+                  <button
+                    type="button"
+                    className="scroll-to-bottom-btn"
+                    aria-label={t('chats.scrollToBottom', { defaultValue: '捲到最新訊息' })}
+                    onClick={() => {
+                      const el = messagesContainerRef.current;
+                      if (el) el.scrollTop = el.scrollHeight;
+                    }}
+                  >
+                    <ChevronDown size={22} />
+                  </button>
+                )}
 
                 {/* Attachment preview banner */}
                 {attachment && (
