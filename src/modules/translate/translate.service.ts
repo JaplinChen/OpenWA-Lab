@@ -258,8 +258,18 @@ export class TranslateService implements OnModuleInit {
   }
 
   private detectPair(text: string): Pair | null {
-    if (ZH_RE.test(text)) return ZH_TO_VI;
-    if (VI_RE.test(text)) return VI_TO_ZH;
+    const hasVi = VI_RE.test(text);
+    const hasZh = ZH_RE.test(text);
+    // Mixed (e.g. a Vietnamese message @-mentioning a Chinese name): decide by dominant script.
+    // Checking ZH first would misread any Vietnamese message carrying a CJK name as Chinese and
+    // never translate it to Chinese — the actual bug this guards against.
+    if (hasVi && hasZh) {
+      const cjk = (text.match(/[㐀-鿿豈-﫿]/g) || []).length;
+      const latin = (text.match(/[A-Za-z]/g) || []).length;
+      return latin >= cjk ? VI_TO_ZH : ZH_TO_VI;
+    }
+    if (hasVi) return VI_TO_ZH;
+    if (hasZh) return ZH_TO_VI;
     return null;
   }
 
