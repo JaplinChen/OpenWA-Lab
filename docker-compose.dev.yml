@@ -10,11 +10,11 @@
 
 services:
   # API Backend
-  openwa:
+  openwa-lab:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: openwa-api
+    container_name: openwa-lab-api
     # Container hardening — same posture as production (same Dockerfile/entrypoint).
     security_opt:
       - 'no-new-privileges:true'
@@ -46,7 +46,7 @@ services:
       - NODE_ENV=${NODE_ENV:-development}
       - PORT=2785
       - HOME=/tmp
-      # Chromium reads its home from the passwd entry (no /home/openwa), so it needs writable, existing
+      # Chromium reads its home from the passwd entry (no /home/openwa-lab), so it needs writable, existing
       # config/cache dirs on the tmpfs or it hard-crashes at launch; the entrypoint pre-creates them. (#254)
       - XDG_CONFIG_HOME=/tmp/.config
       - XDG_CACHE_HOME=/tmp/.cache
@@ -92,4 +92,4 @@ services:
 
 networks:
   default:
-    name: openwa-network
+    name: openwa-lab-network

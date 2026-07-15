@@ -5,9 +5,9 @@ services:
   # ===== CORE: Docker Socket Proxy (sole container with /var/run/docker.sock access) =====
   docker-proxy:
     image: tecnativa/docker-socket-proxy:v0.4.2
-    container_name: openwa-docker-proxy
+    container_name: openwa-lab-docker-proxy
     restart: unless-stopped
-    # Only on the isolated internal network — reachable solely by openwa-api, NOT the
+    # Only on the isolated internal network — reachable solely by openwa-lab-api, NOT the
     # dashboard or any other peer. `internal: true` also denies the proxy
     # outbound access; it only needs the locally-mounted docker socket.
     networks:
@@ -24,15 +24,15 @@ services:
       DELETE: 1
       # Everything else is denied by default (AUTH, SECRETS, NETWORKS, PLUGINS, SWARM, TASKS, SERVICES, CONFIGS, NODES, DISTRIBUTIONS)
     labels:
-      - 'com.openwa.service=docker-proxy'
-      - 'com.openwa.core=true'
+      - 'com.openwa-lab.service=docker-proxy'
+      - 'com.openwa-lab.core=true'
 
   # ===== CORE: OpenWA Backend API =====
-  openwa-api:
+  openwa-lab-api:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: openwa-api
+    container_name: openwa-lab-api
     restart: unless-stopped
     # Give the graceful drain room to complete before Docker SIGKILLs the container: the shutdown
     # grace (SHUTDOWN_DELAY_MS, default 3s) plus the worst-case per-engine teardown bound (~10s) can
@@ -41,14 +41,14 @@ services:
     stop_grace_period: 45s
     # App network for datastores + the isolated network to reach
     # docker-proxy (DOCKER_HOST). createService() in docker.service.ts attaches
-    # orchestrated containers to the literal `openwa-network`, so its name is fixed.
+    # orchestrated containers to the literal `openwa-lab-network`, so its name is fixed.
     networks:
-      - openwa-network
+      - openwa-lab-network
       - internal-docker
     # Container hardening: Chromium runs with --no-sandbox, so the
     # container itself is the confinement boundary. cap_drop ALL + a minimal re-add
     # ONLY for the root entrypoint's chown + gosu privilege-drop; once gosu setuids to
-    # the openwa user the node/Chromium process keeps NO effective capabilities.
+    # the openwa-lab user the node/Chromium process keeps NO effective capabilities.
     # read_only rootfs (Chromium's profile lives on the writable /app/data volume;
     # HOME=/tmp + tmpfs absorb stray writes). no-new-privileges blocks setuid escalation.
     # NOTE: requires a live single-session smoke (Chromium must launch) before merge.
@@ -57,11 +57,11 @@ services:
     cap_drop:
       - ALL
     cap_add:
-      - CHOWN # entrypoint: chown -R openwa /app/data on the named volume
+      - CHOWN # entrypoint: chown -R openwa-lab /app/data on the named volume
       - DAC_OVERRIDE # entrypoint: chown across pre-existing files
       - FOWNER
-      - SETGID # gosu: drop to the openwa group
-      - SETUID # gosu: drop to the openwa user
+      - SETGID # gosu: drop to the openwa-lab group
+      - SETUID # gosu: drop to the openwa-lab user
     read_only: true
     tmpfs:
       - /tmp
@@ -86,9 +86,9 @@ services:
       - NODE_ENV=${NODE_ENV:-production}
       # Writable HOME on tmpfs so Chromium's HOME-relative writes don't hit the read_only rootfs
       - HOME=/tmp
-      # Chromium resolves its home from the passwd entry (no /home/openwa), ignoring $HOME, so without
+      # Chromium resolves its home from the passwd entry (no /home/openwa-lab), ignoring $HOME, so without
       # writable, existing config/cache dirs it hard-crashes at launch on the read_only rootfs. Pin XDG
-      # to the tmpfs; the entrypoint pre-creates these owned by openwa. (#254)
+      # to the tmpfs; the entrypoint pre-creates these owned by openwa-lab. (#254)
       - XDG_CONFIG_HOME=/tmp/.config
       - XDG_CACHE_HOME=/tmp/.cache
       - PORT=2785
@@ -161,10 +161,10 @@ services:
       - PLUGINS_DIR=${PLUGINS_DIR:-/app/data/plugins}
       # Security
       - API_MASTER_KEY=${API_MASTER_KEY:-}
-      # Docker socket proxy (openwa-api never touches /var/run/docker.sock directly)
+      # Docker socket proxy (openwa-lab-api never touches /var/run/docker.sock directly)
       - DOCKER_HOST=tcp://docker-proxy:2375
     volumes:
-      - openwa-data:/app/data
+      - openwa-lab-data:/app/data
       - ./docker-compose.yml:/app/docker-compose.yml:ro
     depends_on:
       docker-proxy:
@@ -188,21 +188,21 @@ services:
       retries: 3
       start_period: 30s
     labels:
-      - 'com.openwa.service=api'
-      - 'com.openwa.core=true'
+      - 'com.openwa-lab.service=api'
+      - 'com.openwa-lab.core=true'
 
-  # The dashboard SPA is now bundled into the openwa-api image and served by NestJS on the
-  # same port (2785) — there is no separate dashboard container. Reach it at the openwa-api
+  # The dashboard SPA is now bundled into the openwa-lab-api image and served by NestJS on the
+  # same port (2785) — there is no separate dashboard container. Reach it at the openwa-lab-api
   # port directly; put your own TLS reverse proxy (nginx/Caddy/cloud LB) in front if needed.
 
   # ===== OPTIONAL: Built-in PostgreSQL =====
   postgres:
     image: postgres:16-alpine
-    container_name: openwa-postgres
+    container_name: openwa-lab-postgres
     profiles: ['postgres', 'full']
     restart: unless-stopped
     networks:
-      - openwa-network
+      - openwa-lab-network
     security_opt:
       - 'no-new-privileges:true'
     environment:
@@ -228,17 +228,17 @@ services:
       timeout: 3s
       retries: 5
     labels:
-      - 'com.openwa.service=database'
-      - 'com.openwa.builtin=true'
+      - 'com.openwa-lab.service=database'
+      - 'com.openwa-lab.builtin=true'
 
   # ===== OPTIONAL: Built-in Redis =====
   redis:
     image: redis:7-alpine
-    container_name: openwa-redis
+    container_name: openwa-lab-redis
     profiles: ['redis', 'full']
     restart: unless-stopped
     networks:
-      - openwa-network
+      - openwa-lab-network
     security_opt:
       - 'no-new-privileges:true'
     command: redis-server --appendonly yes
@@ -250,17 +250,17 @@ services:
       timeout: 3s
       retries: 5
     labels:
-      - 'com.openwa.service=cache'
-      - 'com.openwa.builtin=true'
+      - 'com.openwa-lab.service=cache'
+      - 'com.openwa-lab.builtin=true'
 
   # ===== OPTIONAL: Built-in MinIO (S3-compatible) =====
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    container_name: openwa-minio
+    container_name: openwa-lab-minio
     profiles: ['minio', 'full']
     restart: unless-stopped
     networks:
-      - openwa-network
+      - openwa-lab-network
     security_opt:
       - 'no-new-privileges:true'
     command: server /data --console-address ":9001"
@@ -282,14 +282,14 @@ services:
       timeout: 5s
       retries: 3
     labels:
-      - 'com.openwa.service=storage'
-      - 'com.openwa.builtin=true'
+      - 'com.openwa-lab.service=storage'
+      - 'com.openwa-lab.builtin=true'
 
 volumes:
   # Pin explicit volume names so the compose path and the Docker-API orchestration path (which uses
   # the literal `openwa_<svc>-data` names in docker.service.ts) bind the SAME volume regardless of the
   # compose project name — otherwise re-enabling a built-in service could mount a fresh empty volume.
-  openwa-data:
+  openwa-lab-data:
     name: openwa_openwa-data
     driver: local
   postgres-data:
@@ -303,12 +303,12 @@ volumes:
     driver: local
 
 networks:
-  # Application network — datastores and openwa-api. Keep the name `openwa-network`:
+  # Application network — datastores and openwa-lab-api. Keep the name `openwa-lab-network`:
   # docker.service.ts attaches orchestrated containers to it by literal name.
-  openwa-network:
-    name: openwa-network
+  openwa-lab-network:
+    name: openwa-lab-network
   # Isolated network for the Docker socket proxy. `internal: true` means no external
-  # connectivity; only openwa-api joins it, so nothing else can reach docker-proxy:2375.
+  # connectivity; only openwa-lab-api joins it, so nothing else can reach docker-proxy:2375.
   internal-docker:
-    name: openwa-internal-docker
+    name: openwa-lab-internal-docker
     internal: true

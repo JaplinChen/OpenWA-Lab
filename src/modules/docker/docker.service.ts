@@ -137,7 +137,7 @@ export class DockerService implements OnModuleInit {
         .filter(c => {
           // Filter by OpenWA labels or name prefix
           const labels = c.Labels || {};
-          return labels['com.openwa.service'] || c.Names?.some(n => n.startsWith('/openwa-'));
+          return labels['com.openwa-lab.service'] || c.Names?.some(n => n.startsWith('/openwa-lab-'));
         })
         .map(c => ({
           id: c.Id.substring(0, 12),
@@ -154,7 +154,7 @@ export class DockerService implements OnModuleInit {
 
   /**
    * Which bundled (OpenWA-managed) service containers are currently RUNNING, keyed by the
-   * `com.openwa.service` label (`database` | `cache` | `storage`). Lets the dashboard show the real
+   * `com.openwa-lab.service` label (`database` | `cache` | `storage`). Lets the dashboard show the real
    * built-in state instead of the saved intent. All false when Docker is unavailable or none run.
    */
   async getRunningBuiltinServices(): Promise<{ database: boolean; cache: boolean; storage: boolean }> {
@@ -162,7 +162,7 @@ export class DockerService implements OnModuleInit {
     const isRunning = (svc: string): boolean =>
       containers.some(
         c =>
-          c.labels['com.openwa.service'] === svc && c.labels['com.openwa.builtin'] === 'true' && c.state === 'running',
+          c.labels['com.openwa-lab.service'] === svc && c.labels['com.openwa-lab.builtin'] === 'true' && c.state === 'running',
       );
     return { database: isRunning('database'), cache: isRunning('cache'), storage: isRunning('storage') };
   }
@@ -179,7 +179,7 @@ export class DockerService implements OnModuleInit {
       const containers = await this.docker.listContainers({
         all: true,
         filters: {
-          label: [`com.openwa.service=${service}`],
+          label: [`com.openwa-lab.service=${service}`],
         },
       });
 
@@ -188,8 +188,8 @@ export class DockerService implements OnModuleInit {
       }
 
       // Fallback: try by EXACT name (never a substring — a substring, and especially the empty
-      // string, would resolve an arbitrary container). OpenWA-managed containers are `openwa-<service>`.
-      const target = `openwa-${service}`;
+      // string, would resolve an arbitrary container). OpenWA-managed containers are `openwa-lab-<service>`.
+      const target = `openwa-lab-${service}`;
       const allContainers = await this.docker.listContainers({ all: true });
       const match = allContainers.find(c => c.Names?.some(n => n === target || n === `/${target}`));
 
@@ -222,7 +222,7 @@ export class DockerService implements OnModuleInit {
     const specs: Record<string, ReturnType<typeof this.getContainerSpec>> = {
       redis: {
         image: 'redis:7-alpine',
-        name: 'openwa-redis',
+        name: 'openwa-lab-redis',
         alias: 'redis', // DNS alias for resolution
         cmd: ['redis-server', '--appendonly', 'yes'],
         volumes: [{ name: 'openwa_redis-data', path: '/data' }],
@@ -233,13 +233,13 @@ export class DockerService implements OnModuleInit {
           retries: 5,
         },
         labels: {
-          'com.openwa.service': 'cache',
-          'com.openwa.builtin': 'true',
+          'com.openwa-lab.service': 'cache',
+          'com.openwa-lab.builtin': 'true',
         },
       },
       postgres: {
         image: 'postgres:16-alpine',
-        name: 'openwa-postgres',
+        name: 'openwa-lab-postgres',
         alias: 'postgres',
         // Use hardcoded defaults for built-in container (don't inherit SQLite paths)
         env: ['POSTGRES_USER=openwa', 'POSTGRES_PASSWORD=openwa', 'POSTGRES_DB=openwa'],
@@ -251,13 +251,13 @@ export class DockerService implements OnModuleInit {
           retries: 5,
         },
         labels: {
-          'com.openwa.service': 'database',
-          'com.openwa.builtin': 'true',
+          'com.openwa-lab.service': 'database',
+          'com.openwa-lab.builtin': 'true',
         },
       },
       minio: {
         image: 'minio/minio',
-        name: 'openwa-minio',
+        name: 'openwa-lab-minio',
         alias: 'minio',
         cmd: ['server', '/data', '--console-address', ':9001'],
         env: [
@@ -278,8 +278,8 @@ export class DockerService implements OnModuleInit {
           retries: 3,
         },
         labels: {
-          'com.openwa.service': 'storage',
-          'com.openwa.builtin': 'true',
+          'com.openwa-lab.service': 'storage',
+          'com.openwa-lab.builtin': 'true',
         },
       },
     };
@@ -350,7 +350,7 @@ export class DockerService implements OnModuleInit {
         Env: spec.env,
         Labels: spec.labels,
         HostConfig: {
-          NetworkMode: 'openwa-network',
+          NetworkMode: 'openwa-lab-network',
           RestartPolicy: { Name: 'unless-stopped' },
           Binds: spec.volumes?.map(v => `${v.name}:${v.path}`),
           PortBindings: spec.ports?.reduce<Record<string, { HostIp: string; HostPort: string }[]>>((acc, p) => {
@@ -368,7 +368,7 @@ export class DockerService implements OnModuleInit {
           : undefined,
         NetworkingConfig: {
           EndpointsConfig: {
-            'openwa-network': {
+            'openwa-lab-network': {
               Aliases: [spec.alias, profile], // Add DNS aliases for network resolution
             },
           },
