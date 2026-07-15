@@ -2,20 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
-import { TarArchive } from 'archiver';
-import * as tar from 'tar-stream';
-import { createGunzip } from 'zlib';
 import { Readable, PassThrough } from 'stream';
-import {
-  S3Client,
-  ListObjectsV2Command,
-  GetObjectCommand,
-  PutObjectCommand,
-  HeadBucketCommand,
-  CreateBucketCommand,
-} from '@aws-sdk/client-s3';
+import { S3Client, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { createLogger } from '../services/logger.service';
 import { isPathWithin, isSafeStorageKey } from '../utils/path-safety';
+import { createExportStream, importFromStream, positiveIntFromEnv } from './storage-archive';
+import { listS3Files, getS3File, putS3File, getS3CountAndSize } from './s3-storage';
 
 interface S3Config {
   endpoint?: string;
@@ -25,19 +17,10 @@ interface S3Config {
   bucket?: string;
 }
 
-/** Per-entry buffer cap for an import (200 MiB — 4× the inbound media cap). Bounds a decompression bomb. */
-const DEFAULT_IMPORT_MAX_BYTES = 200 * 1024 * 1024;
-/** Max number of entries an import archive may contain. Bounds an entry-count DoS. */
-const DEFAULT_IMPORT_MAX_ENTRIES = 100_000;
 /** Max number of local files a single traversal enumerates. Bounds a count DoS on a huge media dir. */
 const DEFAULT_LIST_MAX_FILES = 100_000;
 /** Max directory depth a local traversal descends. Prevents a pathological tree from running unbounded. */
 const LOCAL_TRAVERSAL_MAX_DEPTH = 20;
-
-function positiveIntFromEnv(name: string, fallback: number): number {
-  const parsed = Number.parseInt(process.env[name] ?? '', 10);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
-}
 
 @Injectable()
 export class StorageService {
@@ -188,7 +171,7 @@ export class StorageService {
     if (this.storageType === 's3' && this.s3Client && this.s3Available) {
       // ListObjectsV2 already returns each object's Size, so report the real total instead of a
       // 100KB-per-file estimate — no extra API calls beyond the listing we'd do anyway.
-      return this.getS3CountAndSize();
+      return getS3CountAndSize(this.s3Client, this.s3Bucket);
     }
 
     const files = await this.listFiles();
@@ -206,155 +189,16 @@ export class StorageService {
     return { count: files.length, sizeBytes };
   }
 
-  private async getS3CountAndSize(): Promise<{ count: number; sizeBytes: number }> {
-    let count = 0;
-    let sizeBytes = 0;
-    let continuationToken: string | undefined;
+  // ============================================================================
+  // Export / Import — tar.gz stream over the current storage (see storage-archive.ts)
+  // ============================================================================
 
-    do {
-      const response = await this.s3Client!.send(
-        new ListObjectsV2Command({
-          Bucket: this.s3Bucket,
-          Prefix: 'media/',
-          ContinuationToken: continuationToken,
-        }),
-      );
-
-      for (const obj of response.Contents ?? []) {
-        count += 1;
-        sizeBytes += obj.Size ?? 0;
-      }
-
-      continuationToken = response.NextContinuationToken;
-    } while (continuationToken);
-
-    return { count, sizeBytes };
+  createExportStream(): Promise<PassThrough> {
+    return createExportStream(this, this.logger);
   }
 
-  // ============================================================================
-  // Export - Create tar.gz stream from current storage
-  // ============================================================================
-
-  async createExportStream(): Promise<PassThrough> {
-    const files = await this.listFiles();
-    const output = new PassThrough();
-
-    const archive = new TarArchive({
-      gzip: true,
-      gzipOptions: { level: 6 },
-    });
-
-    // Surface archive-level failures (gzip/finalize) on the returned stream instead of
-    // letting them become an unhandled rejection or a silently truncated download.
-    archive.on('error', (err: Error) => {
-      this.logger.error('Export archive failed', String(err));
-      output.destroy(err);
-    });
-
-    archive.pipe(output);
-
-    // Add files to archive
-    for (const file of files) {
-      try {
-        const data = await this.getFile(file);
-        archive.append(data, { name: file });
-      } catch (error) {
-        this.logger.warn(`Failed to export file: ${file}`, { error: String(error) });
-      }
-    }
-
-    // finalize() rejections also emit via the 'error' handler above; catch the promise so it
-    // never surfaces as an unhandled rejection.
-    archive.finalize().catch(() => undefined);
-    return output;
-  }
-
-  // ============================================================================
-  // Import - Extract tar.gz stream to current storage
-  // ============================================================================
-
-  // Best-effort, NOT atomic: a single bad/traversing entry is skipped and the rest still import, and a
-  // resource-cap breach aborts the rest but KEEPS the entries already written (no rollback). Callers
-  // re-running an import is safe (putFile overwrites). A staging-dir + atomic promote would make it
-  // transactional, but is out of scope here.
-  async importFromStream(inputStream: Readable): Promise<number> {
-    let importedCount = 0;
-    let entryCount = 0;
-    const maxEntryBytes = positiveIntFromEnv('STORAGE_IMPORT_MAX_BYTES', DEFAULT_IMPORT_MAX_BYTES);
-    const maxEntries = positiveIntFromEnv('STORAGE_IMPORT_MAX_ENTRIES', DEFAULT_IMPORT_MAX_ENTRIES);
-
-    const extract = tar.extract();
-    const gunzip = createGunzip();
-
-    return new Promise<number>((resolve, reject) => {
-      let settled = false;
-      // Abort the whole import: a per-entry overflow or too many entries is a (zip-bomb) attack, not
-      // a per-file skip — tear down the pipeline and reject so nothing further is buffered or written.
-      const fail = (err: Error): void => {
-        if (settled) return;
-        settled = true;
-        extract.destroy();
-        reject(err);
-      };
-
-      extract.on('entry', (header, stream, next) => {
-        if (settled) {
-          stream.resume();
-          return;
-        }
-        if (++entryCount > maxEntries) {
-          stream.resume();
-          fail(new Error(`Import aborted: archive exceeds the ${maxEntries}-entry limit`));
-          return;
-        }
-
-        const chunks: Buffer[] = [];
-        let entryBytes = 0;
-        let entryAborted = false;
-
-        stream.on('data', (chunk: Buffer) => {
-          if (entryAborted || settled) return;
-          entryBytes += chunk.length;
-          if (entryBytes > maxEntryBytes) {
-            entryAborted = true;
-            stream.resume(); // drain the remainder so the source can end
-            fail(new Error(`Import aborted: entry "${header.name}" exceeds the ${maxEntryBytes}-byte per-entry cap`));
-          } else {
-            chunks.push(chunk);
-          }
-        });
-
-        stream.on('end', () => {
-          if (entryAborted || settled) return;
-          const data = Buffer.concat(chunks);
-          this.putFile(header.name, data)
-            .then(() => {
-              importedCount++;
-              this.logger.debug(`Imported file: ${header.name}`);
-              next();
-            })
-            .catch((error: unknown) => {
-              this.logger.error(`Failed to import file: ${header.name}`, String(error));
-              next();
-            });
-        });
-        stream.resume();
-      });
-
-      extract.on('finish', () => {
-        if (settled) return;
-        settled = true;
-        this.logger.log(`Import completed: ${importedCount} files`);
-        resolve(importedCount);
-      });
-
-      extract.on('error', (err: Error) => {
-        this.logger.error('Import failed', String(err));
-        fail(err);
-      });
-
-      inputStream.pipe(gunzip).pipe(extract);
-    });
+  importFromStream(inputStream: Readable): Promise<number> {
+    return importFromStream(this, inputStream, this.logger);
   }
 
   // ============================================================================
@@ -425,68 +269,18 @@ export class StorageService {
   // S3 Storage Operations
   // ============================================================================
 
-  private async listS3Files(): Promise<string[]> {
-    if (!this.s3Client) return [];
-
-    const files: string[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const response = await this.s3Client.send(
-        new ListObjectsV2Command({
-          Bucket: this.s3Bucket,
-          Prefix: 'media/',
-          ContinuationToken: continuationToken,
-        }),
-      );
-
-      if (response.Contents) {
-        for (const obj of response.Contents) {
-          if (obj.Key) {
-            // Remove 'media/' prefix
-            files.push(obj.Key.replace(/^media\//, ''));
-          }
-        }
-      }
-
-      continuationToken = response.NextContinuationToken;
-    } while (continuationToken);
-
-    return files;
+  private listS3Files(): Promise<string[]> {
+    if (!this.s3Client) return Promise.resolve([]);
+    return listS3Files(this.s3Client, this.s3Bucket);
   }
 
-  private async getS3File(filePath: string): Promise<Buffer> {
+  private getS3File(filePath: string): Promise<Buffer> {
     if (!this.s3Client) throw new Error('S3 client not initialized');
-
-    const response = await this.s3Client.send(
-      new GetObjectCommand({
-        Bucket: this.s3Bucket,
-        Key: `media/${filePath}`,
-      }),
-    );
-
-    if (!response.Body) throw new Error('Empty response body');
-
-    // Convert stream to buffer
-    const chunks: Buffer[] = [];
-    const stream = response.Body as Readable;
-
-    for await (const chunk of stream) {
-      chunks.push(Buffer.from(chunk as ArrayBuffer));
-    }
-
-    return Buffer.concat(chunks);
+    return getS3File(this.s3Client, this.s3Bucket, filePath);
   }
 
-  private async putS3File(filePath: string, data: Buffer): Promise<void> {
+  private putS3File(filePath: string, data: Buffer): Promise<void> {
     if (!this.s3Client) throw new Error('S3 client not initialized');
-
-    await this.s3Client.send(
-      new PutObjectCommand({
-        Bucket: this.s3Bucket,
-        Key: `media/${filePath}`,
-        Body: data,
-      }),
-    );
+    return putS3File(this.s3Client, this.s3Bucket, filePath, data);
   }
 }
