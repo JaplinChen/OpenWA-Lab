@@ -33,7 +33,7 @@ function isPalette(value: string | null): value is ThemePalette {
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem(THEME_KEY);
-    return isTheme(saved) ? saved : 'system';
+    return isTheme(saved) ? saved : 'anthropic';
   });
   const [palette, setPaletteState] = useState<ThemePalette>(() => {
     const saved = localStorage.getItem(PALETTE_KEY);
