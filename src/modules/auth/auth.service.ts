@@ -12,38 +12,13 @@ import { ApiKey, ApiKeyRole } from './entities/api-key.entity';
 import { CreateApiKeyDto, UpdateApiKeyDto } from './dto';
 import { createLogger } from '../../common/services/logger.service';
 import { EventsGateway, type ApiKeyEvictionReason } from '../events/events.gateway';
+import { resolveSeedApiKey, printWelcomeBanner } from './auth-banner';
+
+// Re-exported so existing importers (and auth.service.spec.ts) keep resolving these from
+// './auth.service' after the split into auth-banner.ts.
+export { resolveSeedApiKey, bannerKeyLine } from './auth-banner';
 
 const API_KEY_FILE = join(process.cwd(), 'data', '.api-key');
-
-/**
- * Resolves the API key to seed on first boot (when no keys exist yet).
- * Precedence: an explicit `API_MASTER_KEY` always wins; otherwise a
- * cryptographically random `owa_k1_` key is generated — the secure default,
- * including in non-production. The legacy fixed `dev-admin-key` is used only when
- * a developer explicitly opts in with `ALLOW_DEV_API_KEY=true`, never by default.
- */
-export function resolveSeedApiKey(): string {
-  if (process.env.API_MASTER_KEY) {
-    return process.env.API_MASTER_KEY;
-  }
-  if (process.env.ALLOW_DEV_API_KEY === 'true') {
-    return 'dev-admin-key';
-  }
-  return `owa_k1_${randomBytes(32).toString('hex')}`;
-}
-
-/**
- * The line to print for the API key in the startup banner. The full raw key is shown ONLY when it was
- * just created (first run, when the operator needs to capture it once). On every subsequent boot the
- * key is masked to a short non-secret fingerprint, so the live admin key is not re-written to the log
- * pipeline (Docker/Loki/CloudWatch) on each restart — it stays in `data/.api-key` (0600) and the
- * dashboard. A placeholder (e.g. "(check dashboard for keys)") is passed through unchanged.
- */
-export function bannerKeyLine(displayKey: string, isNewKey: boolean): string {
-  if (isNewKey) return displayKey;
-  if (displayKey.startsWith('(')) return displayKey;
-  return `${displayKey.slice(0, 8)}… (full key in data/.api-key or the dashboard)`;
-}
 
 @Injectable()
 export class AuthService implements OnModuleInit {
@@ -93,27 +68,7 @@ export class AuthService implements OnModuleInit {
     }
 
     // Always show the welcome banner on startup
-    const apiBaseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 2785}`;
-    // The dashboard is served by NestJS at the same origin as the API now, so default to it.
-    const dashboardUrl = process.env.DASHBOARD_URL || apiBaseUrl;
-
-    this.logger.log('');
-    this.logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    this.logger.log('');
-    this.logger.log('  🟢 Welcome to OpenWA - WhatsApp API Gateway');
-    this.logger.log('');
-    this.logger.log(`  📊 Dashboard: ${dashboardUrl}`);
-    this.logger.log(`  📚 API Docs:  ${apiBaseUrl}/api/docs`);
-    this.logger.log('');
-    if (isNewKey) {
-      this.logger.log('  🔑 API Key (newly created):');
-    } else {
-      this.logger.log('  🔑 API Key:');
-    }
-    this.logger.log(`     ${bannerKeyLine(displayKey, isNewKey)}`);
-    this.logger.log('');
-    this.logger.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    this.logger.log('');
+    printWelcomeBanner(this.logger, { displayKey, isNewKey });
   }
 
   private async seedApiKey(rawKey: string, name: string, role: ApiKeyRole): Promise<ApiKey> {
