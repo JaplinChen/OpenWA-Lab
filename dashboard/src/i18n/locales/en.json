@@ -72,6 +72,7 @@
     "webhooks": "Webhooks",
     "templates": "Templates",
     "translate": "Translation Groups",
+    "glossary": "Glossary",
     "apiKeys": "API Keys",
     "messageTester": "Message Tester",
     "infrastructure": "Infrastructure",
