@@ -24,6 +24,9 @@ export function Translate() {
     minSendIntervalMs: 1000,
   });
   const [loading, setLoading] = useState(true);
+  // Guard against saving before a successful load: the initial config is empty, so a save issued
+  // during (or after a failed) load would overwrite the server config with {enabled:false, groupIds:[]}.
+  const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -36,7 +39,10 @@ export function Translate() {
     translateApi
       .getConfig()
       .then(cfg => {
-        if (active) setConfig(cfg);
+        if (active) {
+          setConfig(cfg);
+          setLoaded(true);
+        }
       })
       .catch(err => {
         if (active)
@@ -131,7 +137,7 @@ export function Translate() {
         })}
         actions={
           canWrite && (
-            <button className="btn-primary" onClick={handleSave} disabled={saving}>
+            <button className="btn-primary" onClick={handleSave} disabled={saving || !loaded}>
               {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
               {t('translate.save', { defaultValue: 'Save' })}
             </button>
