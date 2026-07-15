@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, Injectable, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { HookManager, HookContext, HookResult } from '../../core/hooks';
@@ -131,6 +131,25 @@ export class TranslateService implements OnModuleInit {
     }
     this.saveConfig();
     return this.getConfig();
+  }
+
+  getGlossary(): { source: string; target: string }[] {
+    return this.glossary.entries();
+  }
+
+  addGlossaryTerm(zh: string, vi: string): { source: string; target: string }[] {
+    const source = zh.trim();
+    const target = vi.trim();
+    if (!source || !target) throw new BadRequestException('zh and vi are required');
+    this.glossary.add(source, target);
+    return this.glossary.entries();
+  }
+
+  removeGlossaryTerm(term: string): { source: string; target: string }[] {
+    const trimmed = term.trim();
+    if (!trimmed) throw new BadRequestException('term is required');
+    this.glossary.remove(trimmed);
+    return this.glossary.entries();
   }
 
   private registerSentHook(): void {

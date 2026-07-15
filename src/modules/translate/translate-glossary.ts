@@ -25,6 +25,33 @@ export class Glossary {
     fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8');
   }
 
+  /** zh->vi terms as a flat list for the dashboard/API (source = 中文, target = 越南文). */
+  entries(): { source: string; target: string }[] {
+    return Object.entries(this.data['zh-tw:vi'] || {}).map(([source, target]) => ({ source, target }));
+  }
+
+  /** Add/overwrite a zh<->vi term in both directions, persisting immediately. */
+  add(zh: string, vi: string): void {
+    (this.data['zh-tw:vi'] ??= {})[zh] = vi;
+    (this.data['vi:zh-tw'] ??= {})[vi] = zh;
+    this.save();
+  }
+
+  /** Remove any pairing where `term` appears on either side; returns whether anything was removed. */
+  remove(term: string): boolean {
+    let removed = false;
+    for (const terms of Object.values(this.data)) {
+      for (const [s, t] of Object.entries(terms)) {
+        if (s === term || t === term) {
+          delete terms[s];
+          removed = true;
+        }
+      }
+    }
+    if (removed) this.save();
+    return removed;
+  }
+
   /** Prompt section injecting the terms for one direction (empty string when none). */
   section(pairKey: string): string {
     const entries = Object.entries(this.data[pairKey] || {});
@@ -55,25 +82,14 @@ export class Glossary {
       const zh = add[1].trim();
       const vi = add[2].trim();
       if (!zh || !vi) return '格式錯誤，請用：/glossary add 中文 = tiếng Việt';
-      (this.data['zh-tw:vi'] ??= {})[zh] = vi;
-      (this.data['vi:zh-tw'] ??= {})[vi] = zh;
-      this.save();
+      this.add(zh, vi);
       return `已新增術語：${zh} ⇄ ${vi}`;
     }
 
     const del = rest.match(/^del(?:ete)?\s+(.+)$/i);
     if (del) {
       const term = del[1].trim();
-      let removed = false;
-      for (const terms of Object.values(this.data)) {
-        for (const [s, t] of Object.entries(terms)) {
-          if (s === term || t === term) {
-            delete terms[s];
-            removed = true;
-          }
-        }
-      }
-      if (removed) this.save();
+      const removed = this.remove(term);
       return removed ? `已移除術語：${term}` : `找不到術語：${term}`;
     }
 
