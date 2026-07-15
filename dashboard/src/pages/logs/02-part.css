@@ -1,0 +1,130 @@
+
+.logs-page .empty-table-state svg{
+  margin-bottom: 1rem;
+  opacity: 0.4;
+  color: var(--text-muted);
+}
+
+.logs-page .empty-table-state h3{
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+}
+
+.logs-page .empty-table-state p{
+  margin: 0;
+  font-size: 0.875rem;
+  max-width: 300px;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .logs-page{
+    padding: 1rem;
+  }
+
+  .logs-page .filters-bar{
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .logs-page .search-input{
+    max-width: none;
+  }
+
+  .logs-page .filter-group{
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .logs-page .filter-group .custom-select{
+    flex: 1;
+  }
+
+  .logs-page .logs-table-container{
+    overflow-x: visible;
+    border: none;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .logs-page .logs-table{
+    display: block;
+  }
+
+  .logs-page .logs-table .table-row.header{
+    display: none;
+  }
+
+  .logs-page .logs-table .table-row:not(.header){
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
+    gap: 0.5rem;
+    padding: 1rem;
+    background: var(--bg-white);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 0.75rem;
+  }
+
+  /* Cells inherit centering from the desktop grid; force a left-aligned, scannable card. */
+  .logs-page .logs-table .table-row:not(.header) > span{
+    width: 100%;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .logs-page .logs-table .table-row:not(.header):hover{
+    background: var(--bg-white);
+  }
+
+  /* Action label prominent at top */
+  .logs-page .logs-table .table-row .action{
+    font-size: 0.9375rem;
+    font-weight: 600;
+    order: 1;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Timestamp secondary */
+  .logs-page .logs-table .table-row .timestamp{
+    order: 2;
+    font-size: 0.75rem;
+  }
+
+  /* Session, API Key, IP - inline info */
+  .logs-page .logs-table .table-row > span:nth-child(3), .logs-page .logs-table .table-row > span:nth-child(4), .logs-page .logs-table .table-row > span:nth-child(5){
+    display: none;
+  }
+
+  /* Severity badge stays visible */
+  .logs-page .logs-table .table-row > span:last-child{
+    order: 3;
+    justify-self: flex-start;
+  }
+
+  .logs-page .pagination{
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .logs-page .pagination button{
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+  }
+
+  .logs-page .page-numbers button{
+    min-width: 32px;
+    padding: 0.5rem 0.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .logs-page{
+    padding: 0.75rem;
+  }
+}

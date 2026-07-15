@@ -1,0 +1,235 @@
+.sessions-page {
+  padding: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sessions-page .page-header {
+  margin-bottom: 2rem;
+  width: 100%;
+}
+
+.sessions-page .header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  width: 100%;
+}
+
+/* H1 inherited from global */
+
+.sessions-page .btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.sessions-page .btn-primary:hover {
+  background: var(--primary-hover);
+}
+
+.sessions-page .filters-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.sessions-page .search-input {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  max-width: 400px;
+  padding: 0.75rem 1rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sessions-page .search-input svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.sessions-page .search-input input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+}
+
+.sessions-page .search-input input:focus {
+  outline: none;
+}
+
+.sessions-page .filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 1rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.sessions-page .filter-group svg {
+  color: var(--text-muted);
+}
+
+.sessions-page .filter-group .custom-select {
+  flex: 1;
+}
+
+.sessions-page .sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+  width: 100%;
+}
+
+.sessions-page .session-card {
+  background: var(--bg-white);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border);
+}
+
+.sessions-page .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+}
+
+.sessions-page .card-header h3 {
+  /* Inherits from H3 */
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.sessions-page .qr-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background: var(--bg-light);
+  border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+
+.sessions-page .qr-icon {
+  color: var(--text-muted);
+  margin-bottom: 0.75rem;
+}
+
+.sessions-page .qr-placeholder p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.sessions-page .session-info {
+  margin-bottom: 1rem;
+}
+
+.sessions-page .info-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.sessions-page .info-row:last-child {
+  border-bottom: none;
+}
+
+.sessions-page .info-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.sessions-page .info-value {
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.sessions-page .info-value.mono {
+  font-family: monospace;
+}
+
+.sessions-page .info-value.error-text {
+  color: var(--color-danger, #dc2626);
+  font-weight: 500;
+  max-width: 60%;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessions-page .card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sessions-page .btn-action {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+.sessions-page .btn-action:hover {
+  background: var(--bg-white);
+  color: var(--text-primary);
+}
+
+.sessions-page .btn-action.danger {
+  color: var(--error);
+}
+
+.sessions-page .btn-action.danger:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+@media (max-width: 1400px) {
+  .sessions-page .sessions-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 1000px) {
+  .sessions-page .sessions-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

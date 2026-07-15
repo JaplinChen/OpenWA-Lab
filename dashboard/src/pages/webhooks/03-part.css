@@ -1,0 +1,232 @@
+
+@media (max-width: 768px) {
+  .webhooks-page{
+    padding: 1rem;
+  }
+
+  .webhooks-page .webhooks-content{
+    grid-template-columns: 1fr;
+  }
+
+  .webhooks-page .webhook-card{
+    overflow: hidden;
+  }
+
+  .webhooks-page .webhook-card-header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .webhooks-page .webhook-url-row{
+    width: 100%;
+    min-width: 0;
+  }
+
+  .webhooks-page .webhook-url{
+    font-size: 0.75rem;
+  }
+
+  .webhooks-page .webhook-card-actions{
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .webhooks-page .webhook-card-body{
+    padding: 0.875rem 1rem;
+  }
+
+  .webhooks-page .webhook-meta{
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .webhooks-page .webhook-meta-value{
+    font-size: 0.8125rem;
+    word-break: break-all;
+  }
+
+  .webhooks-page .events-cell{
+    flex-wrap: wrap;
+    gap: 0.375rem;
+  }
+
+  .webhooks-page .event-tag{
+    font-size: 0.6875rem;
+    padding: 0.2rem 0.5rem;
+  }
+}
+
+/* Toast Notification */
+.webhooks-page .toast{
+  position: fixed;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  animation: slideIn 0.3s ease;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.webhooks-page .toast.success{
+  background: color-mix(in srgb, var(--primary) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--success);
+}
+
+.webhooks-page .toast.error{
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--error);
+}
+
+.webhooks-page .toast-close{
+  background: transparent;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  opacity: 0.6;
+  color: inherit;
+}
+
+.webhooks-page .toast-close:hover{
+  opacity: 1;
+}
+
+/* Danger Button */
+.webhooks-page .btn-danger{
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--error);
+  color: white;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.webhooks-page .btn-danger:hover{
+  background: #b91c1c;
+}
+
+/* Small Modal Variant */
+.webhooks-page .modal.modal-sm{
+  max-width: 400px;
+}
+
+/* Disabled button */
+.webhooks-page .icon-btn:disabled{
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animate spin for loading */
+.webhooks-page .animate-spin{
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Toggle Switch */
+.webhooks-page .toggle-group{
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-light);
+  border-radius: var(--radius);
+}
+
+.webhooks-page .toggle-label{
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.webhooks-page .toggle-switch{
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 26px;
+}
+
+.webhooks-page .toggle-switch input{
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.webhooks-page .toggle-slider{
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--border);
+  transition: 0.3s;
+  border-radius: 26px;
+}
+
+.webhooks-page .toggle-slider::before{
+  position: absolute;
+  content: '';
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.webhooks-page .toggle-switch input:checked + .toggle-slider{
+  background-color: var(--primary);
+}
+
+.webhooks-page .toggle-switch input:checked + .toggle-slider::before{
+  transform: translateX(22px);
+}
+
+.webhooks-page .toggle-status{
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.webhooks-page .toggle-status.active{
+  color: var(--primary);
+}
+
+.webhooks-page .toggle-status.inactive{
+  color: var(--text-muted);
+}

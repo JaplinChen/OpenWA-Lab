@@ -1,0 +1,95 @@
+
+.dashboard .btn-sm.danger:hover{
+  background: rgba(239, 68, 68, 0.18);
+}
+
+@media (max-width: 1200px) {
+  .dashboard .stats-grid{
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard{
+    padding: 1rem;
+  }
+
+  .dashboard .stats-grid{
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .dashboard .stat-value{
+    font-size: 1.5rem;
+  }
+
+  .dashboard .sessions-section{
+    padding: 1rem;
+  }
+
+  .dashboard .section-header{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Convert table to card layout on mobile */
+  .dashboard .sessions-table .table-header{
+    display: none;
+  }
+
+  .dashboard .sessions-table .table-row{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dashboard .sessions-table .table-row:last-child{
+    border-bottom: none;
+  }
+
+  .dashboard .session-info-cell{
+    order: 1;
+  }
+
+  .dashboard .session-id{
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+
+  .dashboard .phone{
+    order: 2;
+  }
+
+  .dashboard .status-pill{
+    order: 3;
+  }
+
+  .dashboard .last-active{
+    order: 4;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+
+  .dashboard .actions{
+    order: 5;
+    justify-content: flex-start;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard{
+    padding: 0.75rem;
+  }
+
+  .dashboard .header-title{
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

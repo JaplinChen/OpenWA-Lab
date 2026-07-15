@@ -1,0 +1,254 @@
+
+.sessions-page .btn-icon:hover {
+  background: var(--bg-light);
+  color: var(--text-primary);
+}
+
+/* Empty State */
+.sessions-page .empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.sessions-page .empty-state svg {
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.sessions-page .empty-state h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 0.5rem;
+}
+
+.sessions-page .empty-state p {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+/* Status Badge */
+.sessions-page .status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.sessions-page .status-badge.connected {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
+.sessions-page .status-badge.disconnected {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--text-secondary);
+}
+
+.sessions-page .status-badge.connecting {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--warning);
+}
+
+.sessions-page .status-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+/* Detail Grid for Session Modal */
+.sessions-page .detail-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.sessions-page .detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sessions-page .detail-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.sessions-page .detail-value {
+  font-size: 0.9375rem;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.sessions-page .detail-value.mono {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.8125rem;
+  background: var(--bg-light);
+  padding: 0.5rem;
+  border-radius: 6px;
+}
+
+/* Close Button - Always Visible */
+.sessions-page .btn-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.sessions-page .btn-close svg {
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  flex-shrink: 0;
+}
+
+.sessions-page .btn-close:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--error);
+}
+
+.sessions-page .btn-close:hover svg {
+  stroke: var(--error);
+}
+
+/* QR Modal Specific */
+.sessions-page .qr-modal .modal-body {
+  padding: 1.5rem;
+}
+
+.sessions-page .qr-instructions {
+  margin-top: 1.5rem;
+  text-align: left;
+  background: var(--bg-light);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+}
+
+.sessions-page .qr-step {
+  margin: 0;
+  padding: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.sessions-page .qr-step:last-child {
+  border-bottom: none;
+}
+
+.sessions-page .qr-step strong {
+  color: var(--text-primary);
+}
+
+.sessions-page .qr-auto-refresh {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.sessions-page .spin-slow {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Status Pill for Card Headers */
+.sessions-page .status-pill {
+  display: inline-flex;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.sessions-page .status-pill.created,
+.sessions-page .status-pill.idle {
+  background: rgba(107, 114, 128, 0.1);
+  color: var(--text-secondary);
+}
+
+.sessions-page .status-pill.initializing,
+.sessions-page .status-pill.connecting {
+  background: rgba(234, 179, 8, 0.1);
+  color: var(--warning);
+}
+
+.sessions-page .status-pill.qr_ready {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--info);
+}
+
+.sessions-page .status-pill.ready {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--success);
+}
+
+.sessions-page .status-pill.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--error);
+}
+
+/* Small Button for QR Placeholder */
+.sessions-page .btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-top: 0.75rem;
+  transition: background 0.2s;
+}
+
+.sessions-page .btn-sm:hover {
+  background: var(--primary-hover);
+}
+
+/* Pairing Code Mode Specific Styles */
+.sessions-page .pairing-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: var(--bg-light);
+  padding: 0.25rem;
+  border-radius: 8px;
+}

@@ -1,0 +1,15 @@
+
+@media (max-width: 640px) {
+  .templates-page .templates-library-header, .templates-page .template-editor-header, .templates-page .template-editor-actions{
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .templates-page .template-header-actions{
+    justify-content: flex-end;
+  }
+
+  .templates-page .template-form, .templates-page .template-preview-message, .templates-page .template-variable-panel{
+    padding: 1rem;
+  }
+}
