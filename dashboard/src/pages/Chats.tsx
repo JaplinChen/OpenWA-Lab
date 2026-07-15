@@ -59,6 +59,8 @@ interface IncomingWsMessage {
   type: string;
   timestamp: number;
   fromMe?: boolean;
+  isGroup?: boolean;
+  contact?: { name?: string; pushName?: string };
   media?: MessageMedia;
   quotedMessage?: { id: string; body: string };
   // The backend emits `call` as a top-level field on the live `message.received` event (it's only
@@ -74,6 +76,14 @@ const messageTypeFromMime = (mimetype: string): MessageType => {
   if (mimetype.startsWith('video/')) return 'video';
   if (mimetype.startsWith('audio/')) return 'audio';
   return 'document';
+};
+
+// Stable per-sender color bucket (0-7) for the WhatsApp-style group name label. Simple string hash so
+// the same sender always gets the same color; the 8 colors are defined as .sender-color-N in Chats.css.
+const senderColorIndex = (name: string): number => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return h % 8;
 };
 
 const getMediaSrc = (media?: MessageMedia): string => {
@@ -243,6 +253,10 @@ export function Chats() {
           media: newMsg.media,
           quotedMessage: newMsg.quotedMessage,
           call: newMsg.call,
+          senderName:
+            newMsg.isGroup && !newMsg.fromMe
+              ? (newMsg.contact?.name ?? newMsg.contact?.pushName)
+              : undefined,
         },
       };
 
@@ -921,11 +935,21 @@ export function Chats() {
                       <span>{t('chats.noMessagesInChat')}</span>
                     </div>
                   ) : (
-                    messages.map(msg => {
+                    messages.map((msg, i) => {
                       const isMe = msg.direction === 'outgoing';
                       const formattedTime = formatTime(
                         msg.timestamp || Math.floor(new Date(msg.createdAt).getTime() / 1000),
                       );
+
+                      // WhatsApp-style group sender label: show the name only on the first message of a
+                      // consecutive run from the same sender, colored per sender.
+                      const senderName = msg.metadata?.senderName;
+                      const prev = messages[i - 1];
+                      const showSenderName =
+                        !isMe &&
+                        activeChat.isGroup &&
+                        !!senderName &&
+                        (prev?.direction !== 'incoming' || prev?.metadata?.senderName !== senderName);
 
                       const isMediaMessage = msg.type !== 'text';
                       const mediaInfo = msg.metadata?.media;
@@ -1034,6 +1058,13 @@ export function Chats() {
                                 isMediaMessage ? 'media-type' : ''
                               } ${isRevoked ? 'revoked-type' : ''}`}
                             >
+                              {/* Group sender label — first of a consecutive run, colored per sender */}
+                              {showSenderName && (
+                                <div className={`message-sender sender-color-${senderColorIndex(senderName!)}`}>
+                                  {senderName}
+                                </div>
+                              )}
+
                               {/* Quoted message display */}
                               {msg.metadata?.quotedMessage && (
                                 <div className="message-quote-box">

@@ -120,6 +120,7 @@ export class BaileysSessionStore {
     // newest-message guard so every inbound refreshes it; the timer is cached under both the raw and
     // neutral JID so an outbound send addressed in either dialect (phone or @lid) finds it.
     this.recordEphemeralFromMessage(chatId, msg);
+    this.recordPushName(chatId, msg);
     const timestamp = this.toUnixSeconds(msg.messageTimestamp);
     const existing = this.lastMessages.get(chatId);
     if (existing && existing.timestamp >= timestamp) {
@@ -127,6 +128,41 @@ export class BaileysSessionStore {
     }
     const text = msg.message?.conversation ?? msg.message?.extendedTextMessage?.text ?? '';
     this.lastMessages.set(chatId, { key: msg.key, timestamp, text });
+  }
+
+  /**
+   * Cache the sender's `pushName` from an inbound message as the contact's `notify` (#369 follow-up).
+   * For an unsaved contact with no `contacts.*` record, `pushName` is the only name Baileys reveals.
+   * Keyed by the true sender — the group participant for a group message, else the chat JID — so it
+   * fills both a titleless 1:1 chat and a group participant's name (used to resolve `@mention` tokens).
+   * Skips own messages and status broadcasts. Never overwrites an existing saved name: `notify` is a
+   * fallback below `name`/`verifiedName` in the resolution chain, and merging only sets `notify`.
+   */
+  private recordPushName(chatId: string, msg: WAMessage): void {
+    if (msg.key?.fromMe || chatId === 'status@broadcast') {
+      return;
+    }
+    const pushName = msg.pushName?.trim();
+    if (!pushName) {
+      return;
+    }
+    const senderId = chatId.endsWith('@g.us') ? msg.key?.participant : chatId;
+    if (!senderId) {
+      return;
+    }
+    const existing = this.contacts.get(senderId);
+    if (existing?.name ?? existing?.verifiedName ?? existing?.notify) {
+      return;
+    }
+    this.upsertContacts([{ id: senderId, notify: pushName }]);
+  }
+
+  /**
+   * Public best-known display name for any contact/participant JID (raw engine dialect), for mention
+   * (`@<number>`) resolution at the adapter boundary. Returns the raw user-part when nothing is known.
+   */
+  displayName(id: string): string {
+    return this.resolveContactName(id);
   }
 
   /**

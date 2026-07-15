@@ -227,6 +227,51 @@ describe('BaileysSessionStore', () => {
     });
   });
 
+  describe('recordMessage pushName capture (#369 follow-up)', () => {
+    it('fills a titleless bare-number chat from an inbound message pushName', () => {
+      store.upsertChats([{ id: '628444@s.whatsapp.net' }]);
+      store.recordMessage({
+        key: { remoteJid: '628444@s.whatsapp.net', fromMe: false, id: 'm1' },
+        pushName: 'Eve',
+        messageTimestamp: 100,
+        message: { conversation: 'hi' },
+      });
+      expect(store.listChats()[0].name).toBe('Eve');
+    });
+
+    it('does not overwrite a saved contact name with pushName', () => {
+      store.upsertChats([{ id: '628555@s.whatsapp.net' }]);
+      store.upsertContacts([{ id: '628555@s.whatsapp.net', name: 'Saved' }]);
+      store.recordMessage({
+        key: { remoteJid: '628555@s.whatsapp.net', fromMe: false, id: 'm2' },
+        pushName: 'PushOnly',
+        messageTimestamp: 100,
+        message: { conversation: 'hi' },
+      });
+      expect(store.listChats()[0].name).toBe('Saved');
+    });
+
+    it('ignores pushName from a group message and from own messages', () => {
+      store.upsertChats([{ id: '123@g.us' }]);
+      store.recordMessage({
+        key: { remoteJid: '123@g.us', fromMe: false, id: 'm3' },
+        pushName: 'Participant',
+        messageTimestamp: 100,
+        message: { conversation: 'hi' },
+      });
+      store.upsertChats([{ id: '628666@s.whatsapp.net' }]);
+      store.recordMessage({
+        key: { remoteJid: '628666@s.whatsapp.net', fromMe: true, id: 'm4' },
+        pushName: 'Me',
+        messageTimestamp: 100,
+        message: { conversation: 'hi' },
+      });
+      const byId = Object.fromEntries(store.listChats().map(c => [c.id, c.name]));
+      expect(byId['123@g.us']).toBe('123');
+      expect(byId['628666@c.us']).toBe('628666');
+    });
+  });
+
   describe('recordKeyLidMappings (#362)', () => {
     it('learns a lid->pn mapping from an inbound message key (remoteJid/remoteJidAlt)', () => {
       store.recordKeyLidMappings({ remoteJid: '111@lid', remoteJidAlt: '628999@s.whatsapp.net' });

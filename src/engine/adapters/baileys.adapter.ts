@@ -4,6 +4,7 @@ import * as qrcode from 'qrcode';
 import type * as BaileysLib from '@whiskeysockets/baileys';
 import type { AnyMessageContent, MiscMessageGenerationOptions, WAMessage, WASocket } from '@whiskeysockets/baileys';
 import { buildIncomingMessageFromBaileys, extractBaileysBody, mapBaileysStatus } from './baileys-message-mapper';
+import { userPart } from '../identity/wa-id';
 import { mapBaileysGroup, mapBaileysGroupInfo } from './baileys-group-mapper';
 import type { ILogger } from '@whiskeysockets/baileys/lib/Utils/logger.js';
 import {
@@ -1352,7 +1353,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       quotedMessage = { id: contextInfo.stanzaId, body: qBody };
     }
 
-    return buildIncomingMessageFromBaileys(
+    const incoming = buildIncomingMessageFromBaileys(
       {
         id: msg.key.id ?? '',
         remoteJid: msg.key.remoteJid!,
@@ -1372,6 +1373,31 @@ export class BaileysAdapter implements IWhatsAppEngine {
       },
       jid => this.sessionStore.toNeutralJid(jid),
     );
+    incoming.body = this.resolveMentionNames(incoming.body, contextInfo?.mentionedJid ?? undefined);
+    return incoming;
+  }
+
+  /**
+   * Replace `@<number>` mention tokens in a message body with the mentioned contact's display name, so
+   * the dashboard shows `@Alice` instead of `@6894043275414`. Resolves each raw mentioned JID through the
+   * session store (saved name → verifiedName → pushName); tokens with no known name are left untouched.
+   */
+  private resolveMentionNames(body: string, mentionedJids?: string[]): string {
+    if (!body || !mentionedJids?.length) {
+      return body;
+    }
+    let out = body;
+    for (const jid of mentionedJids) {
+      const digits = userPart(jid);
+      if (!digits) {
+        continue;
+      }
+      const name = this.sessionStore.displayName(jid);
+      if (name && name !== digits) {
+        out = out.split(`@${digits}`).join(`@${name}`);
+      }
+    }
+    return out;
   }
 
   /**
@@ -1465,7 +1491,8 @@ export class BaileysAdapter implements IWhatsAppEngine {
       return null;
     }
     const body = extractBaileysBody(content);
-    return buildIncomingMessageFromBaileys(
+    const mentionedJids = this.extractMentionedJids(content);
+    const incoming = buildIncomingMessageFromBaileys(
       {
         id: msg.key.id,
         remoteJid: msg.key.remoteJid,
@@ -1481,9 +1508,24 @@ export class BaileysAdapter implements IWhatsAppEngine {
         // session-store cache share (`msg.ephemeralDuration` primary, `contextInfo.expiration` fallback),
         // so the history sink can apply the STORE_EPHEMERAL_MESSAGES opt-out symmetrically with onMessage.
         ephemeralDuration: this.sessionStore.extractEphemeralDuration(msg),
+        mentionedJids,
       },
       jid => this.sessionStore.toNeutralJid(jid),
     );
+    incoming.body = this.resolveMentionNames(incoming.body, mentionedJids);
+    return incoming;
+  }
+
+  /** Read `contextInfo.mentionedJid` off any content sub-type (normalized content). */
+  private extractMentionedJids(content: WAMessage['message']): string[] | undefined {
+    const sub =
+      content?.extendedTextMessage ??
+      content?.imageMessage ??
+      content?.videoMessage ??
+      content?.documentMessage;
+    const jids = (sub as { contextInfo?: { mentionedJid?: string[] | null } } | undefined)?.contextInfo
+      ?.mentionedJid;
+    return jids && jids.length > 0 ? jids : undefined;
   }
 
   private normalizedSelfJid(): string {

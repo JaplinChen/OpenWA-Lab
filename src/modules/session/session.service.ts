@@ -604,6 +604,10 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
           if (m.media) metadata.media = m.media;
           if (m.quotedMessage) metadata.quotedMessage = m.quotedMessage;
           if (m.call) metadata.call = m.call;
+          if (m.isGroup && !m.fromMe) {
+            const senderName = m.contact?.name ?? m.contact?.pushName;
+            if (senderName) metadata.senderName = senderName;
+          }
           const row = this.messageRepository.create({
             sessionId: id,
             waMessageId: m.id,
@@ -801,6 +805,14 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
             }
             if (incoming.call) {
               metadata.call = incoming.call;
+            }
+            // Group sender label: in a group `from` is the group JID, so the dashboard can't tell who
+            // spoke. Persist the participant's push name so incoming group bubbles can show it.
+            if (incoming.isGroup && !incoming.fromMe) {
+              const senderName = incoming.contact?.name ?? incoming.contact?.pushName;
+              if (senderName) {
+                metadata.senderName = senderName;
+              }
             }
 
             const chatName = incoming.contact?.pushName ?? incoming.contact?.name ?? undefined;
