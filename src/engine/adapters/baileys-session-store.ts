@@ -2,6 +2,8 @@ import type { Chat, Contact as BaileysContact, WAMessage, WAMessageKey } from '@
 import { ChatSummary, Contact } from '../interfaces/whatsapp-engine.interface';
 import { parseWaId, toNeutralJid as canonicalizeWaId, userPart } from '../identity/wa-id';
 import type { LidMappingStore } from '../identity/lid-mapping-store.service';
+import { lidPnPair, extractEphemeralDuration, toUnixSeconds } from './baileys-session-store.helpers';
+import { resolveContactName } from './baileys-contact-naming';
 
 interface LastMessage {
   key: WAMessageKey;
@@ -86,24 +88,7 @@ export class BaileysSessionStore {
    * pairs flow through addLidMappings, so they also write through to the persistent table.
    */
   recordKeyLidMappings(key: Pick<WAMessageKey, 'remoteJid' | 'remoteJidAlt' | 'participant' | 'participantAlt'>): void {
-    this.addLidMappings([
-      this.lidPnPair(key.remoteJid, key.remoteJidAlt),
-      this.lidPnPair(key.participant, key.participantAlt),
-    ]);
-  }
-
-  /** Sorts a JID and its WhatsApp-supplied "Alt" counterpart into { lid, pn } by @lid suffix. */
-  private lidPnPair(jid?: string | null, alt?: string | null): { lid?: string; pn?: string } {
-    if (!jid || !alt) {
-      return {};
-    }
-    if (jid.endsWith('@lid')) {
-      return { lid: jid, pn: alt };
-    }
-    if (alt.endsWith('@lid')) {
-      return { lid: alt, pn: jid };
-    }
-    return {};
+    this.addLidMappings([lidPnPair(key.remoteJid, key.remoteJidAlt), lidPnPair(key.participant, key.participantAlt)]);
   }
 
   /** Write a learned lid->phone pair through to the persistent table (bare digits, fire-and-forget). */
@@ -121,7 +106,7 @@ export class BaileysSessionStore {
     // neutral JID so an outbound send addressed in either dialect (phone or @lid) finds it.
     this.recordEphemeralFromMessage(chatId, msg);
     this.recordPushName(chatId, msg);
-    const timestamp = this.toUnixSeconds(msg.messageTimestamp);
+    const timestamp = toUnixSeconds(msg.messageTimestamp);
     const existing = this.lastMessages.get(chatId);
     if (existing && existing.timestamp >= timestamp) {
       return; // keep the newest
@@ -181,44 +166,12 @@ export class BaileysSessionStore {
   }
 
   /**
-   * Best-effort read of a message's disappearing timer (seconds). `WebMessageInfo.ephemeralDuration` is
-   * populated on history-synced messages but is typically ABSENT on a live 1:1 `messages.upsert`, so fall
-   * back to the per-message `contextInfo.expiration` WhatsApp stamps on every message in a disappearing
-   * chat — read after unwrapping the ephemeral / view-once / document-with-caption envelope. Exposed so
-   * the history-backfill mapper can populate the same signal the live path uses, without duplicating the
-   * extraction.
+   * Best-effort read of a message's disappearing timer (seconds) — see the helper for why both
+   * `ephemeralDuration` and `contextInfo.expiration` are consulted. Exposed so the history-backfill
+   * mapper can populate the same signal the live path uses, without duplicating the extraction.
    */
   extractEphemeralDuration(msg: WAMessage): number | undefined {
-    const fromInfo = msg.ephemeralDuration;
-    if (typeof fromInfo === 'number' && fromInfo > 0) {
-      return fromInfo;
-    }
-    const fromContext = this.contextExpiration(msg.message);
-    return typeof fromContext === 'number' && fromContext > 0 ? fromContext : undefined;
-  }
-
-  /** Walk a message's content (unwrapping known envelopes) and return the first positive `contextInfo.expiration`. */
-  private contextExpiration(content: WAMessage['message'], depth = 0): number | undefined {
-    if (!content || typeof content !== 'object' || depth > 4) {
-      return undefined;
-    }
-    const nodes = content as Record<
-      string,
-      { contextInfo?: { expiration?: number | null }; message?: WAMessage['message'] } | undefined
-    >;
-    for (const node of Object.values(nodes)) {
-      const exp = node?.contextInfo?.expiration;
-      if (typeof exp === 'number' && exp > 0) {
-        return exp;
-      }
-      if (node?.message) {
-        const nested = this.contextExpiration(node.message, depth + 1);
-        if (nested !== undefined) {
-          return nested;
-        }
-      }
-    }
-    return undefined;
+    return extractEphemeralDuration(msg);
   }
 
   listContacts(): Contact[] {
@@ -333,50 +286,13 @@ export class BaileysSessionStore {
       name: c.name ?? this.resolveContactName(id),
       isGroup: id.endsWith('@g.us'),
       unreadCount: c.unreadCount ?? 0,
-      timestamp: last?.timestamp ?? this.toUnixSeconds(c.conversationTimestamp),
+      timestamp: last?.timestamp ?? toUnixSeconds(c.conversationTimestamp),
       lastMessage: last?.text,
     };
   }
 
-  /**
-   * Best-known display name for a chat id when Baileys gave the chat no title (#369). Prefers the saved
-   * contact name, then verifiedName, then pushName (`notify`); for a @lid chat it also tries the contact
-   * behind the resolved phone. Falls back to the raw user-part so a number/lid is never shown as a JID.
-   */
+  /** Best-known display name for a chat id when Baileys gave the chat no title (#369). */
   private resolveContactName(id: string): string {
-    const direct = this.contactDisplayName(id);
-    if (direct) {
-      return direct;
-    }
-    const parsed = parseWaId(id);
-    if (parsed.kind === 'lid') {
-      const lidJid = `${parsed.userPart}@lid`;
-      const pn =
-        this.lidToPn.get(lidJid) ??
-        this.lidToPn.get(id) ??
-        (this.contacts.get(lidJid) ?? this.contacts.get(id))?.phoneNumber;
-      if (pn) {
-        const viaPhone =
-          this.contactDisplayName(pn) ??
-          this.contactDisplayName(`${userPart(pn)}@s.whatsapp.net`) ??
-          this.contactDisplayName(`${userPart(pn)}@c.us`);
-        if (viaPhone) {
-          return viaPhone;
-        }
-      }
-    }
-    return userPart(id);
-  }
-
-  private contactDisplayName(id: string): string | undefined {
-    const c = this.contacts.get(id);
-    return c ? (c.name ?? c.verifiedName ?? c.notify ?? undefined) : undefined;
-  }
-
-  private toUnixSeconds(ts: number | { toNumber(): number } | null | undefined): number {
-    if (ts == null) {
-      return 0;
-    }
-    return typeof ts === 'number' ? ts : ts.toNumber();
+    return resolveContactName(this.contacts, this.lidToPn, id);
   }
 }
