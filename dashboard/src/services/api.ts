@@ -176,6 +176,7 @@ export interface ChatMessage {
     quotedMessage?: { id: string; body: string };
     reactions?: Record<string, string>;
     call?: { video: boolean; missed: boolean };
+    senderName?: string;
   };
 }
 
@@ -707,6 +708,41 @@ export const infraApi = {
     request<{ imported: boolean; counts?: Record<string, number>; message?: string; warnings?: string[] }>('/infra/import-data', {
       method: 'POST',
       body: JSON.stringify({ tables }),
+    }),
+};
+
+// =============================================================================
+// Translate API
+// =============================================================================
+
+export interface TranslateConfig {
+  enabled: boolean;
+  groupIds: string[];
+  includeFromMe: boolean;
+  minSendIntervalMs: number;
+}
+
+export interface GlossaryTerm {
+  source: string; // 中文
+  target: string; // 越南文
+}
+
+export const translateApi = {
+  getConfig: () => request<TranslateConfig>('/translate/config'),
+  updateConfig: (config: Partial<TranslateConfig>) =>
+    request<TranslateConfig>('/translate/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+  getGlossary: () => request<GlossaryTerm[]>('/translate/glossary'),
+  addGlossaryTerm: (zh: string, vi: string) =>
+    request<GlossaryTerm[]>('/translate/glossary', {
+      method: 'POST',
+      body: JSON.stringify({ zh, vi }),
+    }),
+  removeGlossaryTerm: (term: string) =>
+    request<GlossaryTerm[]>(`/translate/glossary?term=${encodeURIComponent(term)}`, {
+      method: 'DELETE',
     }),
 };
 
