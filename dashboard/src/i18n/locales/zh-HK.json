@@ -60,6 +60,8 @@
     "light": "淺色",
     "dark": "深色",
     "system": "跟隨系統",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic 深色",
     "label": "主題：{{value}}",
     "appearance": "外觀",
     "mode": "模式",

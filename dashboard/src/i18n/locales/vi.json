@@ -60,6 +60,8 @@
     "light": "Sáng",
     "dark": "Tối",
     "system": "Hệ thống",
+    "anthropic": "Anthropic",
+    "anthropic-dark": "Anthropic Tối",
     "label": "Giao diện: {{value}}",
     "appearance": "Giao diện",
     "mode": "Chế độ",

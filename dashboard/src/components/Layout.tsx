@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   Monitor,
+  Sparkles,
   Menu,
   X,
   ChevronLeft,
@@ -34,7 +35,7 @@ const allNavItems = [
   { to: '/settings', icon: Settings, key: 'settings' as const, adminOnly: false },
 ];
 
-const themeIcons = { light: Sun, dark: Moon, system: Monitor };
+const themeIcons = { light: Sun, dark: Moon, system: Monitor, anthropic: Sparkles, 'anthropic-dark': Sparkles };
 
 export function Layout({ onLogout, userRole }: LayoutProps) {
   const { t, i18n } = useTranslation();
@@ -275,7 +276,7 @@ export function Layout({ onLogout, userRole }: LayoutProps) {
                 <div className="appearance-section">
                   <span className="appearance-section-label">{t('theme.mode')}</span>
                   <div className="appearance-mode-grid">
-                    {(['light', 'dark', 'system'] as const).map(mode => {
+                    {(['light', 'dark', 'system', 'anthropic', 'anthropic-dark'] as const).map(mode => {
                       const ModeIcon = themeIcons[mode];
                       return (
                         <button
