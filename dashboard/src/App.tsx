@@ -36,14 +36,14 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   // Initialize from sessionStorage to avoid setState in effect
-  const savedKey = sessionStorage.getItem('openwa_api_key');
+  const savedKey = sessionStorage.getItem('openwalab_api_key');
   const [isAuthenticated, setIsAuthenticated] = useState(!!savedKey);
   const [, setApiKey] = useState(savedKey || '');
   const { setRole, role } = useRole();
 
   const handleLogin = async (key: string) => {
     setApiKey(key);
-    sessionStorage.setItem('openwa_api_key', key);
+    sessionStorage.setItem('openwalab_api_key', key);
 
     // Fetch the role from API
     try {
@@ -67,7 +67,7 @@ function AppContent() {
     setApiKey('');
     setIsAuthenticated(false);
     setRole(null);
-    sessionStorage.removeItem('openwa_api_key');
+    sessionStorage.removeItem('openwalab_api_key');
   };
 
   // Re-validate and get role on mount if already authenticated
