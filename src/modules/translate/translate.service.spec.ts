@@ -8,6 +8,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 
 describe('TranslateService glossary', () => {
   let glossaryPath: string;
+  let sendersPath: string;
   let sent: { chatId: string; text: string }[];
   let service: TranslateService;
 
@@ -17,6 +18,8 @@ describe('TranslateService glossary', () => {
   beforeEach(() => {
     glossaryPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'gloss-')), 'glossary.json');
     process.env.TRANSLATE_GLOSSARY_PATH = glossaryPath;
+    sendersPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'send-')), 'senders.json');
+    process.env.TRANSLATE_SENDERS_PATH = sendersPath;
     sent = [];
     const messageService = {
       sendText: (_s: string, dto: { chatId: string; text: string }) => {
@@ -60,5 +63,24 @@ describe('TranslateService glossary', () => {
     expect(detect('Báo cáo Giám đốc @VPIC1 陳嘉元, phòng 201 đã hoạt động.')?.key).toBe('vi:zh-tw');
     // A Chinese message quoting a Vietnamese place name stays Chinese→Vietnamese.
     expect(detect('我下週去 Đà Nẵng 出差三天談合約事宜')?.key).toBe('zh-tw:vi');
+  });
+
+  it('applies the sender override to the @mention before sending the prompt to Ollama', async () => {
+    service.addSender('200859128434777', '總經理');
+    let promptSent = '';
+    const fetchMock = jest.fn(async (_url: string, init: { body: string }) => {
+      promptSent = JSON.parse(init.body).messages[0].content as string;
+      return { ok: true, json: async () => ({ message: { content: '報告總經理' } }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+
+    const translate = (service as unknown as {
+      translate: (t: string, p: { key: string }) => Promise<string>;
+    }).translate.bind(service);
+    await translate('報告給@200859128434777以及其他同事', { key: 'zh-tw:vi' } as never);
+
+    expect(fetchMock).toHaveBeenCalled();
+    expect(promptSent).toContain('@總經理');
+    expect(promptSent).not.toContain('@200859128434777');
   });
 });
