@@ -75,6 +75,7 @@
     "templates": "Templates",
     "translate": "Translation Groups",
     "glossary": "Glossary",
+    "senders": "Senders",
     "apiKeys": "API Keys",
     "messageTester": "Message Tester",
     "infrastructure": "Infrastructure",

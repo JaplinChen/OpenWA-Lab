@@ -6,8 +6,10 @@ import { TranslateService } from './translate.service';
 import type { TranslateConfig } from './translate.service';
 import { UpdateTranslateConfigDto } from './dto/update-translate-config.dto';
 import { GlossaryTermDto } from './dto/glossary-term.dto';
+import { SenderEntryDto } from './dto/sender-entry.dto';
 
 type GlossaryEntry = { source: string; target: string };
+type SenderEntry = { jid: string; name: string };
 
 @ApiTags('translate')
 @Controller('translate')
@@ -52,5 +54,29 @@ export class TranslateController {
   @ApiResponse({ status: 200, description: 'Updated glossary terms' })
   removeGlossary(@Query('term') term: string): GlossaryEntry[] {
     return this.translateService.removeGlossaryTerm(term ?? '');
+  }
+
+  @Get('senders')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'List @mention JID->name overrides' })
+  @ApiResponse({ status: 200, description: 'Sender overrides' })
+  getSenders(): SenderEntry[] {
+    return this.translateService.getSenders();
+  }
+
+  @Post('senders')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Add/overwrite an @mention JID->name override' })
+  @ApiResponse({ status: 201, description: 'Updated sender overrides' })
+  addSender(@Body() dto: SenderEntryDto): SenderEntry[] {
+    return this.translateService.addSender(dto.jid, dto.name);
+  }
+
+  @Delete('senders')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Remove an @mention JID override' })
+  @ApiResponse({ status: 200, description: 'Updated sender overrides' })
+  removeSender(@Query('jid') jid: string): SenderEntry[] {
+    return this.translateService.removeSender(jid ?? '');
   }
 }

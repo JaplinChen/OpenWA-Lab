@@ -18,6 +18,7 @@ const Chats = lazy(() => import('./pages/Chats').then(m => ({ default: m.Chats }
 const Webhooks = lazy(() => import('./pages/Webhooks').then(m => ({ default: m.Webhooks })));
 const Translate = lazy(() => import('./pages/Translate').then(m => ({ default: m.Translate })));
 const Glossary = lazy(() => import('./pages/Glossary').then(m => ({ default: m.Glossary })));
+const Senders = lazy(() => import('./pages/Senders').then(m => ({ default: m.Senders })));
 const Templates = lazy(() => import('./pages/Templates').then(m => ({ default: m.Templates })));
 const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })));
 const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
@@ -111,6 +112,7 @@ function AppContent() {
             <Route path="chats" element={<Chats />} />
             <Route path="translate" element={<Translate />} />
             <Route path="glossary" element={<Glossary />} />
+            <Route path="senders" element={<Senders />} />
             <Route path="logs" element={<Logs />} />
             <Route path="settings" element={<Settings userRole={role} />}>
               <Route index element={<Navigate to="sessions" replace />} />

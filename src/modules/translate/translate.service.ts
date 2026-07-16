@@ -6,6 +6,7 @@ import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
+import { SenderDirectory } from './translate-senders';
 import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep } from './translate-lang';
 
 const CONFIG_PATH = 'data/translate-config.json';
@@ -27,7 +28,12 @@ export class TranslateService implements OnModuleInit {
   private model = 'translategemma-12b-cline-32768:latest';
   // zh<->vi term overrides injected into the prompt (see Glossary).
   private glossary!: Glossary;
-  private glossaryPath = 'secrets/glossary.json';
+  // Defaults to the writable data dir (like CONFIG_PATH) so the glossary persists on the read-only
+  // rootfs Docker setup; the old 'secrets/' default was unwritable there and silently lost writes.
+  private glossaryPath = 'data/glossary.json';
+  // Manual @mention JID->name overrides applied to the body before translation (see SenderDirectory).
+  private senders!: SenderDirectory;
+  private sendersPath = 'data/senders.json';
   // Author WIDs allowed to mutate the glossary via /glossary commands. Empty = anyone in the group.
   private adminIds = new Set<string>();
   // Also translate the account's OWN outgoing messages (message:sent). Needed when the operator IS
@@ -73,6 +79,11 @@ export class TranslateService implements OnModuleInit {
     this.glossary = new Glossary(this.glossaryPath);
     const terms = this.glossary.load();
     if (terms > 0) this.logger.log(`Glossary loaded: ${terms} term(s) from ${this.glossaryPath}`);
+
+    this.sendersPath = process.env.TRANSLATE_SENDERS_PATH || this.sendersPath;
+    this.senders = new SenderDirectory(this.sendersPath);
+    const senderCount = this.senders.load();
+    if (senderCount > 0) this.logger.log(`Senders loaded: ${senderCount} override(s) from ${this.sendersPath}`);
 
     // Persisted runtime config takes precedence over .env; .env values seed the file on first run.
     this.loadConfig();
@@ -136,6 +147,25 @@ export class TranslateService implements OnModuleInit {
     if (!trimmed) throw new BadRequestException('term is required');
     this.glossary.remove(trimmed);
     return this.glossary.entries();
+  }
+
+  getSenders(): { jid: string; name: string }[] {
+    return this.senders.entries();
+  }
+
+  addSender(jid: string, name: string): { jid: string; name: string }[] {
+    const j = jid.trim();
+    const n = name.trim();
+    if (!j || !n) throw new BadRequestException('jid and name are required');
+    this.senders.add(j, n);
+    return this.senders.entries();
+  }
+
+  removeSender(jid: string): { jid: string; name: string }[] {
+    const trimmed = jid.trim();
+    if (!trimmed) throw new BadRequestException('jid is required');
+    this.senders.remove(trimmed);
+    return this.senders.entries();
   }
 
   private registerSentHook(): void {
@@ -208,6 +238,12 @@ export class TranslateService implements OnModuleInit {
         );
         return pass; // command, not content to translate
       }
+      if (lower === '/sender' || lower.startsWith('/sender ')) {
+        void this.handleSenderCommand(sessionId, msg, trimmed).catch(err =>
+          this.logger.error('Sender command failed', String(err)),
+        );
+        return pass; // command, not content to translate
+      }
 
       const pair = this.detectPair(body);
       if (!pair) return pass; // not zh/vi — leave it alone
@@ -246,6 +282,16 @@ export class TranslateService implements OnModuleInit {
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
   }
 
+  private async handleSenderCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
+    const rest = raw.replace(/^\/sender\s*/i, '').trim();
+    const author = msg.author || msg.from;
+    const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
+    const reply = this.senders.command(rest, canMutate);
+    const target = msg.isGroup ? author : msg.chatId;
+    if (!target) return;
+    await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
+  }
+
   // Thin instance wrapper over the pure detector (kept a method so the spec's private-method poke works).
   private detectPair(text: string): Pair | null {
     return detectPair(text);
@@ -258,7 +304,8 @@ export class TranslateService implements OnModuleInit {
   }
 
   private async translate(text: string, pair: Pair): Promise<string> {
-    const prompt = buildPrompt(text, pair, this.glossary.section(pair.key));
+    // Resolve unknown @mention JIDs (e.g. @200859128434777) to names before the model sees them.
+    const prompt = buildPrompt(this.senders.apply(text), pair, this.glossary.section(pair.key));
     const res = await fetch(this.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

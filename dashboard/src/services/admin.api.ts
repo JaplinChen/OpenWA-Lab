@@ -157,6 +157,11 @@ export interface GlossaryTerm {
   target: string; // 越南文
 }
 
+export interface SenderEntry {
+  jid: string; // @mention 的號碼 (digits)
+  name: string; // 顯示名稱
+}
+
 // =============================================================================
 // API Key API
 // =============================================================================
@@ -266,6 +271,16 @@ export const translateApi = {
     }),
   removeGlossaryTerm: (term: string) =>
     request<GlossaryTerm[]>(`/translate/glossary?term=${encodeURIComponent(term)}`, {
+      method: 'DELETE',
+    }),
+  getSenders: () => request<SenderEntry[]>('/translate/senders'),
+  addSender: (jid: string, name: string) =>
+    request<SenderEntry[]>('/translate/senders', {
+      method: 'POST',
+      body: JSON.stringify({ jid, name }),
+    }),
+  removeSender: (jid: string) =>
+    request<SenderEntry[]>(`/translate/senders?jid=${encodeURIComponent(jid)}`, {
       method: 'DELETE',
     }),
 };
