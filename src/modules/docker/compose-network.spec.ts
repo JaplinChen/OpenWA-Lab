@@ -24,7 +24,7 @@ describe('docker-compose network segmentation', () => {
     expect(compose.services['docker-proxy'].networks).toEqual(['internal-docker']);
   });
 
-  it('lets openwa-api reach the proxy via the internal network', () => {
-    expect(compose.services['openwa-api'].networks).toContain('internal-docker');
+  it('lets openwa-lab-api reach the proxy via the internal network', () => {
+    expect(compose.services['openwa-lab-api'].networks).toContain('internal-docker');
   });
 });
