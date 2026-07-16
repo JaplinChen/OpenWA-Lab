@@ -31,6 +31,13 @@
 - 修復 icon-row 頁尾的外觀／語言彈窗版面。
 - **群組發話者標籤**：群組訊息以 WhatsApp 風格顯示發話者名稱（每位發話者固定配色）。
 - **@mention 名稱解析**：把 `@<號碼>` 提及轉成聯絡人顯示名稱（已存名稱 → verifiedName → pushName）。
+- **發送者對照表（sender directory）**：名稱解析查不到時（聯絡人未存、無 pushName），翻譯訊息會漏出原始 `@<號碼>`。可手動維護 JID → 顯示名稱 覆蓋表補上，翻譯前自動替換。維護方式：
+  - WhatsApp 指令（限 `TRANSLATE_ADMIN_IDS` 名單）：
+    - `/sender`：列出所有對照
+    - `/sender add <JID或@號碼> = <名稱>`：新增／覆蓋，例 `/sender add 200859128434777 = 總經理`
+    - `/sender del <JID或@號碼>`：移除
+  - 儀表板「發送者」頁，或 REST `GET/POST/DELETE /translate/senders`（ADMIN）。
+  - 儲存於 `data/senders.json`（可用 `TRANSLATE_SENDERS_PATH` 覆寫）。
 
 ### 更名
 - 專案 **OpenWA → OpenWA-Lab** 全面更名：docker/infra、swagger、套件名、i18n、儀表板、文件。
