@@ -34,7 +34,7 @@ import {
   ReactionEvent,
 } from '../interfaces/whatsapp-engine.interface';
 import { resolveWebVersionPin } from '../wa-web-version';
-import { isChannelJid, userPart } from '../identity/wa-id';
+import { isChannelJid } from '../identity/wa-id';
 import { LidMappingStore } from '../identity/lid-mapping-store.service';
 import { ChatLabelsUnsupportedError } from '../../common/errors/chat-labels-unsupported.error';
 import { createLogger } from '../../common/services/logger.service';
@@ -52,22 +52,13 @@ import {
 } from '../types/whatsapp-web-js.types';
 import { buildIncomingMessageBase, mapContactFields } from './message-mapper';
 import { buildVCard } from './vcard';
-import {
-  capInboundMedia,
-  coerceDeclaredSize,
-  inboundMediaConcurrency,
-  inboundMediaMaxBytes,
-  inboundMediaTimeoutMs,
-  isMediaDownloadEnabled,
-  withInboundDownloadTimeout,
-} from './inbound-media-cap';
+import { inboundMediaConcurrency } from './inbound-media-cap';
 import { ConcurrencyLimiter } from '../../common/utils/concurrency-limiter';
 import {
   buildProxyLaunchConfig,
   extractLinkedParentJID,
   isExecutionContextDestroyedError,
   isHttpUrl,
-  isNoLidForUserError,
   isSupportedProxyUrl,
   loadRemoteMedia,
   resolveAuthTimeoutMs,
@@ -90,6 +81,8 @@ export {
   isNoLidForUserError,
 } from './whatsapp-web-js.helpers';
 export type { ProxyLaunchConfig } from './whatsapp-web-js.helpers';
+import { InboundMediaCtx, capInboundMediaFor } from './whatsapp-web-js.inbound-media';
+import { SendIdCtx, resolveSendId, sendResolved } from './whatsapp-web-js.send-id';
 
 export interface WhatsAppWebJsConfig {
   sessionId: string;
@@ -148,89 +141,26 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
   );
 
   /**
-   * Download inbound media safely. downloadMedia() can't be size-bounded at the source, so (1) pre-gate
-   * on the sender-declared size and skip the download entirely when it exceeds the cap, and (2) run the
-   * download through the concurrency limiter for backpressure. Returns undefined when there's no media.
+   * Thin instance wrapper over the extracted helper — kept a method because the spec drives the
+   * inbound-media concurrency cases through `(adapter as any).capInboundMediaFor(msg)`.
    */
-  private async capInboundMediaFor(msg: Message): Promise<IncomingMessage['media'] | undefined> {
-    if (!isMediaDownloadEnabled()) {
-      const data = (msg as unknown as { _data?: { size?: number; mimetype?: string; filename?: string } })._data;
-      return {
-        mimetype: data?.mimetype ?? '',
-        filename: data?.filename || undefined,
-        omitted: true,
-        sizeBytes: coerceDeclaredSize(data?.size),
-      };
-    }
-    const maxBytes = inboundMediaMaxBytes();
-    const data = (msg as unknown as { _data?: { size?: number; mimetype?: string; filename?: string } })._data;
-    const declared = coerceDeclaredSize(data?.size);
-    if (declared > maxBytes) {
-      this.logger.warn('Inbound media declared size exceeds MEDIA_DOWNLOAD_MAX_BYTES; skipped download', {
-        msgId: msg.id._serialized,
-        sizeBytes: declared,
-      });
-      return {
-        mimetype: data?.mimetype ?? '',
-        filename: data?.filename || undefined,
-        omitted: true,
-        sizeBytes: declared,
-      };
-    }
-    // msg.downloadMedia() can't be aborted, so freeing the slot the moment the wall-clock deadline fires
-    // would admit a fresh download while the abandoned one is still materialising in heap — letting the
-    // number of in-flight downloads exceed inboundMediaConcurrency(). Instead, HOLD the slot until the real
-    // download settles; the caller still unblocks on the timeout race and emits the message without media.
-    // boundedReady adopts the timeout-bounded race (a Promise resolving a Promise flattens), so awaiting it
-    // unblocks the caller once the task is admitted AND the deadline-or-download settles — yielding the
-    // media or null on timeout.
-    let resolveBounded: (value: MessageMedia | null | PromiseLike<MessageMedia | null>) => void = () => undefined;
-    const boundedReady = new Promise<MessageMedia | null>(resolve => {
-      resolveBounded = resolve;
-    });
-    const slotHeld = this.inboundLimiter.run(() => {
-      const download = msg.downloadMedia();
-      resolveBounded(
-        withInboundDownloadTimeout(download, inboundMediaTimeoutMs(), () =>
-          this.logger.warn(
-            'Inbound media download timed out (MEDIA_DOWNLOAD_TIMEOUT_MS); emitting message without media',
-            {
-              msgId: msg.id._serialized,
-            },
-          ),
-        ),
-      );
-      // Keep the slot occupied until the underlying download truly settles, not the timeout race.
-      return download.then(
-        () => undefined,
-        () => undefined,
-      );
-    });
-    // The slot-holder runs in the background. It only rejects when the limiter's waiter queue is
-    // saturated (queue full) — in which case the download task never ran and boundedReady would hang.
-    // Resolve null so the caller unblocks and emits the message without media, matching the
-    // timeout/byte-cap no-media path. Never let it surface as an unhandled rejection either.
-    void slotHeld.catch(() => {
-      this.logger.warn('Inbound media limiter saturated; emitting message without media', {
-        msgId: msg.id._serialized,
-      });
-      resolveBounded(null);
-    });
-    const media = await boundedReady;
-    if (!media) return undefined;
-    const capped = capInboundMedia({
-      mimetype: media.mimetype,
-      filename: media.filename || undefined,
-      sizeBytes: Buffer.byteLength(media.data, 'base64'),
-      toBase64: () => media.data,
-    });
-    if (capped.omitted) {
-      this.logger.warn('Inbound media exceeds MEDIA_DOWNLOAD_MAX_BYTES; dropped payload, kept envelope', {
-        msgId: msg.id._serialized,
-        sizeBytes: capped.sizeBytes,
-      });
-    }
-    return capped;
+  private capInboundMediaFor(msg: Message): Promise<IncomingMessage['media'] | undefined> {
+    return capInboundMediaFor(this.inboundMediaCtx, msg);
+  }
+
+  private get inboundMediaCtx(): InboundMediaCtx {
+    return { logger: this.logger, inboundLimiter: this.inboundLimiter };
+  }
+
+  /** The resolvedSendIds cache is passed BY REFERENCE so resolveSendId's writes and sendResolved's
+   *  stale-entry eviction share one Map; getNumberId is a closure over the live client. */
+  private get sendIdCtx(): SendIdCtx {
+    return {
+      resolvedSendIds: this.resolvedSendIds,
+      getNumberId: chatId => this.getNumberId(chatId),
+      lidMappingStore: this.config.lidMappingStore,
+      sessionId: this.config.sessionId,
+    };
   }
 
   async initialize(callbacks: EngineEventCallbacks): Promise<void> {
@@ -792,72 +722,11 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
   // if a session ever addresses a truly unbounded set of fresh numbers.
   private readonly resolvedSendIds = new Map<string, string>();
 
-  /**
-   * Resolve an individual (`@c.us`) recipient to the id whatsapp-web.js will accept. WhatsApp has
-   * migrated some contacts to privacy-id addressing, for which `sendMessage` throws `No LID for user`
-   * on the phone WID but accepts the `@lid` that `getNumberId` returns (#573). Any server-confirmed
-   * resolution (a distinct `@lid` OR a confirmed non-migrated `@c.us`) is cached, since it is stable
-   * and re-probing costs a rate-limited round-trip (#580); a `null`/thrown lookup is NOT cached so an
-   * unregistered or transiently-flaky contact keeps being retried. Groups/channels and already-`@lid`
-   * targets are returned unchanged, and any resolution failure falls back to the original id so a send
-   * is never blocked on it.
-   */
-  private async resolveSendId(chatId: string): Promise<string> {
-    if (!chatId.endsWith('@c.us')) {
-      return chatId;
-    }
-    const cached = this.resolvedSendIds.get(chatId);
-    if (cached) {
-      return cached;
-    }
-    try {
-      const wid = await this.getNumberId(chatId);
-      if (wid) {
-        this.resolvedSendIds.set(chatId, wid);
-        if (wid.endsWith('@lid')) {
-          // Persist the learned phone -> lid so the message read-path (resolveJidCandidates) can
-          // bridge this contact's `@c.us` and `@lid` rows on a pure whatsapp-web.js deployment
-          // (#583 R3). Fire-and-forget: resolution (and the send) must never block/fail on the write.
-          void this.config.lidMappingStore
-            ?.remember(userPart(wid), userPart(chatId), this.config.sessionId)
-            ?.catch(() => {});
-        }
-        return wid;
-      }
-      return chatId;
-    } catch {
-      return chatId;
-    }
-  }
-
-  /**
-   * Resolve `chatId` and run `send` against the resolved id. If the send fails with `No LID for user`
-   * — the signature of a contact whose cached/resolved id is stale (typically a `@c.us` for a contact
-   * that has since migrated to `@lid`) — drop the mapping, re-resolve once, and retry only if the
-   * fresh id differs, so a genuinely unreachable recipient surfaces its error instead of looping.
-   */
-  private async sendResolved<T>(chatId: string, send: (to: string) => Promise<T>): Promise<T> {
-    const to = await this.resolveSendId(chatId);
-    try {
-      return await send(to);
-    } catch (err) {
-      if (!chatId.endsWith('@c.us') || !isNoLidForUserError(err)) {
-        throw err;
-      }
-      this.resolvedSendIds.delete(chatId);
-      const fresh = await this.resolveSendId(chatId);
-      if (fresh === to) {
-        throw err;
-      }
-      return send(fresh);
-    }
-  }
-
   async sendTextMessage(chatId: string, text: string, mentions?: string[]): Promise<MessageResult> {
     this.ensureReady();
     // wwebjs accepts neutral `<phone>@c.us` WIDs directly as mentionedJidList, so no de-normalization
     // is needed. Omit the options object entirely when none are given to keep today's send behavior.
-    const msg = await this.sendResolved(chatId, to =>
+    const msg = await sendResolved(this.sendIdCtx, chatId, to =>
       mentions?.length ? this.client!.sendMessage(to, text, { mentions }) : this.client!.sendMessage(to, text),
     );
     return {
@@ -906,7 +775,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
     }
 
     // Build the media once (a remote URL is fetched here); sendResolved may retry the send itself.
-    const msg = await this.sendResolved(chatId, to =>
+    const msg = await sendResolved(this.sendIdCtx, chatId, to =>
       this.client!.sendMessage(to, messageMedia, {
         caption: media.caption,
         ...(media.mentions?.length ? { mentions: media.mentions } : {}),
@@ -1018,7 +887,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
       name: location.description || '',
       address: location.address || '',
     });
-    const msg = await this.sendResolved(chatId, to => this.client!.sendMessage(to, loc));
+    const msg = await sendResolved(this.sendIdCtx, chatId, to => this.client!.sendMessage(to, loc));
     return {
       id: msg.id._serialized,
       timestamp: msg.timestamp,
@@ -1031,7 +900,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
     // can't inject extra vCard fields — the previous inline build interpolated raw values.
     const vcard = buildVCard(contact);
 
-    const msg = await this.sendResolved(chatId, to =>
+    const msg = await sendResolved(this.sendIdCtx, chatId, to =>
       this.client!.sendMessage(to, vcard, {
         parseVCards: true,
       }),
@@ -1060,7 +929,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
       messageMedia = new MessageMedia(media.mimetype, media.data.toString('base64'), media.filename);
     }
 
-    const msg = await this.sendResolved(chatId, to =>
+    const msg = await sendResolved(this.sendIdCtx, chatId, to =>
       this.client!.sendMessage(to, messageMedia, {
         sendMediaAsSticker: true,
       }),
@@ -1084,7 +953,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
     // allowMultipleAnswers.
     type PollSendOptions = ConstructorParameters<typeof Poll>[2];
     const pollOptions = { allowMultipleAnswers: poll.allowMultipleAnswers === true } as PollSendOptions;
-    const msg = await this.sendResolved(chatId, to =>
+    const msg = await sendResolved(this.sendIdCtx, chatId, to =>
       this.client!.sendMessage(to, new Poll(poll.name, poll.options, pollOptions)),
     );
     return {
@@ -1107,7 +976,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
     // Reply's send leg hits the same `No LID for user` path as a normal send for a migrated contact,
     // so route it through sendResolved (resolve @c.us->@lid, cache, self-heal). reply(content, chatId)
     // accepts an explicit target (#583 R1).
-    const msg = await this.sendResolved(chatId, to => quotedMsg.reply(text, to));
+    const msg = await sendResolved(this.sendIdCtx, chatId, to => quotedMsg.reply(text, to));
     return {
       id: msg.id._serialized,
       timestamp: msg.timestamp,
@@ -1128,7 +997,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
     // it (and self-heal a stale mapping) via sendResolved. Capture the id actually sent to so the
     // id-recovery below reads back from the SAME (resolved) chat, not the raw @c.us (#583 R1).
     let resolvedTo = toChatId;
-    await this.sendResolved(toChatId, to => {
+    await sendResolved(this.sendIdCtx, toChatId, to => {
       resolvedTo = to;
       return msgToForward.forward(to);
     });
@@ -1848,7 +1717,7 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
       return;
     }
     try {
-      const to = await this.resolveSendId(chatId);
+      const to = await resolveSendId(this.sendIdCtx, chatId);
       const chat = await this.client!.getChatById(to);
       if (state === 'typing') {
         await chat.sendStateTyping();
