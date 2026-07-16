@@ -1,4 +1,3 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import * as qrcode from 'qrcode';
 import type * as BaileysLib from '@whiskeysockets/baileys';
@@ -42,6 +41,7 @@ import { ChannelNotFoundError } from '../../common/errors/channel-not-found.erro
 import { createLogger } from '../../common/services/logger.service';
 import { BaileysAdapterConfig } from '../types/baileys.types';
 import { BAILEYS_BROWSER, createBaileysLogger, createSilentLogger } from './baileys-logger';
+import { buildSocketOptions, classifyClose, clearAuthState, detachAndEndSocket } from './baileys-connection';
 import { toUnixSeconds, extractPhone, resolveMediaBuffer, toStatusResult } from './baileys-adapter.helpers';
 import { BaileysSessionStore } from './baileys-session-store';
 import { InboundMapperCtx, mapMessage, mapHistoryMessage } from './baileys-inbound-mapper';
@@ -156,52 +156,23 @@ export class BaileysAdapter implements IWhatsAppEngine {
     // connection.update listener BEFORE end(): Baileys' own end() synchronously emits a synthetic
     // connection.update {connection:'close'}, which — if still wired — would re-enter
     // handleConnectionUpdate and schedule a spurious second reconnect.
-    const previous = this.sock;
-    if (previous) {
-      try {
-        previous.ev.removeAllListeners('connection.update');
-        previous.ev.removeAllListeners('creds.update');
-        previous.ev.removeAllListeners('messages.upsert');
-        previous.ev.removeAllListeners('messages.update');
-        previous.ev.removeAllListeners('contacts.upsert');
-        previous.ev.removeAllListeners('contacts.update');
-        previous.ev.removeAllListeners('chats.upsert');
-        previous.ev.removeAllListeners('chats.update');
-        previous.ev.removeAllListeners('messaging-history.set');
-        previous.ev.removeAllListeners('lid-mapping.update');
-        previous.end(undefined);
-      } catch {
-        // end() may already have run from Baileys' own close handler — a safe no-op.
-      }
-    }
+    detachAndEndSocket(this.sock);
 
-    const sock = b.default({
-      auth: state,
-      version,
-      browser: BAILEYS_BROWSER,
-      printQRInTerminal: false,
-      // Enable the initial sync. Baileys defaults `shouldSyncHistoryMessage` to `() => !!syncFullHistory`,
-      // so leaving both unset disables ALL history + app-state sync - no contacts, chats, recent history,
-      // or lid->phone mappings ever arrive (the address-book app-state sync only runs once history sync is
-      // enabled; see WhiskeySockets/Baileys Socket/index.js + Socket/chats.js). Returning true enables it
-      // while keeping the full-archive download opt-in: with syncFullHistory false WhatsApp sends the
-      // RECENT window + the full contact/app-state snapshot, not the entire message history.
-      shouldSyncHistoryMessage: () => true,
-      syncFullHistory: process.env.BAILEYS_SYNC_FULL_HISTORY === 'true',
-      // Baileys defaults this to `async () => undefined` (Defaults/index.js). Without a real
-      // implementation, WhatsApp's message-retry protocol — triggered whenever a recipient's client
-      // fails to decrypt on the first attempt — has nothing to resend, so the recipient is stuck on
-      // "waiting for this message" indefinitely instead of the retry resolving it within seconds.
-      // Backed by the same messageStore used for reply/forward/react/delete-by-id.
-      getMessage: async key => {
-        if (!key.id) {
-          return undefined;
-        }
-        const stored = await this.config.messageStore?.getMessage(this.config.dbSessionId, key.id);
-        return stored?.message ?? undefined;
-      },
-      logger: baileysLogger,
-    });
+    const sock = b.default(
+      buildSocketOptions({
+        state,
+        version,
+        browser: BAILEYS_BROWSER,
+        logger: baileysLogger,
+        getMessage: async key => {
+          if (!key.id) {
+            return undefined;
+          }
+          const stored = await this.config.messageStore?.getMessage(this.config.dbSessionId, key.id);
+          return stored?.message ?? undefined;
+        },
+      }),
+    );
     this.sock = sock;
 
     sock.ev.on('creds.update', () => void saveCreds());
@@ -289,18 +260,26 @@ export class BaileysAdapter implements IWhatsAppEngine {
       const statusCode = (lastDisconnect?.error as { output?: { statusCode?: number } } | undefined)?.output
         ?.statusCode;
 
-      if (this.intentionalClose) {
+      const decision = classifyClose({
+        intentionalClose: this.intentionalClose,
+        statusCode,
+        loggedOutCode: this.lib?.DisconnectReason.loggedOut,
+        reconnectAttempts: this.reconnectAttempts,
+        maxAttempts: BaileysAdapter.MAX_RECONNECT_ATTEMPTS,
+      });
+
+      if (decision.kind === 'intentional') {
         this.setStatus(EngineStatus.DISCONNECTED);
         return;
       }
 
-      if (statusCode === this.lib?.DisconnectReason.loggedOut) {
+      if (decision.kind === 'logged-out') {
         // Credentials invalidated — terminal. Re-linking requires a fresh QR/pairing, so the now-dead
         // multi-file auth dir MUST be wiped: otherwise the next connect() reloads the stale creds and
         // Baileys silently retries them instead of emitting a new QR, leaving the session stuck (no QR).
         this.setStatus(EngineStatus.DISCONNECTED);
         this.sock = null;
-        void this.clearAuthState();
+        void clearAuthState(this.authPath, this.logger);
         this.callbacks.onDisconnected?.('logged out');
         return;
       }
@@ -311,13 +290,12 @@ export class BaileysAdapter implements IWhatsAppEngine {
       this.logger.log('Baileys connection dropped; reconnecting', { statusCode });
 
       // I4: capped exponential backoff with in-flight timer guard.
-      if (this.reconnectAttempts >= BaileysAdapter.MAX_RECONNECT_ATTEMPTS) {
+      if (decision.kind === 'exhausted') {
         this.setStatus(EngineStatus.FAILED);
         this.callbacks.onError?.(`reconnect attempts exhausted (${this.reconnectAttempts})`);
         return;
       }
-      this.reconnectAttempts += 1;
-      const delay = Math.min(30_000, 1_000 * 2 ** (this.reconnectAttempts - 1));
+      this.reconnectAttempts = decision.attempt;
       // Guard: if a timer is already pending, don't stack another one.
       if (this.reconnectTimer) {
         return;
@@ -331,7 +309,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
           this.setStatus(EngineStatus.FAILED);
           this.callbacks.onError?.(err instanceof Error ? err.message : String(err));
         });
-      }, delay);
+      }, decision.delayMs);
     }
   }
 
@@ -377,23 +355,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     await this.config.messageStore?.clearSession(this.config.dbSessionId).catch(() => undefined);
     // Wipe the multi-file auth dir so a fresh link starts clean — stale creds would otherwise be
     // reloaded on the next connect() and block re-linking (Baileys retries them, no QR emitted).
-    await this.clearAuthState();
-  }
-
-  /**
-   * Delete this session's on-disk multi-file auth state (`authDir/sessionId`). Required after a terminal
-   * logout: Baileys would otherwise reload the now-invalid creds on the next connect() and retry them
-   * instead of emitting a fresh QR, leaving re-linking stuck. `force` makes a missing dir a no-op.
-   */
-  private async clearAuthState(): Promise<void> {
-    try {
-      await fs.promises.rm(this.authPath, { recursive: true, force: true });
-      this.logger.log('Cleared Baileys auth state', { authPath: this.authPath });
-    } catch (err) {
-      this.logger.warn('Failed to clear Baileys auth state', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
+    await clearAuthState(this.authPath, this.logger);
   }
 
   destroy(): Promise<void> {
