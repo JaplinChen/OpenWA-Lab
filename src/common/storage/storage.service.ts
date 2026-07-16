@@ -234,7 +234,10 @@ export class StorageService {
         if (entry.isDirectory()) {
           queue.push({ dir: relativePath, depth: depth + 1 });
         } else if (entry.isFile()) {
-          files.push(relativePath);
+          // Storage keys are portable identifiers (also used as S3 object keys), so always emit
+          // forward slashes rather than the OS separator — otherwise a nested key is `sub\b.txt` on
+          // Windows. path.join above uses path.sep; split/join canonicalizes it (no-op on POSIX).
+          files.push(relativePath.split(path.sep).join('/'));
           if (files.length >= maxFiles) return files; // cap reached — stop early
         }
       }
