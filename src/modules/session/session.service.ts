@@ -53,64 +53,23 @@ interface ReconnectState {
   baseDelay: number;
 }
 
-// Reconnect-backoff bounds. An OPERATOR-supplied session.config feeds this math, so the values
-// are coerced + clamped: a non-numeric value would otherwise make the delay NaN (setTimeout fires
-// at 0 — relaunch storm) and the terminal guard `attempts >= NaN` always false (unbounded loop).
-const RECONNECT_BASE_DELAY_MIN_MS = 1000;
-const RECONNECT_BASE_DELAY_MAX_MS = 300_000;
-const RECONNECT_MAX_ATTEMPTS_CAP = 20;
-const RECONNECT_DELAY_CAP_MS = 3_600_000;
-/**
- * Delay before retrying an ack UPDATE that matched 0 rows. A fast delivered/read ack can arrive before
- * the send's 2nd save (which writes waMessageId) has committed, so the first UPDATE finds no row. One
- * retry after this delay closes that race; the forward-only transition guard keeps it idempotent.
- */
-export const ACK_RECONCILE_DELAY_MS = 750;
+import { HistoryPersistenceCtx, persistHistoryMessages } from './session-history-persistence';
+import {
+  ACK_RECONCILE_DELAY_MS,
+  EngineInitTimeoutError,
+  clampReconnectDelay,
+  resolveMaxConcurrentSessions,
+  resolveReconnectConfig,
+} from './session-runtime.config';
 
-const clampNumber = (n: number, min: number, max: number): number => Math.min(Math.max(n, min), max);
-
-/** Coerce + clamp the untyped session.config reconnect knobs to finite, bounded values. Defaults
- *  (5000ms / 5 attempts) are preserved; a legitimate `maxReconnectAttempts: 0` (disable) is kept. */
-export function resolveReconnectConfig(
-  config: { maxReconnectAttempts?: unknown; reconnectBaseDelay?: unknown } | null,
-): { maxAttempts: number; baseDelay: number } {
-  const baseRaw = Number(config?.reconnectBaseDelay);
-  const baseDelay = clampNumber(
-    Number.isFinite(baseRaw) ? baseRaw : 5000,
-    RECONNECT_BASE_DELAY_MIN_MS,
-    RECONNECT_BASE_DELAY_MAX_MS,
-  );
-  const attemptsRaw = Number(config?.maxReconnectAttempts);
-  const maxAttempts = Math.floor(
-    clampNumber(Number.isFinite(attemptsRaw) ? attemptsRaw : 5, 0, RECONNECT_MAX_ATTEMPTS_CAP),
-  );
-  return { maxAttempts, baseDelay };
-}
-
-/** Clamp a computed backoff delay finite and within setTimeout's safe range (a huge value would
- *  overflow its 32-bit ms field and fire immediately). */
-export function clampReconnectDelay(rawDelay: number, baseDelay: number): number {
-  return clampNumber(Number.isFinite(rawDelay) ? rawDelay : baseDelay, 0, RECONNECT_DELAY_CAP_MS);
-}
-
-export function resolveMaxConcurrentSessions(configService?: Pick<ConfigService, 'get'>): number | null {
-  const configured = configService?.get<number>('sessions.maxConcurrent', 0) ?? 0;
-  if (!Number.isFinite(configured) || configured <= 0) return null;
-  return Math.floor(configured);
-}
-
-/**
- * Distinguishes a wedged-initialization timeout from a real engine.initialize() rejection. Only the
- * timeout case is handled inside initializeEngine(); real rejections must propagate untouched so the
- * caller's catch (start() → FAILED+reason, executeReconnect() → retry) keeps the behavior #600/#631
- * established. See initializeEngine().
- */
-export class EngineInitTimeoutError extends Error {
-  constructor(readonly timeoutMs: number) {
-    super(`engine.initialize() timed out after ${timeoutMs}ms`);
-    this.name = 'EngineInitTimeoutError';
-  }
-}
+// Re-exported so importers and the specs keep resolving these from './session.service'.
+export {
+  ACK_RECONCILE_DELAY_MS,
+  EngineInitTimeoutError,
+  clampReconnectDelay,
+  resolveMaxConcurrentSessions,
+  resolveReconnectConfig,
+} from './session-runtime.config';
 
 @Injectable()
 export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicationBootstrap {
@@ -562,91 +521,8 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
     return this.engines.get(id) === engine;
   }
 
-  /**
-   * Persist pre-connection history into the `messages` table for the chat view, without webhook/hook/ws
-   * dispatch (it predates the live session). De-duplicated by `waMessageId` so re-syncs never duplicate.
-   */
-  private async persistHistoryMessages(id: string, messages: IncomingMessage[]): Promise<void> {
-    const storeEphemeralMessages = resolveFeatureFlags(this.configService).storeEphemeralMessages;
-    const byId = new Map<string, IncomingMessage>();
-    for (const m of messages) {
-      // Need an id to de-dup; chatId/from/to are NOT NULL; status/story posts aren't chats.
-      if (!m.id || m.isStatusBroadcast || !m.chatId || !m.from || !m.to) {
-        continue;
-      }
-      // Mirror the live onMessage guard: skip disappearing messages when the operator opted out, so a
-      // history backfill can't bypass STORE_EPHEMERAL_MESSAGES=false. No-op when the flag is at its
-      // default (true); only a message with a positive timer is dropped, never a regular one.
-      if (!storeEphemeralMessages && (m.ephemeralDuration ?? 0) > 0) {
-        continue;
-      }
-      byId.set(m.id, m);
-    }
-    if (byId.size === 0) {
-      return;
-    }
-    // Chunk the dedup query: a batch can be thousands, past SQLite's bound-variable limit for IN (...).
-    const ids = [...byId.keys()];
-    const CHUNK = 400;
-    let inserted = 0;
-    for (let i = 0; i < ids.length; i += CHUNK) {
-      const chunkIds = ids.slice(i, i + CHUNK);
-      const existing = await this.messageRepository.find({
-        where: { sessionId: id, waMessageId: In(chunkIds) },
-        select: ['waMessageId'],
-      });
-      const seen = new Set(existing.map(r => r.waMessageId));
-      const rows = chunkIds
-        .filter(x => !seen.has(x))
-        .map(x => {
-          const m = byId.get(x)!;
-          const metadata: Record<string, unknown> = {};
-          if (m.media) metadata.media = m.media;
-          if (m.quotedMessage) metadata.quotedMessage = m.quotedMessage;
-          if (m.call) metadata.call = m.call;
-          if (m.isGroup && !m.fromMe) {
-            const senderName = m.contact?.name ?? m.contact?.pushName;
-            if (senderName) metadata.senderName = senderName;
-          }
-          const row = this.messageRepository.create({
-            sessionId: id,
-            waMessageId: m.id,
-            chatId: m.chatId,
-            from: m.from,
-            to: m.to,
-            body: m.body,
-            type: m.type,
-            direction: m.fromMe ? MessageDirection.OUTGOING : MessageDirection.INCOMING,
-            timestamp: m.timestamp,
-            status: MessageStatus.SENT,
-            metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-          });
-          // The chat panel orders by createdAt; stamp the real time so history sorts correctly.
-          if (m.timestamp) {
-            row.createdAt = new Date(m.timestamp * 1000);
-          }
-          return row;
-        });
-      if (rows.length) {
-        // Insert-or-ignore: a live onMessage insert can land between the `seen` SELECT above and this
-        // write, colliding on UNIQUE(sessionId, waMessageId). orIgnore skips the collision instead of
-        // throwing and aborting the whole batch (history is best-effort, persist-never-dispatch).
-        await this.messageRepository
-          .createQueryBuilder()
-          .insert()
-          .values(rows as unknown as QueryDeepPartialEntity<Message>[])
-          .orIgnore()
-          .execute();
-        inserted += rows.length;
-      }
-    }
-    if (inserted) {
-      this.logger.log(`Persisted ${inserted} history message(s)`, {
-        sessionId: id,
-        inserted,
-        action: 'history_messages_persisted',
-      });
-    }
+  private get historyCtx(): HistoryPersistenceCtx {
+    return { messageRepository: this.messageRepository, configService: this.configService, logger: this.logger };
   }
 
   private async initializeEngine(id: string, session: Session): Promise<void> {
@@ -898,7 +774,7 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
       onHistoryMessages: (messages): void => {
         if (!this.isLiveEngine(id, engine)) return;
         // Persist for the chat view only; no dispatch (these predate the live session).
-        void this.persistHistoryMessages(id, messages).catch(err =>
+        void persistHistoryMessages(this.historyCtx, id, messages).catch(err =>
           this.logger.error(`Failed to persist history messages for ${id}`, String(err)),
         );
       },
