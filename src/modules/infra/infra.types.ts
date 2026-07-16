@@ -302,3 +302,10 @@ export interface ImportDataResult {
   counts: MigrationCounts;
   warnings: string[];
 }
+
+export interface SaveConfigResult {
+  message: string;
+  saved: boolean;
+  envPath: string;
+  profiles: string[];
+}
