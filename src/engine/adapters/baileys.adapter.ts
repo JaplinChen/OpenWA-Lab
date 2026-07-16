@@ -1,7 +1,7 @@
 import * as path from 'path';
 import * as qrcode from 'qrcode';
 import type * as BaileysLib from '@whiskeysockets/baileys';
-import type { AnyMessageContent, MiscMessageGenerationOptions, WAMessage, WASocket } from '@whiskeysockets/baileys';
+import type { AnyMessageContent, WAMessage, WASocket } from '@whiskeysockets/baileys';
 import { mapBaileysStatus } from './baileys-message-mapper';
 import { mapBaileysGroup, mapBaileysGroupInfo } from './baileys-group-mapper';
 import type { ILogger } from '@whiskeysockets/baileys/lib/Utils/logger.js';
@@ -36,15 +36,23 @@ import {
 } from '../interfaces/whatsapp-engine.interface';
 import { EngineNotReadyError } from '../../common/errors/engine-not-ready.error';
 import { EngineNotSupportedError } from '../../common/errors/engine-not-supported.error';
-import { MessageNotFoundError } from '../../common/errors/message-not-found.error';
 import { ChannelNotFoundError } from '../../common/errors/channel-not-found.error';
 import { createLogger } from '../../common/services/logger.service';
 import { BaileysAdapterConfig } from '../types/baileys.types';
 import { BAILEYS_BROWSER, createBaileysLogger, createSilentLogger } from './baileys-logger';
 import { buildSocketOptions, classifyClose, clearAuthState, detachAndEndSocket } from './baileys-connection';
-import { toUnixSeconds, extractPhone, resolveMediaBuffer, toStatusResult } from './baileys-adapter.helpers';
+import { toUnixSeconds, extractPhone, resolveMediaBuffer } from './baileys-adapter.helpers';
 import { BaileysSessionStore } from './baileys-session-store';
 import { InboundMapperCtx, mapMessage, mapHistoryMessage } from './baileys-inbound-mapper';
+import {
+  AdapterSendCtx,
+  sendContent,
+  toDeliverableJid,
+  withEphemeral,
+  requireStored,
+  postStatus,
+  emitOwnSendEcho,
+} from './baileys-send';
 import { buildVCard } from './vcard';
 import { inboundMediaConcurrency, inboundMediaTimeoutMs, withInboundDownloadTimeout } from './inbound-media-cap';
 import { ConcurrencyLimiter } from '../../common/utils/concurrency-limiter';
@@ -405,8 +413,8 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendTextMessage(chatId: string, text: string, mentions?: string[]): Promise<MessageResult> {
     this.ensureReady();
-    const jid = await this.toDeliverableJid(chatId);
-    const options = this.withEphemeral(jid);
+    const jid = await toDeliverableJid(this.sendCtx, chatId);
+    const options = withEphemeral(this.sendCtx, jid);
     const content = { text, ...this.withMentions(mentions) };
     const sent = options
       ? await this.sock!.sendMessage(jid, content, options)
@@ -418,7 +426,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
         }),
       );
       // Parity with the wwjs engine's message_create → message.sent (see emitOwnSendEcho).
-      void this.emitOwnSendEcho(sent);
+      void emitOwnSendEcho(this.sendCtx, sent);
     }
     return {
       id: sent?.key?.id ?? '',
@@ -444,7 +452,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     this.ensureReady();
     const presence = state === 'typing' ? 'composing' : state === 'recording' ? 'recording' : 'paused';
     try {
-      await this.sock!.sendPresenceUpdate(presence, await this.toDeliverableJid(chatId));
+      await this.sock!.sendPresenceUpdate(presence, await toDeliverableJid(this.sendCtx, chatId));
     } catch (error) {
       // Presence is best-effort — a failure here must never surface as a 500 on the direct typing
       // endpoint or MCP tool (mirrors the whatsapp-web.js adapter; #583 R4). A migrated contact can
@@ -456,7 +464,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
   async sendImageMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       image: data,
       caption: media.caption,
       mimetype,
@@ -467,7 +475,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
   async sendVideoMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       video: data,
       caption: media.caption,
       mimetype,
@@ -478,13 +486,13 @@ export class BaileysAdapter implements IWhatsAppEngine {
   async sendAudioMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
-    return this.sendContent(chatId, { audio: data, mimetype, ptt: media.ptt ?? false });
+    return sendContent(this.sendCtx, chatId, { audio: data, mimetype, ptt: media.ptt ?? false });
   }
 
   async sendDocumentMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
     const { data, mimetype } = await resolveMediaBuffer(media);
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       document: data,
       mimetype,
       fileName: media.filename ?? 'file',
@@ -496,12 +504,12 @@ export class BaileysAdapter implements IWhatsAppEngine {
   async sendStickerMessage(chatId: string, media: MediaInput): Promise<MessageResult> {
     this.ensureReady();
     const { data } = await resolveMediaBuffer(media);
-    return this.sendContent(chatId, { sticker: data });
+    return sendContent(this.sendCtx, chatId, { sticker: data });
   }
 
   async sendLocationMessage(chatId: string, location: LocationInput): Promise<MessageResult> {
     this.ensureReady();
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       location: {
         degreesLatitude: location.latitude,
         degreesLongitude: location.longitude,
@@ -513,7 +521,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async sendContactMessage(chatId: string, contact: ContactCard): Promise<MessageResult> {
     this.ensureReady();
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       contacts: { displayName: contact.name, contacts: [{ vcard: buildVCard(contact) }] },
     });
   }
@@ -522,7 +530,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     this.ensureReady();
     // selectableCount 1 = single choice; 0 = no limit, which is how WhatsApp expresses
     // "allow multiple answers". Baileys generates the poll's messageSecret itself.
-    return this.sendContent(chatId, {
+    return sendContent(this.sendCtx, chatId, {
       poll: {
         name: poll.name,
         values: poll.options,
@@ -533,25 +541,25 @@ export class BaileysAdapter implements IWhatsAppEngine {
 
   async replyToMessage(chatId: string, quotedMsgId: string, text: string): Promise<MessageResult> {
     this.ensureReady();
-    const quoted = await this.requireStored(quotedMsgId);
-    return this.sendContent(chatId, { text }, { quoted });
+    const quoted = await requireStored(this.sendCtx, quotedMsgId);
+    return sendContent(this.sendCtx, chatId, { text }, { quoted });
   }
 
   async forwardMessage(fromChatId: string, toChatId: string, messageId: string): Promise<MessageResult> {
     this.ensureReady();
-    const forward = await this.requireStored(messageId);
-    return this.sendContent(toChatId, { forward });
+    const forward = await requireStored(this.sendCtx, messageId);
+    return sendContent(this.sendCtx, toChatId, { forward });
   }
 
   async reactToMessage(chatId: string, messageId: string, emoji: string): Promise<void> {
     this.ensureReady();
-    const target = await this.requireStored(messageId);
+    const target = await requireStored(this.sendCtx, messageId);
     await this.sock!.sendMessage(chatId, { react: { text: emoji, key: target.key } });
   }
 
   async deleteMessage(chatId: string, messageId: string, forEveryone = true): Promise<void> {
     this.ensureReady();
-    const target = await this.requireStored(messageId);
+    const target = await requireStored(this.sendCtx, messageId);
     if (forEveryone) {
       await this.sock!.sendMessage(chatId, { delete: target.key });
       return;
@@ -842,7 +850,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
     return this.unsupported('getContactStatus');
   }
   postTextStatus(text: string, options: StatusPostOptions): Promise<StatusResult> {
-    return this.postStatus({ text }, options);
+    return postStatus(this.sendCtx, { text }, options);
   }
   postImageStatus(media: MediaInput, options: StatusPostOptions): Promise<StatusResult> {
     return this.postMediaStatus('image', media, options);
@@ -861,7 +869,7 @@ export class BaileysAdapter implements IWhatsAppEngine {
       kind === 'image'
         ? { image: data, caption: options.caption, mimetype }
         : { video: data, caption: options.caption, mimetype };
-    return this.postStatus(content, options);
+    return postStatus(this.sendCtx, content, options);
   }
   /**
    * Best-effort status revoke. Unlike deleteMessage, status messages are NOT persisted, so the revoke
@@ -1171,124 +1179,26 @@ export class BaileysAdapter implements IWhatsAppEngine {
     };
   }
 
+  /**
+   * Collaborators for the outbound send pipeline. Rebuilt per access and passing sock/callbacks-reading
+   * operations as closures, so a reconnect's new socket is always picked up (never snapshotted).
+   */
+  private get sendCtx(): AdapterSendCtx {
+    return {
+      sock: () => this.sock,
+      sessionStore: this.sessionStore,
+      config: this.config,
+      logger: this.logger,
+      loadLib: () => this.loadLib(),
+      callbacks: () => this.callbacks,
+      mapperCtx: () => this.mapperCtx,
+      ensureReady: () => this.ensureReady(),
+    };
+  }
+
   private normalizedSelfJid(): string {
     const phone = extractPhone(this.sock?.user?.id);
     return phone ? `${phone}@s.whatsapp.net` : '';
-  }
-
-  /** Build a minimal WhatsApp-compatible vCard from a neutral contact card. */
-  /**
-   * Fold the chat's known disappearing-messages timer into Baileys' send options so outbound messages
-   * honor the chat's ephemeral setting (#473). Returns `options` unchanged when no positive timer is
-   * cached: omitting `ephemeralExpiration` reproduces today's behavior (Baileys' send guard is truthy),
-   * so an unknown / boot-window / stale-empty cache never forces a message to disappear. Returning
-   * `undefined` keeps the send a 2-arg call, identical to before. React/delete/status do not route
-   * through here, so they are excluded by construction (reactions are NOT excluded by Baileys' guard).
-   */
-  /**
-   * Resolve a 1:1 phone-dialect chat id (`@c.us` / `@s.whatsapp.net`) to the contact's `@lid` when the
-   * mapping is known. WhatsApp rejects PN-addressed 1:1 sends to LID-migrated accounts with ack error
-   * 463 ("missing tctoken" — the privacy token is stored and honored under the LID), while the very
-   * same send addressed to the LID delivers (verified live). Groups, broadcast, already-lid and
-   * unmapped ids pass through unchanged, reproducing the previous behavior.
-   */
-  private async toDeliverableJid(chatId: string): Promise<string> {
-    if (!chatId.endsWith('@c.us') && !chatId.endsWith('@s.whatsapp.net')) {
-      return chatId;
-    }
-    try {
-      const pn = this.sessionStore.toEngineJid(chatId);
-      const lid = await this.sock?.signalRepository?.lidMapping?.getLIDForPN(pn);
-      return lid ?? chatId;
-    } catch {
-      return chatId; // resolution is best-effort; an unmapped contact sends to the PN as before
-    }
-  }
-
-  private withEphemeral(
-    chatId: string,
-    options?: MiscMessageGenerationOptions,
-  ): MiscMessageGenerationOptions | undefined {
-    const ephemeralExpiration = this.sessionStore.getEphemeralExpiration(chatId);
-    if (ephemeralExpiration === undefined) {
-      return options;
-    }
-    return { ...options, ephemeralExpiration };
-  }
-
-  /** Send a Baileys content object and shape the result like the other sends. */
-  private async sendContent(
-    chatId: string,
-    content: AnyMessageContent,
-    options?: MiscMessageGenerationOptions,
-  ): Promise<MessageResult> {
-    const jid = await this.toDeliverableJid(chatId);
-    const merged = this.withEphemeral(jid, options);
-    const sent = merged
-      ? await this.sock!.sendMessage(jid, content, merged)
-      : await this.sock!.sendMessage(jid, content);
-    if (sent) {
-      void this.config.messageStore?.put(this.config.dbSessionId, sent).catch(err =>
-        this.logger.warn('Failed to persist sent message to store', {
-          error: err instanceof Error ? err.message : String(err),
-        }),
-      );
-      // wwjs fires `message_create` for its own API sends, which SessionService turns into `message.sent`.
-      // Baileys' own socket-sends echo back only as a `type:'append'` upsert (skipped as history sync), so
-      // that event never fired for API sends. Emit the outbound "created" callback here for parity —
-      // best-effort and off the response path, with no media re-download (matching the wwjs payload).
-      void this.emitOwnSendEcho(sent);
-    }
-    return { id: sent?.key?.id ?? '', timestamp: toUnixSeconds(sent?.messageTimestamp) };
-  }
-
-  /**
-   * Emit the engine-neutral "message created" callback for a message this session just sent via the API,
-   * so downstream `message.sent` webhook/WS/hook delivery matches the whatsapp-web.js engine. Best-effort:
-   * a mapping failure must never fail the send that already succeeded.
-   */
-  private async emitOwnSendEcho(sent: WAMessage): Promise<void> {
-    if (!this.callbacks.onMessageCreate) return;
-    try {
-      const b = await this.loadLib();
-      if (!sent.message || !sent.key?.remoteJid) return;
-      const normalizedRoot = b.normalizeMessageContent(sent.message) ?? sent.message;
-      const contentType = b.getContentType(normalizedRoot);
-      // protocol / reaction / empty own messages carry no neutral "sent" content.
-      if (!contentType || contentType === 'protocolMessage' || contentType === 'reactionMessage') return;
-      const neutral = await mapMessage(this.mapperCtx, sent, contentType, { skipMediaDownload: true });
-      this.callbacks.onMessageCreate(neutral);
-    } catch (err) {
-      this.logger.warn('Failed to emit own-send echo', {
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
-
-  /** Resolve a previously-seen message from the store, or throw a clear not-found error. */
-  private async requireStored(messageId: string): Promise<WAMessage> {
-    const found = await this.config.messageStore?.getMessage(this.config.dbSessionId, messageId);
-    if (!found?.key) {
-      throw new MessageNotFoundError(messageId);
-    }
-    return found;
-  }
-
-  /**
-   * Post a status (story) to `status@broadcast` with a denormalized `statusJidList` (the allow-list of
-   * neutral recipients folded back to the engine dialect). Image/video variants route through here too.
-   * The outbound status echo is NOT persisted — status isn't a chat message (the inbound filter in
-   * handleMessagesUpsert already skips `type:'append'` echoes).
-   */
-  private async postStatus(content: AnyMessageContent, options: StatusPostOptions): Promise<StatusResult> {
-    this.ensureReady();
-    const statusJidList = options.recipients.map(r => this.sessionStore.toEngineJid(r));
-    const sent = await this.sock!.sendMessage('status@broadcast', content, {
-      statusJidList,
-      backgroundColor: options.backgroundColor,
-      font: options.font,
-    });
-    return toStatusResult(sent);
   }
 
   private unsupported(method: string): Promise<any> {
