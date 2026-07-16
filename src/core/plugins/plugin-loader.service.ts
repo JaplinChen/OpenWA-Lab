@@ -29,19 +29,19 @@ import {
 } from './plugin.interfaces';
 import { effectiveNetAllow, isNetHostAllowed, performPluginFetch } from './plugin-net';
 import { PluginStorageService } from './plugin-storage.service';
-import { isPluginActiveForSession, resolvePluginConfig } from './plugin-activation';
+import type { IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
+import { resolvePluginConfig } from './plugin-activation';
 import { PluginWorkerHost } from './sandbox/plugin-worker-host';
 import { WorkerThreadChannel } from './sandbox/worker-thread-channel';
 import { dispatchCapabilityVerb } from './sandbox/capability-router';
 import { PluginLogLevel } from './sandbox/protocol';
-import { buildConversationSendFacade, ConversationMediaType } from './conversation-send-facade';
+import { buildConversationSendFacade } from './conversation-send-facade';
 import { shouldDispatchToPlugin } from './handover-gate';
 import { makeOnWebhookSubscribe } from './webhook-subscribe.util';
 import { registerPluginSearchProvider, unregisterPluginSearchProvider } from './search-provider-registration.util';
 import { INGRESS_DISPATCH_TIMEOUT_MS } from '../../modules/integration/integration.constants';
 import type { MessageService } from '../../modules/message/message.service';
 import type { SessionService } from '../../modules/session/session.service';
-import type { IWhatsAppEngine } from '../../engine/interfaces/whatsapp-engine.interface';
 import type { ConversationMappingService } from '../../modules/integration/conversation-mapping.service';
 import type { PluginInstanceService } from '../../modules/integration/plugin-instance.service';
 import type { IngressJobData } from '../../modules/queue/processors/ingress.processor';
@@ -74,63 +74,18 @@ const SANDBOX_MAX_INFLIGHT_CAPS = 32;
  * API_MASTER_KEY, API_KEY_PEPPER, the DATABASE_/REDIS_ vars, DOCKER_HOST — is withheld. The worker is
  * a thread, so it needs no PATH to start and require() resolves via module paths, not env.
  */
-const SANDBOX_ENV_ALLOWLIST = ['NODE_ENV', 'NODE_EXTRA_CA_CERTS', 'TZ'] as const;
 
-/**
- * Resolve a plugin's `main` entry to an absolute path, asserting it stays inside
- * <pluginsDir>/<pluginId>. `main` comes from a user-supplied manifest, so a
- * value like '../../etc/passwd' (or an absolute path) must be rejected BEFORE require().
- */
-export function resolvePluginMainPath(pluginsDir: string, pluginId: string, main: string): string {
-  const base = path.resolve(pluginsDir, pluginId);
-  const mainPath = path.resolve(base, main);
-  if (mainPath !== base && !mainPath.startsWith(base + path.sep)) {
-    throw new Error(`Plugin ${pluginId} main path escapes the plugin directory`);
-  }
-  return mainPath;
-}
+export { resolvePluginMainPath, buildSandboxWorkerEnv, dispatchConversationMedia } from './plugin-loader.helpers';
 
-/**
- * Build the minimal, allowlisted env for an untrusted plugin worker so it never inherits host secrets.
- * Only {@link SANDBOX_ENV_ALLOWLIST} keys are forwarded (unset keys are omitted, not emitted as
- * `undefined`), and NODE_ENV defaults to 'production' when the host has none.
- */
-export function buildSandboxWorkerEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
-  const env: NodeJS.ProcessEnv = {};
-  for (const key of SANDBOX_ENV_ALLOWLIST) {
-    if (source[key] !== undefined) env[key] = source[key];
-  }
-  env.NODE_ENV = source.NODE_ENV ?? 'production';
-  return env;
-}
+import { resolvePluginMainPath, buildSandboxWorkerEnv, dispatchConversationMedia } from './plugin-loader.helpers';
 
-/**
- * Translate a normalized conversation media send into the concrete MessageService media method for the
- * envelope's type. Kept pure (no `this`) so the loader binds it directly and it can be unit-tested in
- * isolation. The switch is exhaustive over ConversationMediaType — adding a type without a case is a
- * compile error here rather than a silent runtime fall-through.
- */
-export function dispatchConversationMedia(
-  svc: Pick<MessageService, 'sendImage' | 'sendVideo' | 'sendAudio' | 'sendDocument'>,
-  sessionId: string,
-  opts: { chatId: string; url: string; type: ConversationMediaType; caption?: string },
-): Promise<unknown> {
-  const dto = { chatId: opts.chatId, url: opts.url, caption: opts.caption };
-  switch (opts.type) {
-    case 'image':
-      return svc.sendImage(sessionId, dto);
-    case 'video':
-      return svc.sendVideo(sessionId, dto);
-    case 'audio':
-      return svc.sendAudio(sessionId, dto);
-    case 'voice':
-      // A voice envelope is a PTT note: sendAudio with ptt classifies it as 'voice' and defaults the
-      // codec to audio/ogg;opus, so it renders as a WhatsApp voice bubble rather than an audio file.
-      return svc.sendAudio(sessionId, { ...dto, ptt: true });
-    case 'file':
-      return svc.sendDocument(sessionId, dto);
-  }
-}
+import {
+  assertPermission,
+  assertSessionActive,
+  isHookActive,
+  resolveEngine,
+  resolveEngineRead,
+} from './plugin-capability-guards';
 
 @Injectable()
 export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
@@ -140,6 +95,10 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
   private readonly enabling = new Set<string>();
   // Live worker host per enabled sandboxed (untrusted) plugin. Built-ins are not in here.
   private readonly sandboxHosts = new Map<string, PluginWorkerHost>();
+  /** Live engine lookup for the capability guards — resolved per call: SessionService is lazy via
+   * ModuleRef, and a session's engine appears/disappears as it starts and stops. */
+  private readonly getEngineFor = (sessionId: string): IWhatsAppEngine | undefined =>
+    this.getSessionService().getEngine(sessionId);
   // Carries the firing event's sessionId across an in-process hook handler so ctx.config (a getter)
   // resolves the per-session slice. Per async call tree, so concurrent sessions don't cross over.
   private readonly hookSession = new AsyncLocalStorage<{ sessionId?: string }>();
@@ -708,71 +667,6 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Enforce a plugin's declared manifest permissions at the capability boundary. A plugin may only
-   * use a capability whose permission string it declares in `manifest.permissions`; anything else
-   * (including a manifest with no permissions) is denied. Runs first in each capability verb so a
-   * missing grant fails fast and uniformly as a PluginCapabilityError.
-   */
-  private assertPermission(manifest: PluginManifest, permission: PluginCapabilityPermission): void {
-    if (!(manifest.permissions ?? []).includes(permission)) {
-      throw new PluginCapabilityError(
-        `Plugin ${manifest.id} is missing the '${permission}' permission required for this capability`,
-      );
-    }
-  }
-
-  /**
-   * Enforce a plugin's manifest session scope. Runs BEFORE any engine/message resolution —
-   * sessionId is supplied by the plugin, so this is the security boundary. Absent = ['*'].
-   */
-  private assertSessionAllowed(manifest: PluginManifest, sessionId: string): void {
-    const allowed = manifest.sessions ?? ['*'];
-    if (!allowed.includes('*') && !allowed.includes(sessionId)) {
-      throw new PluginCapabilityError(`Plugin ${manifest.id} is not permitted to act on session ${sessionId}`);
-    }
-  }
-
-  /** Per-session activation gate: is this plugin currently activated for `sessionId`'s event? */
-  private isHookActive(plugin: PluginInstance, sessionId: string | undefined): boolean {
-    return isPluginActiveForSession(plugin.manifest.sessionScoped ?? true, plugin.activeSessions ?? ['*'], sessionId);
-  }
-
-  /**
-   * The capability session gate. A plugin may act on `sessionId` only if BOTH hold: its manifest scope
-   * allows the session (the static author boundary, assertSessionAllowed) AND the operator has activated
-   * the plugin for that session (the dynamic boundary, the same gate hook dispatch uses). manifest.sessions
-   * alone is not enough — a general adapter ships `['*']` and is scoped by operator activation, so without
-   * the activeSessions check a plugin activated for one session could reach another's engine/mappings/
-   * handover. Defaults (`activeSessions ?? ['*']`, `sessionScoped:false`) preserve every unrestricted flow.
-   */
-  private assertSessionActive(plugin: PluginInstance, sessionId: string): void {
-    this.assertSessionAllowed(plugin.manifest, sessionId);
-    if (!this.isHookActive(plugin, sessionId)) {
-      throw new PluginCapabilityError(`Plugin ${plugin.manifest.id} is not activated for session ${sessionId}`);
-    }
-  }
-
-  /**
-   * Scope-check, then resolve the live engine for a session. getEngine returns undefined for an
-   * unknown OR unstarted session (no throw), so guard it into a defined PluginCapabilityError.
-   * A present-but-not-READY engine throws EngineNotReadyError from the adapter on use (→ 409).
-   */
-  private resolveEngine(plugin: PluginInstance, sessionId: string): IWhatsAppEngine {
-    this.assertSessionActive(plugin, sessionId);
-    const engine = this.getSessionService().getEngine(sessionId);
-    if (!engine) {
-      throw new PluginCapabilityError(`Session ${sessionId} has no active engine (unknown or not started)`);
-    }
-    return engine;
-  }
-
-  /** Engine read capabilities: require the `engine:read` permission, then resolve the live engine. */
-  private resolveEngineRead(plugin: PluginInstance, sessionId: string): IWhatsAppEngine {
-    this.assertPermission(plugin.manifest, PluginCapabilityPermission.ENGINE_READ);
-    return this.resolveEngine(plugin, sessionId);
-  }
-
-  /**
    * Build a worker host for a sandboxed (untrusted) plugin. Overridable so tests can inject a fake
    * instead of spawning a real OS thread. Production loads the compiled worker bootstrap from dist.
    */
@@ -876,7 +770,7 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           if (!liveHost) return { continue: true };
           // Per-session activation gate: a session-scoped plugin only sees events for the sessions
           // it is activated for. Pass-through (don't dispatch into the worker) otherwise.
-          if (!this.isHookActive(plugin, hookCtx.sessionId)) return { continue: true };
+          if (!isHookActive(plugin, hookCtx.sessionId)) return { continue: true };
           // Handover gate: once a human has taken over (or closed) a conversation, the bot stops
           // seeing its inbound messages. Scoped to message:received only — every other hook event is
           // unaffected. Best-effort + fail-open: a lookup failure (or an event/mapping shape the gate
@@ -1066,7 +960,7 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           plugin.manifest.id,
           event,
           async hookCtx => {
-            if (!this.isHookActive(plugin, hookCtx.sessionId)) return { continue: true };
+            if (!isHookActive(plugin, hookCtx.sessionId)) return { continue: true };
             return this.hookSession.run({ sessionId: hookCtx.sessionId }, () => handler(hookCtx));
           },
           priority,
@@ -1086,26 +980,27 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           // persists a pending row: a missing grant / dead session must fail with
           // PluginCapabilityError, not a raw TypeError + orphaned row. resolveEngine also runs
           // assertSessionActive.
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.MESSAGES_SEND);
-          this.resolveEngine(plugin, sessionId);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.MESSAGES_SEND);
+          resolveEngine(this.getEngineFor, plugin, sessionId);
           return this.getMessageService().sendText(sessionId, { chatId, text });
         },
         reply: async (sessionId, chatId, quotedMessageId, text) => {
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.MESSAGES_SEND);
-          this.resolveEngine(plugin, sessionId);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.MESSAGES_SEND);
+          resolveEngine(this.getEngineFor, plugin, sessionId);
           return this.getMessageService().reply(sessionId, { chatId, quotedMessageId, text });
         },
       } satisfies PluginMessagingCapability,
       engine: {
-        getGroupInfo: async (sessionId, groupId) => this.resolveEngineRead(plugin, sessionId).getGroupInfo(groupId),
-        getContacts: async sessionId => this.resolveEngineRead(plugin, sessionId).getContacts(),
+        getGroupInfo: async (sessionId, groupId) =>
+          resolveEngineRead(this.getEngineFor, plugin, sessionId).getGroupInfo(groupId),
+        getContacts: async sessionId => resolveEngineRead(this.getEngineFor, plugin, sessionId).getContacts(),
         getContactById: async (sessionId, contactId) =>
-          this.resolveEngineRead(plugin, sessionId).getContactById(contactId),
+          resolveEngineRead(this.getEngineFor, plugin, sessionId).getContactById(contactId),
         checkNumberExists: async (sessionId, phone) =>
-          this.resolveEngineRead(plugin, sessionId).checkNumberExists(phone),
-        getChats: async sessionId => this.resolveEngineRead(plugin, sessionId).getChats(),
+          resolveEngineRead(this.getEngineFor, plugin, sessionId).checkNumberExists(phone),
+        getChats: async sessionId => resolveEngineRead(this.getEngineFor, plugin, sessionId).getChats(),
         getChatHistory: async (sessionId, chatId, limit, includeMedia) =>
-          this.resolveEngineRead(plugin, sessionId).getChatHistory(
+          resolveEngineRead(this.getEngineFor, plugin, sessionId).getChatHistory(
             chatId,
             // Clamp to the REST non-deep ceiling (MessageService.MAX_CHAT_HISTORY_LIMIT = 100) so an
             // untrusted plugin can't request an unbounded history fetch.
@@ -1116,7 +1011,7 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           // resolveEngineRead is the gate only (engine:read permission + live session); the resolution
           // itself is a synchronous host lid->phone lookup, not an engine call, mirroring the webhook
           // from-filter. Not `async` (nothing to await) — a resolved promise satisfies the signature.
-          this.resolveEngineRead(plugin, sessionId);
+          resolveEngineRead(this.getEngineFor, plugin, sessionId);
           return Promise.resolve(toNeutralJid(chatId, jid => this.lidMappingStore?.getCached(userPart(jid)) ?? null));
         },
       } satisfies PluginEngineReadCapability,
@@ -1128,7 +1023,7 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           // so admit every operator-configured tenant host (all public + still SSRF-guarded at connect)
           // rather than resolving a single, possibly wrong (base-only), one. The SSRF guard inside
           // performPluginFetch still blocks internal IPs even when the host is allowlisted.
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.NET_FETCH);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.NET_FETCH);
           const netConfigs = [plugin.config ?? {}, ...Object.values(plugin.sessionConfig ?? {})];
           const allow = [
             ...new Set(
@@ -1147,8 +1042,8 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
       } satisfies PluginNetCapability,
       conversations: buildConversationSendFacade({
         manifest: plugin.manifest,
-        assertPermission: this.assertPermission.bind(this),
-        assertSessionActive: (sessionId: string) => this.assertSessionActive(plugin, sessionId),
+        assertPermission,
+        assertSessionActive: (sessionId: string) => assertSessionActive(plugin, sessionId),
         resolveChatId: async env => {
           if (!env.instanceId || !env.source) {
             throw new PluginCapabilityError(
@@ -1184,8 +1079,8 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
         set: async (key, state) => {
           // Same gate as conversation.send: flipping handover is part of owning the conversation, so
           // it reuses CONVERSATION_SEND rather than adding a new permission.
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
-          this.assertSessionActive(plugin, key.sessionId);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
+          assertSessionActive(plugin, key.sessionId);
           const mapping = await this.getConversationMappingService().get({
             sessionId: key.sessionId,
             chatId: key.chatId,
@@ -1202,16 +1097,16 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
       } satisfies PluginHandoverCapability,
       mappings: {
         upsert: async (key, providerConversationId) => {
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
-          this.assertSessionActive(plugin, key.sessionId);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
+          assertSessionActive(plugin, key.sessionId);
           await this.getConversationMappingService().upsert(
             { sessionId: key.sessionId, chatId: key.chatId, pluginId: plugin.manifest.id, instanceId: key.instanceId },
             providerConversationId,
           );
         },
         get: async key => {
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
-          this.assertSessionActive(plugin, key.sessionId);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
+          assertSessionActive(plugin, key.sessionId);
           const m = await this.getConversationMappingService().get({
             sessionId: key.sessionId,
             chatId: key.chatId,
@@ -1221,14 +1116,14 @@ export class PluginLoaderService implements OnModuleInit, OnModuleDestroy {
           return m ? { providerConversationId: m.providerConversationId, handoverState: m.handoverState } : null;
         },
         getByProvider: async (instanceId, providerConversationId) => {
-          this.assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
+          assertPermission(plugin.manifest, PluginCapabilityPermission.CONVERSATION_SEND);
           const m = await this.getConversationMappingService().getByProvider(
             plugin.manifest.id,
             instanceId,
             providerConversationId,
           );
           // Parity with get/upsert: a plugin may only read a mapping for a session it is activated for.
-          if (m) this.assertSessionActive(plugin, m.sessionId);
+          if (m) assertSessionActive(plugin, m.sessionId);
           return m ? { sessionId: m.sessionId, chatId: m.chatId, handoverState: m.handoverState } : null;
         },
       } satisfies PluginMappingsCapability,
