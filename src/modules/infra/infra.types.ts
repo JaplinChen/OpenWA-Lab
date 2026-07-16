@@ -273,3 +273,32 @@ export interface SavedConfigResponse {
   };
   engine: { type: string; headless: boolean; sessionDataPath: string; browserArgs: string };
 }
+
+/** Row counts shared by the export and import results (one entry per migrated table). */
+export interface MigrationCounts {
+  sessions: number;
+  webhooks: number;
+  messages: number;
+  messageBatches: number;
+  templates: number;
+  baileysStoredMessages: number;
+  lidMappings: number;
+  pluginInstances: number;
+  conversationMappings: number;
+  ingressEvents: number;
+  webhookDeliveryFailures: number;
+  integrationDeliveryFailures: number;
+}
+
+export interface ExportDataResult {
+  exportedAt: string;
+  dataDbType: string;
+  tables: MigrationTables;
+  counts: MigrationCounts;
+}
+
+export interface ImportDataResult {
+  imported: boolean;
+  counts: MigrationCounts;
+  warnings: string[];
+}
