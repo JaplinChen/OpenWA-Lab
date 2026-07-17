@@ -78,13 +78,19 @@
 
 .glossary-page .glossary-add {
   display: flex;
+  /* Without wrapping, a narrow viewport crushed both inputs to 72px, too small to type a term
+     into and short enough to clip the placeholder. The pair stays on one line and the button
+     drops below it instead. */
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
 }
 
 .glossary-page .glossary-add input {
-  flex: 1;
+  /* Basis keeps the two inputs and the arrow together on one line while pushing the button to
+     the next; they still grow to share the full row on wide viewports, as before. */
+  flex: 1 1 6rem;
   min-width: 0;
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
