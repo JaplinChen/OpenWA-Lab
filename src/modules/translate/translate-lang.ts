@@ -21,6 +21,13 @@ export function stripThinking(s: string): string {
 
 const ZH_RE = /[㐀-鿿豈-﫿]/;
 const VI_RE = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
+// Vietnamese typed WITHOUT diacritics ("Bao cao dai duong") is pure ASCII, so VI_RE misses it and the
+// message is silently never translated — common on phone keyboards. Match high-frequency Vietnamese
+// function words instead. Every word here is deliberately one that is NOT an English word, so plain
+// English is not misrouted into the vi->zh path (excludes look-alikes: the/la/co/va/cho/ban/con/may/
+// dang/hang/sang/tin).
+const VI_NO_TONE_RE =
+  /\b(khong|duoc|nguoi|nhung|chua|biet|hieu|viec|cua|voi|truoc|hoac|neu|vay|nhieu|minh|giup|xin|gui|nhan|phai|muon|xong|luon|thang|duong|bao cao|cam on)\b/i;
 
 export interface Pair {
   key: string; // glossary lookup key, matches WA-Translate glossary.json (e.g. "zh-tw:vi")
@@ -32,7 +39,7 @@ export const VI_TO_ZH: Pair = { key: 'vi:zh-tw', source: '越南文', targetLabe
 
 /** Detect the zh<->vi translation direction for a message, or null when it is neither script. */
 export function detectPair(text: string): Pair | null {
-  const hasVi = VI_RE.test(text);
+  const hasVi = VI_RE.test(text) || VI_NO_TONE_RE.test(text);
   const hasZh = ZH_RE.test(text);
   // Mixed (e.g. a Vietnamese message @-mentioning a Chinese name): decide by dominant script.
   // Checking ZH first would misread any Vietnamese message carrying a CJK name as Chinese and

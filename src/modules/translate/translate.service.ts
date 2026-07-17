@@ -11,6 +11,12 @@ import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep, stripThinking } from 
 
 const CONFIG_PATH = 'data/translate-config.json';
 
+// Media captions land in `body` (see baileys-inbound-mapper: "text first, then media caption"), so a
+// photo/video/document posted with a caption carries translatable text despite not being type 'text'.
+// Group reports are routinely a screenshot plus a caption; gating on 'text' alone silently dropped them.
+// Types with no caption (audio/voice/sticker/location/contact/poll/call/revoked) stay excluded.
+const TRANSLATABLE_TYPES = new Set<IncomingMessage['type']>(['text', 'image', 'video', 'document']);
+
 export type LlmProvider = 'ollama' | 'openai' | 'groq' | 'azure' | 'gemini';
 export const LLM_PROVIDERS: LlmProvider[] = ['ollama', 'openai', 'groq', 'azure', 'gemini'];
 
@@ -299,7 +305,7 @@ export class TranslateService implements OnModuleInit {
     const pass: HookResult<IncomingMessage> = { continue: true };
     try {
       if (!this.enabled) return pass;
-      if (msg.type !== 'text') return pass;
+      if (!TRANSLATABLE_TYPES.has(msg.type)) return pass;
       // received-path fromMe shouldn't occur (adapter routes fromMe to message:sent); guard anyway.
       if (msg.fromMe && !isSentPath) return pass;
       if (!msg.isGroup || !this.groupIds.has(msg.chatId)) return pass;
@@ -344,8 +350,13 @@ export class TranslateService implements OnModuleInit {
       void this.enqueue(async () => {
         const translated = await this.translate(body, pair);
         // The model can echo the source when it's not translatable natural language — don't spam
-        // the group with a verbatim copy.
-        if (!translated || translated.trim() === body.trim()) return;
+        // the group with a verbatim copy. Every other failure path throws and is logged; this is the
+        // only one that discards a successful LLM response, so log it or it looks like the bot
+        // randomly stopped translating.
+        if (!translated || translated.trim() === body.trim()) {
+          this.logger.warn(`Skipped (echo/empty) pair=${pair.key} in="${body.slice(0, 60)}"`);
+          return;
+        }
         // Anti-ban pacing: enforce a minimum gap between outbound translations (serialized here, so
         // this is race-free). Typing simulation runs inside MessageService.sendText (SIMULATE_TYPING).
         const wait = this.nextSendAt - Date.now();
