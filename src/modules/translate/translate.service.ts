@@ -484,9 +484,17 @@ export class TranslateService implements OnModuleInit {
     return out;
   }
 
-  /** Test-connection probe: one tiny call with the given (possibly unsaved) params. */
+  /**
+   * Validate endpoint + key. Prefer the model-agnostic list endpoint (Ollama /api/tags,
+   * OpenAI/Groq /models) so a wrong/blank model name doesn't fail key validation; only azure/gemini
+   * (no portable list endpoint) fall back to a tiny generation, which does need a valid model.
+   */
   async testConnection(p: LlmParams): Promise<{ ok: boolean; message: string }> {
     try {
+      if (p.provider === 'ollama' || p.provider === 'openai' || p.provider === 'groq') {
+        const models = await this.listModels(p);
+        return { ok: true, message: models.length ? `${models.length} model(s)` : 'ok' };
+      }
       const out = await this.callLlm({ ...p, temperature: 0 }, 'ping');
       return { ok: true, message: out.slice(0, 40) || 'ok' };
     } catch (err) {
