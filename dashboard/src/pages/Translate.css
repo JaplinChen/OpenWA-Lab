@@ -1,31 +1,33 @@
 @import './translate/01-part.css';
 @import './translate/02-part.css';
 
-.llm-row{
+.translate-page .llm-row{
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
-.llm-row input{
+.translate-page .llm-row input{
   flex: 1;
   min-width: 0;
 }
-.llm-status{
+.translate-page .llm-status{
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   margin-top: 0.4rem;
   font-size: 0.85rem;
 }
-.llm-status.ok{ color: #16a34a; }
-.llm-status.err{ color: #dc2626; }
-.llm-hint{
+/* Were #16a34a / #dc2626. Both are fixed values that ignore the theme: the green read 3.3:1 on
+   light and 3.2:1 on cream, the red 3.0:1 on dark. The tokens track the surface. */
+.translate-page .llm-status.ok{ color: var(--success-text); }
+.translate-page .llm-status.err{ color: var(--error-text); }
+.translate-page .llm-hint{
   display: block;
   font-size: 0.8rem;
   opacity: 0.7;
   margin-bottom: 0.4rem;
 }
-.llm-fallback-list{
+.translate-page .llm-fallback-list{
   list-style: none;
   margin: 0.5rem 0 0;
   padding: 0;
@@ -33,7 +35,7 @@
   flex-direction: column;
   gap: 0.35rem;
 }
-.llm-fallback-list li{
+.translate-page .llm-fallback-list li{
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -42,7 +44,7 @@
   border: 1px solid var(--border, #e2e2e2);
   border-radius: 8px;
 }
-.llm-fallback-del{
+.translate-page .llm-fallback-del{
   background: none;
   border: none;
   cursor: pointer;
@@ -50,12 +52,12 @@
   display: inline-flex;
 }
 
-.llm-label-row{
+.translate-page .llm-label-row{
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.llm-apply-link{
+.translate-page .llm-apply-link{
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -63,13 +65,13 @@
   color: var(--primary, #e07a5f);
   text-decoration: none;
 }
-.llm-key-input{
+.translate-page .llm-key-input{
   position: relative;
   flex: 1;
   min-width: 0;
 }
-.llm-key-input input{ width: 100%; padding-right: 2rem; }
-.llm-eye{
+.translate-page .llm-key-input input{ width: 100%; padding-right: 2rem; }
+.translate-page .llm-eye{
   position: absolute;
   right: 0.4rem;
   top: 50%;
@@ -81,14 +83,14 @@
   opacity: 0.6;
   display: inline-flex;
 }
-.llm-slider-row{
+.translate-page .llm-slider-row{
   display: flex;
   align-items: center;
   gap: 0.6rem;
   font-size: 0.85rem;
 }
-.llm-slider-row input[type="range"]{ flex: 1; }
-.llm-slider-val{
+.translate-page .llm-slider-row input[type="range"]{ flex: 1; }
+.translate-page .llm-slider-val{
   min-width: 2rem;
   text-align: right;
   opacity: 0.7;
