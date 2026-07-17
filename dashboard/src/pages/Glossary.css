@@ -241,13 +241,13 @@
   to{ transform: rotate(360deg); }
 }
 
-.senders-import{
+.glossary-page .senders-import{
   display: flex;
   gap: 0.5rem;
   align-items: center;
 }
 
-.senders-import select{
+.glossary-page .senders-import select{
   height: 36px;
   padding: 0 0.6rem;
   border: 1px solid var(--border, #e2e2e2);
