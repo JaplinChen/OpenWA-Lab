@@ -497,7 +497,10 @@ export class TranslateService implements OnModuleInit {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: p.temperature },
+        // Translation needs no reasoning. Without this, thinking models (gemini-flash/2.5+) spend
+        // the whole output budget on internal thinking, finish with MAX_TOKENS and return empty
+        // parts — which reads as "translation randomly stops working". Mirrors callOllama's think:false.
+        generationConfig: { temperature: p.temperature, thinkingConfig: { thinkingBudget: 0 } },
       }),
     });
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
