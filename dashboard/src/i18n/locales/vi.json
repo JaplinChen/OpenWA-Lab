@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "Phiên",
     "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "Đang tải...",

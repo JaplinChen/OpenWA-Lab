@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "工作階段",
     "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "正在載入...",

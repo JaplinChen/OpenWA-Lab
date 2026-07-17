@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "الجلسة",
     "appName": "OpenWA-Lab",
     "appSubtitle": "واجهة برمجة واتساب",
     "loading": "جارٍ التحميل...",

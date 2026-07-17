@@ -236,6 +236,7 @@ export function Translate() {
             <input
               type="text"
               placeholder={t('translate.searchGroups', { defaultValue: 'Search groups...' })}
+              aria-label={t('translate.searchGroups', { defaultValue: 'Search groups...' })}
               value={filter}
               onChange={e => setFilter(e.target.value)}
             />

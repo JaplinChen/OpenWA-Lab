@@ -198,6 +198,7 @@ export function Templates() {
         subtitle={t('templates.subtitle')}
         actions={
           <select
+            aria-label={t('common.session')}
             className="templates-session-select"
             value={selectedSessionId}
             onChange={event => {
@@ -241,6 +242,7 @@ export function Templates() {
                 value={searchTerm}
                 onChange={event => setSearchTerm(event.target.value)}
                 placeholder={t('common.search')}
+                aria-label={t('common.search')}
               />
             </div>
 

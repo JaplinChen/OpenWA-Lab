@@ -348,6 +348,7 @@ export function Sessions() {
           <input
             type="text"
             placeholder={t('sessions.searchPlaceholder')}
+            aria-label={t('sessions.searchPlaceholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />
