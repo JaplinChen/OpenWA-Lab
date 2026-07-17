@@ -136,7 +136,7 @@
 }
 .infrastructure-page .engine-web-version code{
   font-size: 0.8125rem;
-  background: var(--bg-subtle, rgba(127, 127, 127, 0.1));
+  background: var(--bg-light);
   padding: 0.05rem 0.35rem;
   border-radius: 4px;
 }

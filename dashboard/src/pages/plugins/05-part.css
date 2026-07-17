@@ -53,7 +53,7 @@
 
 .plugins-page .catalog-error{
   flex-wrap: wrap;
-  color: var(--danger, #dc2626);
+  color: var(--error-text);
 }
 
 .plugins-page .catalog-search{

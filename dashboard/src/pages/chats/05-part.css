@@ -94,7 +94,7 @@
 /* Inline code inside a message body. */
 .chats-page .message-text code,
 .chats-page .quote-body code {
-  background: var(--surface-2, rgba(255, 255, 255, 0.08));
+  background: var(--bg-light);
   padding: 0.1em 0.35em;
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -103,7 +103,7 @@
 
 /* Code block. */
 .chats-page .message-text pre {
-  background: var(--surface-2, rgba(255, 255, 255, 0.08));
+  background: var(--bg-light);
   padding: 0.5em 0.75em;
   border-radius: 6px;
   margin: 0.25em 0;

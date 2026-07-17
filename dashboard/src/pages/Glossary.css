@@ -95,7 +95,7 @@
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-input, var(--bg-light));
+  background: var(--bg-light);
   color: var(--text-primary);
   font-size: 0.9375rem;
 }
@@ -125,7 +125,7 @@
   padding: 0.6rem 0.75rem 0.6rem 2.2rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--bg-input, var(--bg-light));
+  background: var(--bg-light);
   color: var(--text-primary);
   font-size: 0.9375rem;
 }
@@ -176,7 +176,7 @@
 }
 
 .glossary-page .glossary-del:hover:not(:disabled) {
-  color: var(--danger, #e5484d);
+  color: var(--error-text);
   background: var(--bg-light);
 }
 
@@ -258,7 +258,7 @@
   padding: 0 0.6rem;
   border: 1px solid var(--border, #e2e2e2);
   border-radius: 8px;
-  background: var(--surface, #fff);
+  background: var(--bg-white);
   color: inherit;
   max-width: 220px;
 }
