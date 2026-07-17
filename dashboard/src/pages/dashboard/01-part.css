@@ -165,6 +165,32 @@
   border-bottom: none;
 }
 
+/* Was an inline style on the row. */
+.dashboard .sessions-table .table-row--empty{
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+/* Placeholder rows held in the table while the sessions query is in flight. They reuse .table-row,
+   so the grid and the row height match the real rows and nothing moves when the data lands. */
+.dashboard .sessions-table .skeleton-bar{
+  height: 0.75rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--bg-light) 25%,
+    var(--border) 50%,
+    var(--bg-light) 75%
+  );
+  background-size: 200% 100%;
+  animation: dashboard-skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes dashboard-skeleton-shimmer{
+  from{ background-position: 200% 0; }
+  to{ background-position: -200% 0; }
+}
+
 .dashboard .session-info-cell{
   display: flex;
   flex-direction: column;
