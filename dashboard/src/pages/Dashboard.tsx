@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Webhook, Activity, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { MessageSquare, Send, Webhook, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
   useSessionsQuery,
@@ -17,6 +17,12 @@ import './Dashboard.css';
 // recharts is heavy (~150kB gzip); load the analytics section on demand so it never bloats the
 // main/login bundle and only ships when the dashboard actually renders.
 const DashboardCharts = lazy(() => import('../components/DashboardCharts').then(m => ({ default: m.DashboardCharts })));
+
+// Placeholder rows shown while the sessions query is in flight. Three is a guess at the common
+// case; the point is to hold the table's shape, not to predict the count.
+const SKELETON_ROWS = ['a', 'b', 'c'];
+// One bar per column of the table's 5-column grid.
+const SKELETON_CELLS = ['id', 'phone', 'status', 'active', 'actions'];
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -71,17 +77,6 @@ export function Dashboard() {
 
   const formatStatus = (status: string) => t(`sessionStatus.${status}`, { defaultValue: status });
 
-  if (loading) {
-    return (
-      <div
-        className="dashboard"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="dashboard" style={{ padding: '2rem' }}>
@@ -134,7 +129,7 @@ export function Dashboard() {
           </span>
         </div>
 
-        <div className="sessions-table">
+        <div className="sessions-table" aria-busy={loading}>
           <div className="table-header">
             <span>{t('dashboard.columns.sessionId')}</span>
             <span>{t('dashboard.columns.phone')}</span>
@@ -142,10 +137,18 @@ export function Dashboard() {
             <span>{t('dashboard.columns.lastActive')}</span>
             <span>{t('dashboard.columns.actions')}</span>
           </div>
-          {sessions.length === 0 ? (
-            <div className="table-row" style={{ justifyContent: 'center', color: 'var(--text-muted)' }}>
-              {t('dashboard.noSessions')}
-            </div>
+          {/* Skeleton rows must precede the empty check: while the query is in flight `sessions` is
+              [], so testing length first would flash "no sessions" before the real rows arrive. */}
+          {loading ? (
+            SKELETON_ROWS.map(row => (
+              <div key={row} className="table-row table-row--skeleton" aria-hidden="true">
+                {SKELETON_CELLS.map(cell => (
+                  <span key={cell} className="skeleton-bar" />
+                ))}
+              </div>
+            ))
+          ) : sessions.length === 0 ? (
+            <div className="table-row table-row--empty">{t('dashboard.noSessions')}</div>
           ) : (
             sessions.map(session => (
               <div key={session.id} className="table-row">
