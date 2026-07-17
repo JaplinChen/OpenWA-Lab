@@ -29,15 +29,15 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg-light);
-  color: var(--danger, #e5484d);
+  color: var(--error-text);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .plugins-page .config-form .config-array-remove:hover{
-  background: var(--danger, #e5484d);
+  background: var(--error);
   color: #fff;
-  border-color: var(--danger, #e5484d);
+  border-color: var(--error);
 }
 
 .plugins-page .config-form .config-array-add{
@@ -80,7 +80,7 @@
 .plugins-page .config-ui-error{
   padding: 1rem;
   text-align: center;
-  color: var(--danger, #e5484d);
+  color: var(--error-text);
 }
 
 .plugins-page .config-form .form-group small{
@@ -92,7 +92,7 @@
 }
 
 .plugins-page .config-form .form-group .required-mark{
-  color: var(--danger, #e5484d);
+  color: var(--error-text);
 }
 
 .plugins-page .toggle-group{

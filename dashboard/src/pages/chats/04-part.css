@@ -56,7 +56,7 @@
 }
 
 .chats-page .message-media-omitted {
-  color: var(--color-text-muted, #888);
+  color: var(--text-muted);
   font-style: italic;
   font-size: 0.9em;
   margin-bottom: 0.25rem;
