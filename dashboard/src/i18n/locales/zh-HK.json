@@ -55,7 +55,8 @@
     "refresh": "重新整理",
     "errorGeneric": "發生錯誤",
     "unknownError": "未知錯誤",
-    "retry": "重試"
+    "retry": "重試",
+    "failed": "失敗：{{message}}"
   },
   "theme": {
     "light": "淺色",
@@ -842,7 +843,9 @@
         "confirm": "要重新產生 {{id}} 的簽署密鑰嗎？目前的密鑰會立即失效。",
         "action": "重新產生"
       },
-      "edit": { "title": "編輯 {{id}}" },
+      "edit": {
+        "title": "編輯 {{id}}"
+      },
       "delete": {
         "title": "刪除執行個體",
         "confirm": "要刪除執行個體 {{id}} 嗎？其連入 URL 和密鑰會立即失效。",
@@ -877,7 +880,30 @@
     "empty": "未找到訊息。",
     "error": "搜尋失敗。請重試。",
     "unavailable": "搜尋未設定。",
-    "scope": { "current": "目前工作階段" },
+    "scope": {
+      "current": "目前工作階段"
+    },
     "loading": "搜尋中…"
+  },
+  "glossary": {
+    "title": "詞彙表",
+    "subtitle": "詞彙表中的字詞會強制套用到所選群組的每一則翻譯。",
+    "terms": "詞條",
+    "add": "新增",
+    "added": "已新增詞條",
+    "empty": "尚無詞條。"
+  },
+  "senders": {
+    "title": "發送者",
+    "subtitle": "把無法解析的 @提及 JID 對應到翻譯中顯示的名稱。",
+    "entries": "對照項目",
+    "add": "新增",
+    "added": "已新增發送者",
+    "empty": "尚無對照項目。",
+    "import": "從聯絡人匯入",
+    "imported": "已匯入 {{added}} 位聯絡人",
+    "noSessions": "沒有工作階段",
+    "jid": "JID 或 @號碼",
+    "name": "顯示名稱"
   }
 }

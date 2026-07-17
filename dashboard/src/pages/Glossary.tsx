@@ -9,7 +9,7 @@ import './Glossary.css';
 
 export function Glossary() {
   const { t } = useTranslation();
-  useDocumentTitle(t('glossary.title', { defaultValue: 'Glossary' }));
+  useDocumentTitle(t('glossary.title'));
   const { canWrite } = useRole();
 
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
@@ -47,10 +47,7 @@ export function Glossary() {
   const fail = (err: unknown) =>
     setToast({
       type: 'error',
-      message: t('glossary.saveFailed', {
-        defaultValue: 'Failed: {{message}}',
-        message: err instanceof Error ? err.message : 'unknown',
-      }),
+      message: t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }),
     });
 
   const add = async () => {
@@ -62,7 +59,7 @@ export function Glossary() {
       setTerms(await translateApi.addGlossaryTerm(zh, vi));
       setSrc('');
       setTgt('');
-      setToast({ type: 'success', message: t('glossary.added', { defaultValue: 'Term added' }) });
+      setToast({ type: 'success', message: t('glossary.added') });
     } catch (err) {
       fail(err);
     } finally {
@@ -102,26 +99,28 @@ export function Glossary() {
       )}
 
       <PageHeader
-        title={t('glossary.title', { defaultValue: 'Glossary (中文 ⇄ Tiếng Việt)' })}
-        subtitle={t('glossary.subtitle', {
-          defaultValue: 'Terms are forced into every translation of the selected groups.',
-        })}
+        title={t('glossary.title')}
+        subtitle={t('glossary.subtitle')}
       />
 
       <section className="glossary-panel">
         <div className="glossary-head">
           <h3 className="glossary-panel-title">
-            {t('glossary.terms', { defaultValue: 'Terms' })}
+            {t('glossary.terms')}
             <span className="glossary-count">{terms.length}</span>
           </h3>
         </div>
 
         {canWrite && (
           <div className="glossary-add">
+            {/* The glossary maps 中文 to Tiếng Việt, so these two name the languages themselves and
+                are written in their own script, as a language picker would. They were t() calls
+                against keys that exist in no locale file, which read as translatable and never
+                were. */}
             <input
               type="text"
-              placeholder={t('glossary.source', { defaultValue: '中文' })}
-              aria-label={t('glossary.source', { defaultValue: '中文' })}
+              placeholder="中文"
+              aria-label="中文"
               value={src}
               onChange={e => setSrc(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -129,15 +128,15 @@ export function Glossary() {
             <span className="glossary-arrow">→</span>
             <input
               type="text"
-              placeholder={t('glossary.target', { defaultValue: 'Tiếng Việt' })}
-              aria-label={t('glossary.target', { defaultValue: 'Tiếng Việt' })}
+              placeholder="Tiếng Việt"
+              aria-label="Tiếng Việt"
               value={tgt}
               onChange={e => setTgt(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
             />
             <button className="btn-primary" onClick={add} disabled={busy || !src.trim() || !tgt.trim()}>
               <Plus size={16} />
-              {t('glossary.add', { defaultValue: 'Add' })}
+              {t('glossary.add')}
             </button>
           </div>
         )}
@@ -146,8 +145,8 @@ export function Glossary() {
           <Search size={16} className="glossary-search-icon" />
           <input
             type="text"
-            placeholder={t('glossary.search', { defaultValue: 'Search terms...' })}
-            aria-label={t('glossary.search', { defaultValue: 'Search terms...' })}
+            placeholder={t('common.search')}
+            aria-label={t('common.search')}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
@@ -157,7 +156,7 @@ export function Glossary() {
           {filtered.length === 0 ? (
             <div className="glossary-empty">
               <BookMarked size={32} strokeWidth={1} />
-              <p>{t('glossary.empty', { defaultValue: 'No glossary terms yet.' })}</p>
+              <p>{t('glossary.empty')}</p>
             </div>
           ) : (
             filtered.map(g => (
@@ -170,7 +169,7 @@ export function Glossary() {
                     className="glossary-del"
                     onClick={() => remove(g.source)}
                     disabled={busy}
-                    title={t('glossary.remove', { defaultValue: 'Remove' })}
+                    title={t('common.delete')}
                   >
                     <Trash2 size={16} />
                   </button>

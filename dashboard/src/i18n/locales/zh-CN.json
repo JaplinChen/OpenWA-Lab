@@ -55,7 +55,8 @@
     "refresh": "刷新",
     "errorGeneric": "发生错误",
     "unknownError": "未知错误",
-    "retry": "重试"
+    "retry": "重试",
+    "failed": "失败：{{message}}"
   },
   "theme": {
     "light": "浅色",
@@ -842,7 +843,9 @@
         "confirm": "要重新生成 {{id}} 的签名密钥吗？当前密钥将立即失效。",
         "action": "重新生成"
       },
-      "edit": { "title": "编辑 {{id}}" },
+      "edit": {
+        "title": "编辑 {{id}}"
+      },
       "delete": {
         "title": "删除实例",
         "confirm": "要删除实例 {{id}} 吗？其接入 URL 和密钥将立即失效。",
@@ -877,7 +880,30 @@
     "empty": "未找到消息。",
     "error": "搜索失败。请重试。",
     "unavailable": "搜索未配置。",
-    "scope": { "current": "当前会话" },
+    "scope": {
+      "current": "当前会话"
+    },
     "loading": "搜索中…"
+  },
+  "glossary": {
+    "title": "词汇表",
+    "subtitle": "词汇表中的字词会强制套用到所选群组的每一条翻译。",
+    "terms": "词条",
+    "add": "新增",
+    "added": "已新增词条",
+    "empty": "尚无词条。"
+  },
+  "senders": {
+    "title": "发送者",
+    "subtitle": "把无法解析的 @提及 JID 对应到翻译中显示的名称。",
+    "entries": "对照项目",
+    "add": "新增",
+    "added": "已新增发送者",
+    "empty": "尚无对照项目。",
+    "import": "从联系人导入",
+    "imported": "已导入 {{added}} 位联系人",
+    "noSessions": "没有工作阶段",
+    "jid": "JID 或 @号码",
+    "name": "显示名称"
   }
 }
