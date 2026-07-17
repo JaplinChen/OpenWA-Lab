@@ -71,7 +71,7 @@
 }
 
 .infrastructure-page .migration-item.completed .migration-status{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .infrastructure-page .migration-item.pending .migration-status{
@@ -156,10 +156,10 @@
   color: var(--warning);
 }
 .infrastructure-page .stat-item.completed .value{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 .infrastructure-page .stat-item.completed .label{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 .infrastructure-page .stat-item.failed .value{
   color: var(--error);
@@ -180,7 +180,7 @@
   gap: 0.5rem;
   padding: 0.625rem 1rem;
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   border: none;
   border-radius: var(--radius);
   font-size: 0.875rem;

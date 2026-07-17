@@ -27,7 +27,7 @@
 
 .dashboard .status-badge.connected{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .stats-grid{
@@ -100,7 +100,7 @@
 }
 
 .dashboard .stat-trend.up{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .stat-trend.down{
@@ -205,7 +205,7 @@
 
 .dashboard .status-pill.ready{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .status-pill.connecting{

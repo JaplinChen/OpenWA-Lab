@@ -9,7 +9,7 @@
   border: 1px solid var(--primary);
   border-radius: 999px;
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
   font-size: 0.75rem;
   font-weight: 700;
 }
@@ -54,7 +54,7 @@
 }
 
 .templates-page .placeholder-list label > span{
-  color: var(--primary);
+  color: var(--primary-text);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
 

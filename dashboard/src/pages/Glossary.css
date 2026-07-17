@@ -23,7 +23,7 @@
   gap: 0.5rem;
   padding: 0.6rem 1rem;
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   border: none;
   border-radius: var(--radius);
   font-size: 0.9375rem;
@@ -71,7 +71,7 @@
   padding: 0 6px;
   border-radius: 11px;
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   font-size: 0.75rem;
   font-weight: 600;
 }

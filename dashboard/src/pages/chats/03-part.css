@@ -33,7 +33,7 @@
   background: var(--primary);
   border: none;
   border-radius: 50%;
-  color: white;
+  color: var(--primary-ink);
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
   flex-shrink: 0;
@@ -129,7 +129,7 @@
 
 .chats-page .btn-input-accessory.active{
   background: rgba(34, 197, 94, 0.1);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .chats-page .attachment-preview-banner{

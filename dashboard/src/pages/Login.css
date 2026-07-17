@@ -158,7 +158,7 @@
   padding: 0.875rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: white;
+  color: var(--primary-ink);
   background: var(--primary);
   border: none;
   border-radius: var(--radius);
@@ -182,7 +182,7 @@
 }
 
 .login-container .login-help a{
-  color: var(--primary);
+  color: var(--primary-text);
   text-decoration: none;
   font-weight: 500;
 }
@@ -208,7 +208,7 @@
 }
 
 .login-container .login-footer .github-link:hover{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .login-container .login-footer a{

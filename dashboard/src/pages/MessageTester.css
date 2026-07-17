@@ -100,7 +100,7 @@
 
 .message-tester .toggle-group button.active{
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
 }
 
 .message-tester .send-btn{
@@ -112,7 +112,7 @@
   padding: 0.875rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  color: white;
+  color: var(--primary-ink);
   background: var(--primary);
   border: none;
   border-radius: var(--radius);
@@ -142,7 +142,7 @@
 
 .message-tester .response-status.success{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .message-tester .response-status.error{

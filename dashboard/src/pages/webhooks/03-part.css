@@ -224,7 +224,7 @@
 }
 
 .webhooks-page .toggle-status.active{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .webhooks-page .toggle-status.inactive{

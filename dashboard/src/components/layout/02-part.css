@@ -40,7 +40,7 @@
 
 .language-menu-item.active {
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .sidebar.collapsed .language-menu-list {
@@ -144,7 +144,7 @@
 .appearance-mode.active {
   background: var(--primary-soft);
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
   box-shadow: inset 0 -2px 0 var(--primary);
 }
 

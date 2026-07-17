@@ -159,7 +159,7 @@
 
   .api-keys-page .status-badge.active{
     background: color-mix(in srgb, var(--primary) 10%, transparent);
-    color: var(--primary);
+    color: var(--primary-text);
   }
 
   .api-keys-page .status-badge.inactive{

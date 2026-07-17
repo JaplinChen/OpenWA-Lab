@@ -57,7 +57,7 @@
 
 .plugins-page .config-form .config-array-add:hover{
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 /* Sandboxed-iframe config editor (B-full). */
