@@ -24,7 +24,9 @@ coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-logs/
+# Anchored: unanchored, this also matches dashboard/src/pages/logs/, where the Logs
+# page keeps its CSS parts, so a new part file there would be ignored without a word.
+/logs/
 *.log
 
 # OS files
@@ -78,3 +80,4 @@ docs/superpowers/
 CLAUDE.md
 _docs/
 .superpowers/
+.gstack/
