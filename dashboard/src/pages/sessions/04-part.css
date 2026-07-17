@@ -28,7 +28,7 @@
   border-radius: 8px;
   font-size: 0.875rem;
   text-align: start;
-  color: var(--error);
+  color: var(--error-text);
   background: rgb(239 68 68 / 0.12);
 }
 

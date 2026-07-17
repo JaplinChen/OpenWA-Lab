@@ -214,7 +214,7 @@
 }
 
 .sessions-page .btn-action.danger {
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .sessions-page .btn-action.danger:hover {

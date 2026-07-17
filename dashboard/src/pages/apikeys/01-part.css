@@ -137,7 +137,7 @@
   font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
   background: rgba(59, 130, 246, 0.12);
-  color: var(--info);
+  color: var(--info-text);
   border-radius: 4px;
   font-weight: 500;
   white-space: nowrap;
@@ -180,7 +180,7 @@
 .api-keys-page .icon-btn.danger:hover{
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .api-keys-page .permissions-reference{

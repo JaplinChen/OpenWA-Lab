@@ -178,7 +178,7 @@
 .sessions-page .input-error {
   margin: 0.5rem 0 0;
   font-size: 0.75rem;
-  color: var(--error);
+  color: var(--error-text);
   font-weight: 500;
 }
 

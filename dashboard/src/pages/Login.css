@@ -162,7 +162,7 @@
 
 .login-container .error-message{
   display: block;
-  color: var(--error);
+  color: var(--error-text);
   font-size: 0.875rem;
   margin-top: 0.5rem;
 }

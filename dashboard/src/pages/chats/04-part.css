@@ -174,7 +174,7 @@
 }
 
 .chats-page .action-btn.delete-btn:hover{
-  color: var(--error);
+  color: var(--error-text);
   background: rgba(239, 68, 68, 0.12);
 }
 

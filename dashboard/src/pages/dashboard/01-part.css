@@ -104,7 +104,7 @@
 }
 
 .dashboard .stat-trend.down{
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .dashboard .sessions-section{
@@ -210,7 +210,7 @@
 
 .dashboard .status-pill.connecting{
   background: rgba(245, 158, 11, 0.15);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .dashboard .status-pill.disconnected{
@@ -247,7 +247,7 @@
 }
 
 .dashboard .btn-sm.danger{
-  color: var(--error);
+  color: var(--error-text);
   border-color: rgba(239, 68, 68, 0.3);
   background: rgba(239, 68, 68, 0.12);
 }

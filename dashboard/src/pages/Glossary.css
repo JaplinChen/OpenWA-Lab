@@ -210,13 +210,13 @@
 .glossary-page .toast.success{
   background: color-mix(in srgb, var(--primary) 12%, transparent);
   border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  color: var(--success);
+  color: var(--success-text);
 }
 
 .glossary-page .toast.error{
   background: rgba(239, 68, 68, 0.12);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .glossary-page .toast-close{

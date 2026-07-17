@@ -17,7 +17,7 @@
 }
 
 .api-keys-page .confirm-warning-icon{
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .api-keys-page .confirm-message{
@@ -164,7 +164,7 @@
 
   .api-keys-page .status-badge.inactive{
     background: rgba(239, 68, 68, 0.12);
-    color: var(--error);
+    color: var(--error-text);
   }
 
   /* Actions cell - bottom with separator */

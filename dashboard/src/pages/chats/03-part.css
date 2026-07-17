@@ -198,7 +198,7 @@
 
 .chats-page .btn-remove-attachment:hover{
   background: rgba(239, 68, 68, 0.12);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .chats-page .chats-emoji-picker{

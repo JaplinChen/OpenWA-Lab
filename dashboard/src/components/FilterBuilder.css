@@ -86,7 +86,7 @@
 
 .filter-remove:hover {
   border-color: var(--error);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .filter-remove:hover svg {

@@ -23,6 +23,13 @@
   --success: #22c55e;
   --warning: #f59e0b;
   --info: #2563eb; /* Blue 600 — info/permission/log badges + qr-ready pill; no palette blue token */
+  /* Text forms of the semantic colors. The raw values above are tuned as fills and dots; as text
+     they run 1.9:1 to 3.8:1, and status badges pair them with a tint of the same hue, which is the
+     worst case (warning hit 1.88:1 in the log table). Same darken/lighten trick as --primary-text. */
+  --error-text: color-mix(in srgb, var(--error) 60%, black);
+  --success-text: color-mix(in srgb, var(--success) 60%, black);
+  --warning-text: color-mix(in srgb, var(--warning) 60%, black);
+  --info-text: color-mix(in srgb, var(--info) 60%, black);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
@@ -87,7 +94,7 @@
   --bg-white: #fefcf8;
   --bg-card: #fefcf8;
   --text-primary: #1a1a1a;
-  --text-secondary: #6b7280;
+  --text-secondary: #5c6470; /* darkened from #6b7280 (4.3:1), just under AA on the cream surface */
   --text-muted: #756b58; /* darkened from #a89b84 (2.7:1); clears AA on both cream surfaces */
   --border: #e5ded2;
   --info: #6b7280;
@@ -101,7 +108,11 @@
   --primary-soft: rgba(217, 119, 87, 0.18);
   --primary-ink: #0f172a;
   /* Dark surface: lighten --primary for text instead of darkening it. */
-  --primary-text: color-mix(in srgb, var(--primary) 65%, white);
+  --primary-text: color-mix(in srgb, var(--primary) 55%, white);
+  --error-text: color-mix(in srgb, var(--error) 55%, white);
+  --success-text: color-mix(in srgb, var(--success) 55%, white);
+  --warning-text: color-mix(in srgb, var(--warning) 55%, white);
+  --info-text: color-mix(in srgb, var(--info) 55%, white);
   --bg-light: #21201c;
   --bg-white: #2b2926;
   --bg-card: #2b2926;
@@ -130,8 +141,14 @@
   --border: #334155; /* Slate 700 */
   --info: #60a5fa; /* Blue 400 — lighter so it reads over the dark translucent-blue tints */
   --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
-  /* Dark surface flips the direction: lighten --primary for text, don't darken it. */
-  --primary-text: color-mix(in srgb, var(--primary) 65%, white);
+  /* Dark surface flips the direction: lighten --primary for text, don't darken it. 55% rather than
+     a lighter touch because --primary-soft (18% primary over the card) is the background in the
+     worst case, and the gap there is narrow: indigo sat at 4.2:1 before this. */
+  --primary-text: color-mix(in srgb, var(--primary) 55%, white);
+  --error-text: color-mix(in srgb, var(--error) 55%, white);
+  --success-text: color-mix(in srgb, var(--success) 55%, white);
+  --warning-text: color-mix(in srgb, var(--warning) 55%, white);
+  --info-text: color-mix(in srgb, var(--info) 55%, white);
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
@@ -158,7 +175,15 @@
     --border: #334155;
     --info: #60a5fa;
     --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
-    --primary-text: color-mix(in srgb, var(--primary) 65%, white);
+    --primary-text: color-mix(in srgb, var(--primary) 55%, white);
+    --error-text: color-mix(in srgb, var(--error) 55%, white);
+    --success-text: color-mix(in srgb, var(--success) 55%, white);
+    --warning-text: color-mix(in srgb, var(--warning) 55%, white);
+    --info-text: color-mix(in srgb, var(--info) 55%, white);
+  --error-text: color-mix(in srgb, var(--error) 55%, white);
+  --success-text: color-mix(in srgb, var(--success) 55%, white);
+  --warning-text: color-mix(in srgb, var(--warning) 55%, white);
+  --info-text: color-mix(in srgb, var(--info) 55%, white);
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.3);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.4), 0 4px 6px -4px rgb(0 0 0 / 0.4);
@@ -236,11 +261,11 @@ a:hover {
 }
 
 .error-banner svg {
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .error-banner-text {
-  color: var(--error);
+  color: var(--error-text);
 }
 
 /* yarl theme — match dashboard dark palette. */
