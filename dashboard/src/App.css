@@ -17,7 +17,7 @@
   --bg-card: #ffffff;
   --text-primary: #0f172a; /* Slate 900 */
   --text-secondary: #475569; /* Slate 600 */
-  --text-muted: #94a3b8; /* Slate 400 */
+  --text-muted: #64748b; /* Slate 500 — 400 only reached 2.6:1 on white, below AA */
   --border: #e2e8f0; /* Slate 200 */
   --error: #ef4444;
   --success: #22c55e;
@@ -88,7 +88,7 @@
   --bg-card: #fefcf8;
   --text-primary: #1a1a1a;
   --text-secondary: #6b7280;
-  --text-muted: #a89b84;
+  --text-muted: #756b58; /* darkened from #a89b84 (2.7:1); clears AA on both cream surfaces */
   --border: #e5ded2;
   --info: #6b7280;
 }
@@ -107,7 +107,7 @@
   --bg-card: #2b2926;
   --text-primary: #f5f2ed;
   --text-secondary: #c9b89b;
-  --text-muted: #8a8072;
+  --text-muted: #a89b84; /* lightened from #8a8072 (3.7:1) to clear AA on charcoal */
   --border: #3a3630;
   --info: #c9b89b;
   --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
@@ -126,7 +126,7 @@
   --bg-card: #1e293b;
   --text-primary: #f1f5f9; /* Slate 100 */
   --text-secondary: #cbd5e1; /* Slate 300 */
-  --text-muted: #64748b; /* Slate 500 */
+  --text-muted: #94a3b8; /* Slate 400 — 500 only reached 3.1:1 on the card surface */
   --border: #334155; /* Slate 700 */
   --info: #60a5fa; /* Blue 400 — lighter so it reads over the dark translucent-blue tints */
   --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
@@ -154,7 +154,7 @@
     --bg-card: #1e293b;
     --text-primary: #f1f5f9;
     --text-secondary: #cbd5e1;
-    --text-muted: #64748b;
+    --text-muted: #94a3b8;
     --border: #334155;
     --info: #60a5fa;
     --primary-soft: color-mix(in srgb, var(--primary) 18%, transparent);
