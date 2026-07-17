@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Search, User, Users, Loader2 } from 'lucide-react';
 import { type Session, type Chat } from '../../services/api';
 
@@ -34,13 +35,16 @@ export function ChatListSidebar({
   formatLastMessageSnippet,
   t,
 }: ChatListSidebarProps) {
+  // The label was visible but wired to nothing: no htmlFor, no id.
+  const sessionFieldId = useId();
   return (
     <aside className="chats-sidebar">
       <div className="sidebar-header-box">
         {/* Session selector */}
         <div className="session-select-group">
-          <label className="form-label">{t('chats.sessionLabel')}</label>
+          <label className="form-label" htmlFor={sessionFieldId}>{t('chats.sessionLabel')}</label>
           <select
+            id={sessionFieldId}
             value={selectedSessionId}
             onChange={e => onSelectSession(e.target.value)}
             className="session-selector"

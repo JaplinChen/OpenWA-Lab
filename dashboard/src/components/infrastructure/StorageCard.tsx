@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HardDrive } from 'lucide-react';
 import type { InfraStatus } from '../../services/api';
@@ -14,6 +15,8 @@ interface StorageCardProps {
 }
 
 export function StorageCard({ storageConfig, updateStorageConfig, infraStatus, pinnedByEnv }: StorageCardProps) {
+  // The label was visible but wired to nothing: no htmlFor, no id.
+  const storagePathFieldId = useId();
   const { t } = useTranslation();
   return (
     <section className="infra-card">
@@ -63,8 +66,9 @@ export function StorageCard({ storageConfig, updateStorageConfig, infraStatus, p
       <div className="config-form">
         {storageConfig.type === 'local' && (
           <div className="form-group">
-            <label>{t('infrastructure.storage.storagePath')}</label>
+            <label htmlFor={storagePathFieldId}>{t('infrastructure.storage.storagePath')}</label>
             <input
+              id={storagePathFieldId}
               type="text"
               value={storageConfig.localPath}
               onChange={e => updateStorageConfig('localPath', e.target.value)}

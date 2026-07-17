@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Check, Copy, FileText, Loader2, Plus, Search, Trash2, X } from 'lucide-react';
 import { type MessageTemplate, type TemplatePayload } from '../services/api';
@@ -51,6 +51,11 @@ function renderPreview(template: TemplateForm, values: Record<string, string>) {
 }
 
 export function Templates() {
+  // Visible labels that pointed at nothing: no htmlFor, no id.
+  const nameFieldId = useId();
+  const headerFieldId = useId();
+  const bodyFieldId = useId();
+  const footerFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('templates.title'));
   const { canWrite } = useRole();
@@ -319,8 +324,9 @@ export function Templates() {
 
             <div className="template-form">
               <div className="form-group">
-                <label>{t('common.name')}</label>
+                <label htmlFor={nameFieldId}>{t('common.name')}</label>
                 <input
+                  id={nameFieldId}
                   value={form.name}
                   onChange={event => setForm({ ...form, name: event.target.value })}
                   placeholder={t('templates.namePlaceholder')}
@@ -330,8 +336,9 @@ export function Templates() {
 
               <div className="template-message-fields">
                 <div className="form-group">
-                  <label>{t('templates.header')}</label>
+                  <label htmlFor={headerFieldId}>{t('templates.header')}</label>
                   <input
+                    id={headerFieldId}
                     value={form.header}
                     onChange={event => setForm({ ...form, header: event.target.value })}
                     placeholder={t('templates.headerPlaceholder')}
@@ -340,8 +347,9 @@ export function Templates() {
                 </div>
 
                 <div className="form-group body-field">
-                  <label>{t('templates.body')}</label>
+                  <label htmlFor={bodyFieldId}>{t('templates.body')}</label>
                   <textarea
+                    id={bodyFieldId}
                     value={form.body}
                     onChange={event => setForm({ ...form, body: event.target.value })}
                     placeholder={t('templates.bodyPlaceholder')}
@@ -351,8 +359,9 @@ export function Templates() {
                 </div>
 
                 <div className="form-group">
-                  <label>{t('templates.footer')}</label>
+                  <label htmlFor={footerFieldId}>{t('templates.footer')}</label>
                   <input
+                    id={footerFieldId}
                     value={form.footer}
                     onChange={event => setForm({ ...form, footer: event.target.value })}
                     placeholder={t('templates.footerPlaceholder')}

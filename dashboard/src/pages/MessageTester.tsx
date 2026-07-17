@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { messageApi, contactApi } from '../services/api';
@@ -20,6 +20,11 @@ const messageTypes = ['text', 'image', 'video', 'audio', 'document'] as const;
 export function MessageTester() {
   const { t } = useTranslation();
   useDocumentTitle(t('messageTester.title'));
+  // Each <label> above these fields was visible but not wired to anything: no htmlFor, no id. The
+  // field had no accessible name and clicking the label did not focus it.
+  const sessionFieldId = useId();
+  const recipientFieldId = useId();
+  const contentFieldId = useId();
   const { canWrite } = useRole();
   const { data: allSessions = [], isLoading: loadingSessions } = useSessionsQuery();
   const sessions = allSessions.filter(s => s.status === 'ready');
@@ -131,8 +136,8 @@ export function MessageTester() {
           <h2>{t('messageTester.compose')}</h2>
 
           <div className="form-group">
-            <label>{t('messageTester.session')}</label>
-            <select value={session} onChange={e => setSession(e.target.value)}>
+            <label htmlFor={sessionFieldId}>{t('messageTester.session')}</label>
+            <select id={sessionFieldId} value={session} onChange={e => setSession(e.target.value)}>
               {sessions.length === 0 && <option value="">{t('messageTester.noReadySessions')}</option>}
               {sessions.map(s => (
                 <option key={s.id} value={s.id}>
@@ -158,10 +163,14 @@ export function MessageTester() {
           </div>
 
           <div className="form-group">
-            <label>{recipientType === 'group' ? t('messageTester.selectGroup') : t('messageTester.recipientPhone')}</label>
+            {/* One label, two possible fields: whichever branch renders carries the id. */}
+            <label htmlFor={recipientFieldId}>
+              {recipientType === 'group' ? t('messageTester.selectGroup') : t('messageTester.recipientPhone')}
+            </label>
             {recipientType === 'group' ? (
               <>
                 <select
+                  id={recipientFieldId}
                   value={selectedGroup}
                   onChange={e => setSelectedGroup(e.target.value)}
                   disabled={loadingGroups || groups.length === 0}
@@ -179,6 +188,7 @@ export function MessageTester() {
             ) : (
               <>
                 <input
+                  id={recipientFieldId}
                   type="text"
                   value={recipient}
                   onChange={e => setRecipient(e.target.value)}
@@ -206,8 +216,9 @@ export function MessageTester() {
 
           {messageType === 'text' ? (
             <div className="form-group">
-              <label>{t('messageTester.messageContent')}</label>
+              <label htmlFor={contentFieldId}>{t('messageTester.messageContent')}</label>
               <textarea
+                id={contentFieldId}
                 value={content}
                 onChange={e => setContent(e.target.value)}
                 placeholder={t('messageTester.messagePlaceholder')}
