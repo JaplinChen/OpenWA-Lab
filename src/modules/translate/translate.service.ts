@@ -25,6 +25,10 @@ export interface TranslateConfig {
   llmApiKey: string;
   llmTemperature: number;
   llmFallbackModels: string[];
+  // Per-provider saved settings so switching engines in the UI restores each one's endpoint/model/key
+  // (like TypeTwo's providerConfigs). Opaque to the backend — only the flat active fields above drive
+  // translate(); this is storage the dashboard reads back.
+  llmProviderConfigs: Record<string, Record<string, unknown>>;
 }
 
 /** The subset needed to make one LLM call — used by translate + the test/models probes. */
@@ -50,6 +54,8 @@ export class TranslateService implements OnModuleInit {
   private temperature = 0;
   // Tried in order when the primary model call throws (e.g. model not loaded, timeout).
   private fallbackModels: string[] = [];
+  // Per-provider saved settings (opaque passthrough for the dashboard; see TranslateConfig).
+  private providerConfigs: Record<string, Record<string, unknown>> = {};
   // zh<->vi term overrides injected into the prompt (see Glossary).
   private glossary!: Glossary;
   // Defaults to the writable data dir (like CONFIG_PATH) so the glossary persists on the read-only
@@ -150,6 +156,7 @@ export class TranslateService implements OnModuleInit {
       llmApiKey: this.apiKey,
       llmTemperature: this.temperature,
       llmFallbackModels: [...this.fallbackModels],
+      llmProviderConfigs: this.providerConfigs,
     };
   }
 
@@ -177,6 +184,9 @@ export class TranslateService implements OnModuleInit {
     }
     if (partial.llmFallbackModels !== undefined) {
       this.fallbackModels = partial.llmFallbackModels.map(s => s.trim()).filter(Boolean);
+    }
+    if (partial.llmProviderConfigs !== undefined && partial.llmProviderConfigs !== null) {
+      this.providerConfigs = partial.llmProviderConfigs;
     }
     this.saveConfig();
     return this.getConfig();
@@ -263,6 +273,9 @@ export class TranslateService implements OnModuleInit {
       if (typeof raw.llmTemperature === 'number' && raw.llmTemperature >= 0) this.temperature = raw.llmTemperature;
       if (Array.isArray(raw.llmFallbackModels)) {
         this.fallbackModels = raw.llmFallbackModels.map(s => String(s).trim()).filter(Boolean);
+      }
+      if (raw.llmProviderConfigs && typeof raw.llmProviderConfigs === 'object') {
+        this.providerConfigs = raw.llmProviderConfigs;
       }
     } catch {
       // No file yet (or unreadable): keep the .env-seeded values and write out an initial file.
@@ -484,9 +497,19 @@ export class TranslateService implements OnModuleInit {
     return out;
   }
 
-  /** Test-connection probe: one tiny call with the given (possibly unsaved) params. */
+  /**
+   * Validate endpoint + key. Prefer the model-agnostic list endpoint (Ollama /api/tags,
+   * OpenAI/Groq /models) so a wrong/blank model name doesn't fail key validation; only azure/gemini
+   * (no portable list endpoint) fall back to a tiny generation, which does need a valid model.
+   */
   async testConnection(p: LlmParams): Promise<{ ok: boolean; message: string }> {
     try {
+      // Model-agnostic providers validate via the list endpoint (key/endpoint only); azure has no
+      // portable list, so it does a tiny generation which needs a valid deployment/model.
+      if (p.provider !== 'azure') {
+        const models = await this.listModels(p);
+        return { ok: true, message: models.length ? `${models.length} model(s)` : 'ok' };
+      }
       const out = await this.callLlm({ ...p, temperature: 0 }, 'ping');
       return { ok: true, message: out.slice(0, 40) || 'ok' };
     } catch (err) {
@@ -494,25 +517,69 @@ export class TranslateService implements OnModuleInit {
     }
   }
 
-  /** List available model names for the endpoint (Ollama /api/tags, OpenAI-compatible /models). */
+  // Swap just the PATH of a URL (keeps scheme/host/port), like TypeTwo's _replacePath — robust for a
+  // LAN Ollama or any host, unlike a suffix regex that only matches the default path.
+  private replacePath(endpoint: string, path: string): string {
+    try {
+      const u = new URL(endpoint);
+      u.pathname = path;
+      u.search = '';
+      return u.toString();
+    } catch {
+      return endpoint;
+    }
+  }
+
+  // OpenAI-compatible /models URL: swap a trailing /chat/completions in the path for /models (keeps a
+  // prefix like Groq's /openai/v1); otherwise fall back to /v1/models. Mirrors TypeTwo exactly.
+  private modelsUrl(endpoint: string, fallback: string): string {
+    if (!endpoint.trim()) return fallback;
+    try {
+      const u = new URL(endpoint);
+      const swapped = u.pathname.replace(/\/chat\/completions\/?$/, '/models');
+      u.pathname = swapped !== u.pathname ? swapped : '/v1/models';
+      u.search = '';
+      return u.toString();
+    } catch {
+      return fallback;
+    }
+  }
+
+  /** List model names for the endpoint (Ollama /api/tags, OpenAI/Groq /models, Gemini /v1beta/models). */
   async listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
     if (p.provider === 'ollama') {
-      const url = p.endpoint.replace(/\/api\/chat\/?$/, '/api/tags');
-      const res = await fetch(url);
+      const res = await fetch(this.replacePath(p.endpoint, '/api/tags'));
       if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
       const data = (await res.json()) as { models?: { name?: string }[] };
       return (data.models ?? []).map(m => m.name ?? '').filter(Boolean);
     }
     if (p.provider === 'openai' || p.provider === 'groq') {
-      const url = p.endpoint.replace(/\/chat\/completions\/?$/, '/models');
-      const res = await fetch(url, {
+      const fallback =
+        p.provider === 'groq'
+          ? 'https://api.groq.com/openai/v1/models'
+          : 'https://api.openai.com/v1/models';
+      const res = await fetch(this.modelsUrl(p.endpoint, fallback), {
         headers: p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {},
       });
       if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);
       const data = (await res.json()) as { data?: { id?: string }[] };
       return (data.data ?? []).map(m => m.id ?? '').filter(Boolean);
     }
-    // azure/gemini don't expose a portable list endpoint here — enter the model manually.
+    if (p.provider === 'gemini') {
+      const base = (p.endpoint || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
+      const res = await fetch(`${base}/models`, {
+        headers: p.apiKey ? { 'x-goog-api-key': p.apiKey } : {},
+      });
+      if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+      const data = (await res.json()) as {
+        models?: { name?: string; supportedGenerationMethods?: string[] }[];
+      };
+      return (data.models ?? [])
+        .filter(m => (m.supportedGenerationMethods ?? []).includes('generateContent'))
+        .map(m => (m.name ?? '').split('/').pop() ?? '')
+        .filter(Boolean);
+    }
+    // azure has no portable list endpoint — enter the deployment/model manually.
     return [];
   }
 }

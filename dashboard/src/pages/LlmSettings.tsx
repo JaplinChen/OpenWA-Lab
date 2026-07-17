@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Save, Check, AlertTriangle, X, Plug, ListRestart, Plus, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
-import { translateApi, type TranslateConfig, type LlmProvider } from '../services/api';
+import { translateApi, type TranslateConfig, type LlmProvider, type LlmProviderSaved } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
@@ -51,6 +51,8 @@ export function LlmSettings() {
   const [fetchingModels, setFetchingModels] = useState(false);
   const [models, setModels] = useState<string[]>([]);
   const [showKey, setShowKey] = useState(false);
+  // Per-provider saved settings — restored when switching engines so each keeps its own endpoint/key.
+  const [pcfgs, setPcfgs] = useState<Record<string, LlmProviderSaved>>({});
   const [fallbackInput, setFallbackInput] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -68,6 +70,7 @@ export function LlmSettings() {
           llmTemperature: c.llmTemperature,
           llmFallbackModels: c.llmFallbackModels ?? [],
         });
+        setPcfgs(c.llmProviderConfigs ?? {});
         setLoaded(true);
       })
       .catch(err =>
@@ -91,16 +94,41 @@ export function LlmSettings() {
 
   const meta = metaOf(cfg.llmProvider);
 
+  // Groq/Gemini have a fixed endpoint (field hidden); shown-endpoint providers use the user's value.
+  const effectiveEndpoint = meta.showEndpoint ? cfg.llmEndpoint || meta.endpoint : meta.endpoint;
+
   const probe = () => ({
     provider: cfg.llmProvider,
-    endpoint: cfg.llmEndpoint || meta.endpoint,
+    endpoint: effectiveEndpoint,
     model: cfg.llmModel,
     apiKey: cfg.llmApiKey,
   });
 
+  const snapshot = (): LlmProviderSaved => ({
+    endpoint: cfg.llmEndpoint,
+    model: cfg.llmModel,
+    apiKey: cfg.llmApiKey,
+    temperature: cfg.llmTemperature,
+    fallbackModels: cfg.llmFallbackModels,
+  });
+
   const onProvider = (llmProvider: LlmProvider) => {
-    // Always seed the provider's endpoint — for Groq/Gemini it's hidden but still sent to the backend.
-    setCfg({ ...cfg, llmProvider, llmEndpoint: metaOf(llmProvider).endpoint });
+    if (llmProvider === cfg.llmProvider) return;
+    // Save the current engine's settings, then restore the target engine's saved settings (or its
+    // defaults on first use) — like TypeTwo's providerConfigs, so switching never loses a config.
+    const savedCurrent = { ...pcfgs, [cfg.llmProvider]: snapshot() };
+    setPcfgs(savedCurrent);
+    const prev = savedCurrent[llmProvider];
+    const next = metaOf(llmProvider);
+    setCfg({
+      ...cfg,
+      llmProvider,
+      llmEndpoint: prev?.endpoint ?? next.endpoint,
+      llmModel: prev?.model ?? '',
+      llmApiKey: prev?.apiKey ?? '',
+      llmTemperature: prev?.temperature ?? 0,
+      llmFallbackModels: prev?.fallbackModels ?? [],
+    });
     setModels([]);
     setTestResult(null);
   };
@@ -143,7 +171,11 @@ export function LlmSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const saved = await translateApi.updateConfig(cfg);
+      // Persist the effective endpoint (fixed URL for Groq/Gemini) + the active engine's snapshot
+      // folded into providerConfigs so every engine's settings survive a reload.
+      const llmProviderConfigs = { ...pcfgs, [cfg.llmProvider]: { ...snapshot(), endpoint: effectiveEndpoint } };
+      const saved = await translateApi.updateConfig({ ...cfg, llmEndpoint: effectiveEndpoint, llmProviderConfigs });
+      setPcfgs(saved.llmProviderConfigs ?? llmProviderConfigs);
       setCfg({
         llmProvider: saved.llmProvider,
         llmEndpoint: saved.llmEndpoint,
