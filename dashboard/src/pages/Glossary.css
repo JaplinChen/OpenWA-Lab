@@ -1,6 +1,11 @@
 .glossary-page{
   padding: 2rem;
   width: 100%;
+  /* The rows are term pairs mirrored around an arrow, so their columns are 1fr each. Unbounded,
+     that put 715px of dead space on either side of a two-character term on a wide screen and left
+     nothing to scan down. This is a short-phrase list, not a data table: cap it and let it sit
+     left, where the eye already is. */
+  max-width: 1100px;
   height: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
@@ -251,6 +256,18 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+/* The select was claiming its full 220px and leaving the button ~110px, which broke
+   "Import from contacts" across three lines. The button keeps its natural width; the select
+   gives way. */
+.glossary-page .senders-import .btn-primary{
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.glossary-page .senders-import select{
+  min-width: 0;
 }
 
 .glossary-page .senders-import select{

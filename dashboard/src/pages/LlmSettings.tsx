@@ -240,7 +240,7 @@ export function LlmSettings() {
         }
       />
 
-      <div className="translate-content">
+      <div className="translate-content translate-content--single">
         <section className="translate-panel">
           <div className="form-group">
             <label htmlFor={providerFieldId}>{t('llm.provider')}</label>
