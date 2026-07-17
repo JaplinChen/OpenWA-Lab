@@ -158,6 +158,15 @@ export interface TranslateConfig {
   llmApiKey: string;
   llmTemperature: number;
   llmFallbackModels: string[];
+  llmProviderConfigs: Record<string, LlmProviderSaved>;
+}
+
+export interface LlmProviderSaved {
+  endpoint?: string;
+  model?: string;
+  apiKey?: string;
+  temperature?: number;
+  fallbackModels?: string[];
 }
 
 export interface LlmProbe {

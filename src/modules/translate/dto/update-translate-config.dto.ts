@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import type { LlmProvider } from '../translate.service';
 
 export class UpdateTranslateConfigDto {
@@ -45,4 +45,8 @@ export class UpdateTranslateConfigDto {
   @IsArray()
   @IsString({ each: true })
   llmFallbackModels?: string[];
+
+  @IsOptional()
+  @IsObject()
+  llmProviderConfigs?: Record<string, Record<string, unknown>>;
 }

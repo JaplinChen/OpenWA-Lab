@@ -84,6 +84,25 @@ describe('TranslateService glossary', () => {
     expect(promptSent).not.toContain('@200859128434777');
   });
 
+  it('lists models from the right URL per provider (keeps Groq /openai/v1 prefix)', async () => {
+    const urls: string[] = [];
+    const fetchMock = jest.fn(async (url: string) => {
+      urls.push(String(url));
+      return { ok: true, json: async () => ({ models: [{ name: 'm' }], data: [{ id: 'm' }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const svc = service as unknown as {
+      listModels: (p: { provider: string; endpoint: string; apiKey: string }) => Promise<string[]>;
+    };
+    await svc.listModels({ provider: 'ollama', endpoint: 'http://192.168.40.168:11434/api/chat', apiKey: '' });
+    await svc.listModels({ provider: 'groq', endpoint: 'https://api.groq.com/openai/v1/chat/completions', apiKey: 'k' });
+    await svc.listModels({ provider: 'openai', endpoint: 'https://api.openai.com/v1/chat/completions', apiKey: 'k' });
+
+    expect(urls[0]).toBe('http://192.168.40.168:11434/api/tags');
+    expect(urls[1]).toBe('https://api.groq.com/openai/v1/models'); // prefix preserved
+    expect(urls[2]).toBe('https://api.openai.com/v1/models');
+  });
+
   it('falls back to the next model when the primary model call fails', async () => {
     Object.assign(service as unknown as Record<string, unknown>, {
       provider: 'ollama',

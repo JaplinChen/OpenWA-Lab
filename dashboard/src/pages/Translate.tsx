@@ -28,6 +28,7 @@ export function Translate() {
     llmApiKey: '',
     llmTemperature: 0,
     llmFallbackModels: [],
+    llmProviderConfigs: {},
   });
   const [loading, setLoading] = useState(true);
   // Guard against saving before a successful load: the initial config is empty, so a save issued
