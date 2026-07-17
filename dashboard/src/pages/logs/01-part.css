@@ -63,6 +63,9 @@
   background: none;
   font-size: 0.9375rem;
   color: var(--text-primary);
+  /* The wrapper draws the box; this input is the actual pointer target and sat at 21px tall,
+     under the 24px WCAG 2.5.8 floor. The wrapper's padding absorbs the extra height. */
+  min-height: 24px;
 }
 
 .logs-page .search-input input:focus{

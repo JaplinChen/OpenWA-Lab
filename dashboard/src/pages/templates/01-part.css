@@ -98,6 +98,8 @@
   outline: 0;
   background: transparent;
   color: var(--text-primary);
+  /* Pointer target was 18px tall, under the 24px WCAG 2.5.8 floor. */
+  min-height: 24px;
   font-size: 0.875rem;
 }
 

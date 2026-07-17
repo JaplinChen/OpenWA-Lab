@@ -32,6 +32,9 @@
   font-size: 0.75rem;
   color: var(--text-secondary);
   white-space: nowrap;
+  /* The label is the real target (it toggles the checkbox), and it was 19px tall, under the
+     24px WCAG 2.5.8 floor. The 13px checkbox inside it is a user-agent default and exempt. */
+  min-height: 24px;
   user-select: none;
 }
 
