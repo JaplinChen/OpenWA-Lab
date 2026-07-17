@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Save, Check, AlertTriangle, X, Plug, ListRestart, Plus, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { translateApi, type TranslateConfig, type LlmProvider, type LlmProviderSaved } from '../services/api';
@@ -31,6 +31,14 @@ type LlmFields = Pick<
 >;
 
 export function LlmSettings() {
+  // These labels were visible but wired to nothing: no htmlFor, no id. The field had no
+  // accessible name and clicking the label did not focus it.
+  const providerFieldId = useId();
+  const endpointFieldId = useId();
+  const modelFieldId = useId();
+  const fallbackFieldId = useId();
+  const apiKeyFieldId = useId();
+  const styleFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('nav.llm', { defaultValue: 'LLM Settings' }));
   const { canWrite } = useRole();
@@ -235,8 +243,8 @@ export function LlmSettings() {
       <div className="translate-content">
         <section className="translate-panel">
           <div className="form-group">
-            <label>{t('llm.provider')}</label>
-            <select value={cfg.llmProvider} disabled={!canWrite} onChange={e => onProvider(e.target.value as LlmProvider)}>
+            <label htmlFor={providerFieldId}>{t('llm.provider')}</label>
+            <select id={providerFieldId} value={cfg.llmProvider} disabled={!canWrite} onChange={e => onProvider(e.target.value as LlmProvider)}>
               {PROVIDERS.map(p => (
                 <option key={p.value} value={p.value}>
                   {p.meta.label}
@@ -247,9 +255,10 @@ export function LlmSettings() {
 
           {meta.showEndpoint && (
             <div className="form-group">
-              <label>{t('llm.endpoint')}</label>
+              <label htmlFor={endpointFieldId}>{t('llm.endpoint')}</label>
               <div className="llm-row">
                 <input
+                  id={endpointFieldId}
                   type="text"
                   value={cfg.llmEndpoint}
                   disabled={!canWrite}
@@ -266,9 +275,10 @@ export function LlmSettings() {
           )}
 
           <div className="form-group">
-            <label>{t('llm.model')}</label>
+            <label htmlFor={modelFieldId}>{t('llm.model')}</label>
             <div className="llm-row">
               <input
+                id={modelFieldId}
                 type="text"
                 list="llm-models"
                 value={cfg.llmModel}
@@ -288,11 +298,12 @@ export function LlmSettings() {
           </div>
 
           <div className="form-group">
-            <label>{t('llm.fallbackModels')}</label>
+            <label htmlFor={fallbackFieldId}>{t('llm.fallbackModels')}</label>
             <span className="llm-hint">{t('llm.fallbackHint')}</span>
             {canWrite && (
               <div className="llm-row">
                 <input
+                  id={fallbackFieldId}
                   type="text"
                   list="llm-models"
                   value={fallbackInput}
@@ -323,7 +334,7 @@ export function LlmSettings() {
           {meta.needsKey && (
             <div className="form-group">
               <div className="llm-label-row">
-                <label>{t('llm.apiKey')}</label>
+                <label htmlFor={apiKeyFieldId}>{t('llm.apiKey')}</label>
                 {meta.apiKeyUrl && (
                   <a className="llm-apply-link" href={meta.apiKeyUrl} target="_blank" rel="noreferrer">
                     <ExternalLink size={14} />
@@ -334,6 +345,7 @@ export function LlmSettings() {
               <div className="llm-row">
                 <div className="llm-key-input">
                   <input
+                    id={apiKeyFieldId}
                     type={showKey ? 'text' : 'password'}
                     value={cfg.llmApiKey}
                     disabled={!canWrite}
@@ -354,10 +366,11 @@ export function LlmSettings() {
           )}
 
           <div className="form-group">
-            <label>{t('llm.style')}</label>
+            <label htmlFor={styleFieldId}>{t('llm.style')}</label>
             <div className="llm-slider-row">
               <span>{t('llm.stylePrecise')}</span>
               <input
+                id={styleFieldId}
                 type="range"
                 min={0}
                 max={1}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Save, Check, AlertTriangle, X, Search, Languages } from 'lucide-react';
 import { translateApi, type TranslateConfig } from '../services/api';
@@ -11,6 +11,9 @@ import './Translate.css';
 const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
 
 export function Translate() {
+  // Visible labels that pointed at nothing: no htmlFor, no id.
+  const intervalFieldId = useId();
+  const sessionFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('translate.title', { defaultValue: 'Translation' }));
   const { canWrite } = useRole();
@@ -197,8 +200,9 @@ export function Translate() {
           </div>
 
           <div className="form-group">
-            <label>{t('translate.minInterval', { defaultValue: 'Min send interval (ms)' })}</label>
+            <label htmlFor={intervalFieldId}>{t('translate.minInterval', { defaultValue: 'Min send interval (ms)' })}</label>
             <input
+              id={intervalFieldId}
               type="number"
               min={0}
               step={100}
@@ -218,8 +222,8 @@ export function Translate() {
           </div>
 
           <div className="form-group">
-            <label>{t('translate.session', { defaultValue: 'Session' })}</label>
-            <select value={sessionId} onChange={e => setSessionId(e.target.value)}>
+            <label htmlFor={sessionFieldId}>{t('translate.session', { defaultValue: 'Session' })}</label>
+            <select id={sessionFieldId} value={sessionId} onChange={e => setSessionId(e.target.value)}>
               {sessions.length === 0 && (
                 <option value="">{t('translate.noSessions', { defaultValue: 'No sessions' })}</option>
               )}
