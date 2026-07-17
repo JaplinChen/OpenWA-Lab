@@ -145,11 +145,26 @@ export interface Settings {
   notifications: { emailEnabled: boolean; notificationEmail: string; webhookAlerts: boolean };
 }
 
+export type LlmProvider = 'ollama' | 'openai' | 'groq' | 'azure' | 'gemini';
+
 export interface TranslateConfig {
   enabled: boolean;
   groupIds: string[];
   includeFromMe: boolean;
   minSendIntervalMs: number;
+  llmProvider: LlmProvider;
+  llmEndpoint: string;
+  llmModel: string;
+  llmApiKey: string;
+  llmTemperature: number;
+  llmFallbackModels: string[];
+}
+
+export interface LlmProbe {
+  provider: LlmProvider;
+  endpoint: string;
+  model?: string;
+  apiKey?: string;
 }
 
 export interface GlossaryTerm {
@@ -263,6 +278,16 @@ export const translateApi = {
       method: 'PUT',
       body: JSON.stringify(config),
     }),
+  testLlm: (probe: LlmProbe) =>
+    request<{ ok: boolean; message: string }>('/translate/llm/test', {
+      method: 'POST',
+      body: JSON.stringify(probe),
+    }),
+  listLlmModels: (probe: LlmProbe) =>
+    request<{ models: string[] }>('/translate/llm/models', {
+      method: 'POST',
+      body: JSON.stringify(probe),
+    }),
   getGlossary: () => request<GlossaryTerm[]>('/translate/glossary'),
   addGlossaryTerm: (zh: string, vi: string) =>
     request<GlossaryTerm[]>('/translate/glossary', {
@@ -282,6 +307,11 @@ export const translateApi = {
   removeSender: (jid: string) =>
     request<SenderEntry[]>(`/translate/senders?jid=${encodeURIComponent(jid)}`, {
       method: 'DELETE',
+    }),
+  importSenders: (sessionId: string) =>
+    request<{ added: number; entries: SenderEntry[] }>('/translate/senders/import', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
     }),
 };
 

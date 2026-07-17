@@ -41,6 +41,29 @@ export class SenderDirectory {
     this.save();
   }
 
+  /** Passive learn: record jid->name only if the jid is unknown (manual/earlier entries win). Returns true if stored. */
+  learn(jid: string, name: string): boolean {
+    const key = this.normalize(jid);
+    const n = name.trim();
+    if (!key || !n || key in this.data) return false;
+    this.data[key] = n;
+    this.save();
+    return true;
+  }
+
+  /** Bulk-add from a contact list; skips JIDs already present so manual edits win. Returns count added. */
+  importEntries(items: { jid: string; name: string }[]): number {
+    let added = 0;
+    for (const { jid, name } of items) {
+      const key = this.normalize(jid);
+      if (!key || key in this.data || !name.trim()) continue;
+      this.data[key] = name.trim();
+      added++;
+    }
+    if (added) this.save();
+    return added;
+  }
+
   remove(jid: string): boolean {
     const key = this.normalize(jid);
     if (!(key in this.data)) return false;

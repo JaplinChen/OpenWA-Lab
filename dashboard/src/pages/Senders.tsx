@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, AtSign } from 'lucide-react';
+import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, AtSign, Download } from 'lucide-react';
 import { translateApi, type SenderEntry } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
+import { useSessionsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import './Glossary.css';
+
+const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
 
 export function Senders() {
   const { t } = useTranslation();
@@ -18,7 +21,16 @@ export function Senders() {
   const [name, setName] = useState('');
   const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState(false);
+  const [sessionId, setSessionId] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const { data: sessions = [] } = useSessionsQuery();
+
+  useEffect(() => {
+    if (sessionId || sessions.length === 0) return;
+    const ready = sessions.find(s => READY_STATUSES.includes(s.status)) ?? sessions[0];
+    setSessionId(ready.id);
+  }, [sessions, sessionId]);
 
   useEffect(() => {
     let active = true;
@@ -70,6 +82,23 @@ export function Senders() {
     }
   };
 
+  const importFromContacts = async () => {
+    if (!sessionId) return;
+    setBusy(true);
+    try {
+      const { added, entries: next } = await translateApi.importSenders(sessionId);
+      setEntries(next);
+      setToast({
+        type: 'success',
+        message: t('senders.imported', { defaultValue: 'Imported {{added}} contact(s)', added }),
+      });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const remove = async (target: string) => {
     setBusy(true);
     try {
@@ -106,6 +135,26 @@ export function Senders() {
         subtitle={t('senders.subtitle', {
           defaultValue: 'Map an unresolved @mention JID to a display name used in translations.',
         })}
+        actions={
+          canWrite && (
+            <div className="senders-import">
+              <select value={sessionId} onChange={e => setSessionId(e.target.value)}>
+                {sessions.length === 0 && (
+                  <option value="">{t('senders.noSessions', { defaultValue: 'No sessions' })}</option>
+                )}
+                {sessions.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.status})
+                  </option>
+                ))}
+              </select>
+              <button className="btn-primary" onClick={importFromContacts} disabled={busy || !sessionId}>
+                {busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                {t('senders.import', { defaultValue: 'Import from contacts' })}
+              </button>
+            </div>
+          )
+        }
       />
 
       <section className="glossary-panel">

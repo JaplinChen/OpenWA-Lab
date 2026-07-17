@@ -52,9 +52,13 @@ export class Glossary {
     return removed;
   }
 
-  /** Prompt section injecting the terms for one direction (empty string when none). */
-  section(pairKey: string): string {
-    const entries = Object.entries(this.data[pairKey] || {});
+  /**
+   * Prompt section injecting ONLY the terms whose source actually appears in `text` (empty when none).
+   * Injecting the whole table (hundreds of entries) bloats the prompt and makes weak models echo the
+   * term list back as their "translation" — so filter to what this message really uses.
+   */
+  section(pairKey: string, text = ''): string {
+    const entries = Object.entries(this.data[pairKey] || {}).filter(([source]) => text.includes(source));
     if (!entries.length) return '';
     return ['', '術語表（必須使用以下對照翻譯）：', ...entries.map(([s, t]) => `- ${s} → ${t}`), ''].join('\n');
   }
