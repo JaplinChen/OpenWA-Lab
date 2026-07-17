@@ -48,6 +48,25 @@ export function resolveMentionNames(ctx: InboundMapperCtx, body: string, mention
   return out;
 }
 
+/**
+ * Best-known speaker name for a group message's sender, for the dashboard's group sender label.
+ * Baileys v7 doesn't always ride `pushName` on every group message, so when the live message carried
+ * none we fall back to the session store's saved name (same resolver as the @mention path). Returns
+ * undefined for non-group / fromMe / already-named messages, or when the sender is unknown.
+ */
+export function resolveSenderName(
+  ctx: Pick<InboundMapperCtx, 'sessionStore'>,
+  incoming: Pick<IncomingMessage, 'isGroup' | 'fromMe' | 'contact'>,
+  rawSender?: string,
+): string | undefined {
+  if (!incoming.isGroup || incoming.fromMe) return undefined;
+  if (incoming.contact?.name || incoming.contact?.pushName) return undefined;
+  if (!rawSender) return undefined;
+  const name = ctx.sessionStore.displayName(rawSender);
+  const digits = userPart(rawSender);
+  return name && name !== digits ? name : undefined;
+}
+
 export async function mapMessage(
   ctx: InboundMapperCtx,
   msg: WAMessage,
@@ -230,6 +249,8 @@ export async function mapMessage(
     jid => ctx.sessionStore.toNeutralJid(jid),
   );
   incoming.body = resolveMentionNames(ctx, incoming.body, contextInfo?.mentionedJid ?? undefined);
+  const senderName = resolveSenderName(ctx, incoming, msg.key.participant ?? undefined);
+  if (senderName) incoming.contact = { ...incoming.contact, name: senderName };
   return incoming;
 }
 
@@ -280,5 +301,7 @@ export function mapHistoryMessage(ctx: InboundMapperCtx, b: typeof BaileysLib, m
     jid => ctx.sessionStore.toNeutralJid(jid),
   );
   incoming.body = resolveMentionNames(ctx, incoming.body, mentionedJids);
+  const senderName = resolveSenderName(ctx, incoming, msg.key.participant ?? undefined);
+  if (senderName) incoming.contact = { ...incoming.contact, name: senderName };
   return incoming;
 }
