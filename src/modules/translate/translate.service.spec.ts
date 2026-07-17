@@ -84,6 +84,16 @@ describe('TranslateService glossary', () => {
     expect(promptSent).not.toContain('@200859128434777');
   });
 
+  it('strips a reasoning model <think> block so the group gets only the translation', async () => {
+    Object.assign(service as unknown as Record<string, unknown>, { provider: 'ollama', endpoint: 'http://x/api/chat', model: 'qwen3:8b' });
+    const fetchMock = jest.fn(async () =>
+      ({ ok: true, json: async () => ({ message: { content: '<think>越文翻成中文\n判斷語氣</think>\n\n報告總經理，會議已開始' } }) }) as never,
+    );
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const translate = (service as unknown as { translate: (t: string, p: { key: string }) => Promise<string> }).translate.bind(service);
+    expect(await translate('Báo cáo Giám đốc', { key: 'vi:zh-tw' } as never)).toBe('報告總經理，會議已開始');
+  });
+
   it('lists models from the right URL per provider (keeps Groq /openai/v1 prefix)', async () => {
     const urls: string[] = [];
     const fetchMock = jest.fn(async (url: string) => {

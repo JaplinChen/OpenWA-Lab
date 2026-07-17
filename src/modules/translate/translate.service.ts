@@ -7,7 +7,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
-import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep } from './translate-lang';
+import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep, stripThinking } from './translate-lang';
 
 const CONFIG_PATH = 'data/translate-config.json';
 
@@ -429,10 +429,19 @@ export class TranslateService implements OnModuleInit {
 
   /** Single LLM call, provider-dispatched. Static-ish (all inputs in `p`) so the probes can reuse it. */
   private async callLlm(p: LlmParams, prompt: string): Promise<string> {
-    if (p.provider === 'gemini') return this.callGemini(p, prompt);
-    if (p.provider === 'ollama') return this.callOllama(p, prompt);
-    // openai, groq, azure all speak the OpenAI /chat/completions shape (auth header differs for azure).
-    return this.callOpenAiCompatible(p, prompt);
+    const raw =
+      p.provider === 'gemini'
+        ? await this.callGemini(p, prompt)
+        : p.provider === 'ollama'
+          ? await this.callOllama(p, prompt)
+          : // openai, groq, azure all speak the OpenAI /chat/completions shape (auth header differs for azure).
+            await this.callOpenAiCompatible(p, prompt);
+    // Reasoning models (qwen3, deepseek-r1, ...) prepend <think>...</think>; keep only the answer so the
+    // group never sees the chain-of-thought. Empty after stripping = all reasoning → fail so translate()
+    // tries the next fallback model.
+    const out = stripThinking(raw);
+    if (!out) throw new Error(`${p.provider} produced only reasoning, no answer`);
+    return out;
   }
 
   private async callOllama(p: LlmParams, prompt: string): Promise<string> {
@@ -442,6 +451,9 @@ export class TranslateService implements OnModuleInit {
       body: JSON.stringify({
         model: p.model,
         stream: false,
+        // Suppress chain-of-thought at the source for reasoning models (qwen3 etc.); harmless for models
+        // that don't think. stripThinking() in callLlm is the belt-and-suspenders fallback.
+        think: false,
         options: { temperature: p.temperature },
         messages: [{ role: 'user', content: prompt }],
       }),

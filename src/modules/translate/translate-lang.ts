@@ -5,6 +5,20 @@
 // its own messages. U+2063 is a zero-width invisible separator — it does not alter the visible text.
 export const BOT_MARKER = '⁣⁣';
 
+/**
+ * Strip a reasoning model's chain-of-thought so only the final answer is sent to the group. Models like
+ * qwen3 / deepseek-r1 wrap reasoning in `<think>...</think>`; Ollama sometimes emits only the closing
+ * tag. Take whatever follows the last `</think>`; if a block was opened but never closed the output is
+ * all reasoning with no answer, so return '' (lets the caller fall back / skip instead of spamming
+ * reasoning). Plain outputs pass through untouched.
+ */
+export function stripThinking(s: string): string {
+  const close = s.lastIndexOf('</think>');
+  if (close !== -1) return s.slice(close + '</think>'.length).trim();
+  if (/<think>/i.test(s)) return '';
+  return s.trim();
+}
+
 const ZH_RE = /[㐀-鿿豈-﫿]/;
 const VI_RE = /[ăâđêôơưĂÂĐÊÔƠƯáàảãạấầẩẫậắằẳẵặéèẻẽẹếềểễệíìỉĩịóòỏõọốồổỗộớờởỡợúùủũụứừửữựýỳỷỹỵ]/i;
 
