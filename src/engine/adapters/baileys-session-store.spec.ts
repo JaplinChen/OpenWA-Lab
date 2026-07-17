@@ -1,9 +1,32 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { BaileysSessionStore } from './baileys-session-store';
 
 describe('BaileysSessionStore', () => {
   let store: BaileysSessionStore;
   beforeEach(() => {
     store = new BaileysSessionStore();
+  });
+
+  it('displayName: senders.json override wins over the contact store and reflects edits', () => {
+    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'senders-')), 'senders.json');
+    process.env.TRANSLATE_SENDERS_PATH = file;
+    try {
+      fs.writeFileSync(file, JSON.stringify({ '200859128434777': '總經理' }));
+      store.upsertContacts([{ id: '200859128434777@s.whatsapp.net', name: 'Old Name' }]);
+      expect(store.displayName('200859128434777@s.whatsapp.net')).toBe('總經理'); // override wins
+
+      store.upsertContacts([{ id: '628111@s.whatsapp.net', name: 'Alice' }]);
+      expect(store.displayName('628111@s.whatsapp.net')).toBe('Alice'); // no override → contact store
+
+      // edit is picked up via mtime (bump deterministically so the test never races the clock)
+      fs.writeFileSync(file, JSON.stringify({ '200859128434777': '陳總' }));
+      fs.utimesSync(file, new Date(), new Date(Date.now() + 1000));
+      expect(store.displayName('200859128434777@s.whatsapp.net')).toBe('陳總');
+    } finally {
+      delete process.env.TRANSLATE_SENDERS_PATH;
+    }
   });
 
   it('upserts contacts (full then partial merge) and maps to neutral', () => {

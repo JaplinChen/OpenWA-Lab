@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import type { Chat, Contact as BaileysContact, WAMessage, WAMessageKey } from '@whiskeysockets/baileys';
 import { ChatSummary, Contact } from '../interfaces/whatsapp-engine.interface';
 import { parseWaId, toNeutralJid as canonicalizeWaId, userPart } from '../identity/wa-id';
@@ -147,7 +148,28 @@ export class BaileysSessionStore {
    * (`@<number>`) resolution at the adapter boundary. Returns the raw user-part when nothing is known.
    */
   displayName(id: string): string {
-    return this.resolveContactName(id);
+    return this.senderOverride(id) ?? this.resolveContactName(id);
+  }
+
+  // Manual @mention overrides shared with the translate module (data/senders.json, flat {digits: name}).
+  // Highest-priority name source so a JID the address book never synced (e.g. a mentioned non-participant)
+  // still shows a name in the dashboard and translations. mtime-cached so runtime /sender edits are picked
+  // up without a restart, without re-parsing the file on every lookup.
+  private overrideCache: { mtimeMs: number; map: Record<string, string> } | null = null;
+
+  private senderOverride(id: string): string | undefined {
+    const digits = userPart(id);
+    if (!digits) return undefined;
+    const path = process.env.TRANSLATE_SENDERS_PATH || 'data/senders.json';
+    try {
+      const mtimeMs = fs.statSync(path).mtimeMs;
+      if (this.overrideCache?.mtimeMs !== mtimeMs) {
+        this.overrideCache = { mtimeMs, map: JSON.parse(fs.readFileSync(path, 'utf8')) as Record<string, string> };
+      }
+    } catch {
+      this.overrideCache = { mtimeMs: 0, map: {} };
+    }
+    return this.overrideCache.map[digits];
   }
 
   /**
