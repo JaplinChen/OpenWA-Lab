@@ -55,7 +55,8 @@
     "refresh": "רענון",
     "errorGeneric": "אירעה שגיאה",
     "unknownError": "שגיאה לא ידועה",
-    "retry": "נסה שוב"
+    "retry": "נסה שוב",
+    "failed": "Failed: {{message}}"
   },
   "theme": {
     "light": "בהיר",
@@ -884,5 +885,26 @@
     "saved": "Settings saved",
     "saveFailed": "Save failed: {{message}}",
     "loadFailed": "Failed to load config: {{message}}"
+  },
+  "glossary": {
+    "title": "Glossary",
+    "subtitle": "Terms are forced into every translation of the selected groups.",
+    "terms": "Terms",
+    "add": "Add",
+    "added": "Term added",
+    "empty": "No glossary terms yet."
+  },
+  "senders": {
+    "title": "Senders",
+    "subtitle": "Map an unresolved @mention JID to a display name used in translations.",
+    "entries": "Overrides",
+    "add": "Add",
+    "added": "Sender added",
+    "empty": "No sender overrides yet.",
+    "import": "Import from contacts",
+    "imported": "Imported {{added}} contact(s)",
+    "noSessions": "No sessions",
+    "jid": "JID or @number",
+    "name": "Display name"
   }
 }

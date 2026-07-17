@@ -55,7 +55,8 @@
     "refresh": "Làm mới",
     "errorGeneric": "Đã xảy ra lỗi",
     "unknownError": "Lỗi không xác định",
-    "retry": "Thử lại"
+    "retry": "Thử lại",
+    "failed": "Thất bại: {{message}}"
   },
   "theme": {
     "light": "Sáng",
@@ -842,7 +843,9 @@
         "confirm": "Tạo lại bí mật ký cho {{id}}? Bí mật hiện tại sẽ ngừng hoạt động ngay lập tức.",
         "action": "Tạo lại"
       },
-      "edit": { "title": "Sửa {{id}}" },
+      "edit": {
+        "title": "Sửa {{id}}"
+      },
       "delete": {
         "title": "Xóa thực thể",
         "confirm": "Xóa thực thể {{id}}? URL ingress và bí mật của nó sẽ ngừng hoạt động ngay lập tức.",
@@ -877,7 +880,30 @@
     "empty": "Không tìm thấy tin nhắn nào.",
     "error": "Tìm kiếm thất bại. Thử lại.",
     "unavailable": "Tìm kiếm chưa được cấu hình.",
-    "scope": { "current": "Phiên này" },
+    "scope": {
+      "current": "Phiên này"
+    },
     "loading": "Đang tìm kiếm…"
+  },
+  "glossary": {
+    "title": "Bảng thuật ngữ",
+    "subtitle": "Các thuật ngữ được áp dụng bắt buộc cho mọi bản dịch của nhóm đã chọn.",
+    "terms": "Thuật ngữ",
+    "add": "Thêm",
+    "added": "Đã thêm thuật ngữ",
+    "empty": "Chưa có thuật ngữ nào."
+  },
+  "senders": {
+    "title": "Người gửi",
+    "subtitle": "Ánh xạ JID @mention chưa phân giải sang tên hiển thị dùng trong bản dịch.",
+    "entries": "Mục ghi đè",
+    "add": "Thêm",
+    "added": "Đã thêm người gửi",
+    "empty": "Chưa có mục ghi đè nào.",
+    "import": "Nhập từ danh bạ",
+    "imported": "Đã nhập {{added}} liên hệ",
+    "noSessions": "Không có phiên",
+    "jid": "JID hoặc @số",
+    "name": "Tên hiển thị"
   }
 }

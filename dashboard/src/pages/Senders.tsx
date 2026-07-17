@@ -12,7 +12,7 @@ const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
 
 export function Senders() {
   const { t } = useTranslation();
-  useDocumentTitle(t('senders.title', { defaultValue: 'Senders' }));
+  useDocumentTitle(t('senders.title'));
   const { canWrite } = useRole();
 
   const [entries, setEntries] = useState<SenderEntry[]>([]);
@@ -59,10 +59,7 @@ export function Senders() {
   const fail = (err: unknown) =>
     setToast({
       type: 'error',
-      message: t('senders.saveFailed', {
-        defaultValue: 'Failed: {{message}}',
-        message: err instanceof Error ? err.message : 'unknown',
-      }),
+      message: t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }),
     });
 
   const add = async () => {
@@ -74,7 +71,7 @@ export function Senders() {
       setEntries(await translateApi.addSender(j, n));
       setJid('');
       setName('');
-      setToast({ type: 'success', message: t('senders.added', { defaultValue: 'Sender added' }) });
+      setToast({ type: 'success', message: t('senders.added') });
     } catch (err) {
       fail(err);
     } finally {
@@ -90,7 +87,7 @@ export function Senders() {
       setEntries(next);
       setToast({
         type: 'success',
-        message: t('senders.imported', { defaultValue: 'Imported {{added}} contact(s)', added }),
+        message: t('senders.imported', { added }),
       });
     } catch (err) {
       fail(err);
@@ -131,10 +128,8 @@ export function Senders() {
       )}
 
       <PageHeader
-        title={t('senders.title', { defaultValue: 'Senders (@提及 對照表)' })}
-        subtitle={t('senders.subtitle', {
-          defaultValue: 'Map an unresolved @mention JID to a display name used in translations.',
-        })}
+        title={t('senders.title')}
+        subtitle={t('senders.subtitle')}
         actions={
           canWrite && (
             <div className="senders-import">
@@ -144,7 +139,7 @@ export function Senders() {
                 onChange={e => setSessionId(e.target.value)}
               >
                 {sessions.length === 0 && (
-                  <option value="">{t('senders.noSessions', { defaultValue: 'No sessions' })}</option>
+                  <option value="">{t('senders.noSessions')}</option>
                 )}
                 {sessions.map(s => (
                   <option key={s.id} value={s.id}>
@@ -154,7 +149,7 @@ export function Senders() {
               </select>
               <button className="btn-primary" onClick={importFromContacts} disabled={busy || !sessionId}>
                 {busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                {t('senders.import', { defaultValue: 'Import from contacts' })}
+                {t('senders.import')}
               </button>
             </div>
           )
@@ -164,7 +159,7 @@ export function Senders() {
       <section className="glossary-panel">
         <div className="glossary-head">
           <h3 className="glossary-panel-title">
-            {t('senders.entries', { defaultValue: 'Overrides' })}
+            {t('senders.entries')}
             <span className="glossary-count">{entries.length}</span>
           </h3>
         </div>
@@ -173,8 +168,8 @@ export function Senders() {
           <div className="glossary-add">
             <input
               type="text"
-              placeholder={t('senders.jid', { defaultValue: 'JID 或 @號碼' })}
-              aria-label={t('senders.jid', { defaultValue: 'JID 或 @號碼' })}
+              placeholder={t('senders.jid')}
+              aria-label={t('senders.jid')}
               value={jid}
               onChange={e => setJid(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -182,15 +177,15 @@ export function Senders() {
             <span className="glossary-arrow">→</span>
             <input
               type="text"
-              placeholder={t('senders.name', { defaultValue: '顯示名稱' })}
-              aria-label={t('senders.name', { defaultValue: '顯示名稱' })}
+              placeholder={t('senders.name')}
+              aria-label={t('senders.name')}
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
             />
             <button className="btn-primary" onClick={add} disabled={busy || !jid.trim() || !name.trim()}>
               <Plus size={16} />
-              {t('senders.add', { defaultValue: 'Add' })}
+              {t('senders.add')}
             </button>
           </div>
         )}
@@ -199,8 +194,8 @@ export function Senders() {
           <Search size={16} className="glossary-search-icon" />
           <input
             type="text"
-            placeholder={t('senders.search', { defaultValue: 'Search...' })}
-            aria-label={t('senders.search', { defaultValue: 'Search...' })}
+            placeholder={t('common.search')}
+            aria-label={t('common.search')}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
@@ -210,7 +205,7 @@ export function Senders() {
           {filtered.length === 0 ? (
             <div className="glossary-empty">
               <AtSign size={32} strokeWidth={1} />
-              <p>{t('senders.empty', { defaultValue: 'No sender overrides yet.' })}</p>
+              <p>{t('senders.empty')}</p>
             </div>
           ) : (
             filtered.map(e => (
@@ -223,7 +218,7 @@ export function Senders() {
                     className="glossary-del"
                     onClick={() => remove(e.jid)}
                     disabled={busy}
-                    title={t('senders.remove', { defaultValue: 'Remove' })}
+                    title={t('common.delete')}
                   >
                     <Trash2 size={16} />
                   </button>
