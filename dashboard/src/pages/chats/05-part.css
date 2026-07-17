@@ -51,7 +51,7 @@
 .chats-page .replying-to-title{
   font-size: 0.8125rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .chats-page .replying-to-body{

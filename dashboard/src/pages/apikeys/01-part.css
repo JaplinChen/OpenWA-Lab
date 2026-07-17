@@ -22,7 +22,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   border: none;
   border-radius: var(--radius);
   font-size: 0.9375rem;
@@ -137,7 +137,7 @@
   font-size: 0.6875rem;
   padding: 0.25rem 0.5rem;
   background: rgba(59, 130, 246, 0.12);
-  color: var(--info);
+  color: var(--info-text);
   border-radius: 4px;
   font-weight: 500;
   white-space: nowrap;
@@ -145,7 +145,7 @@
 
 .api-keys-page .permission-badge:first-child:last-child{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .api-keys-page .rate-limit{
@@ -180,7 +180,7 @@
 .api-keys-page .icon-btn.danger:hover{
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .api-keys-page .permissions-reference{
@@ -213,7 +213,7 @@
 
 .api-keys-page .perm-item code{
   font-size: 0.8125rem;
-  color: var(--primary);
+  color: var(--primary-text);
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;

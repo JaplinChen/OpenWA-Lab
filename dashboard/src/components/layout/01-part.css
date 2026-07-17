@@ -103,7 +103,7 @@
 .collapse-toggle:hover {
   background: var(--primary);
   border-color: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--primary) 30%, transparent);
 }
 
@@ -157,11 +157,11 @@
 
 .nav-item.active {
   background: var(--primary-soft);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .nav-item.active svg {
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .sidebar-footer {

@@ -28,7 +28,7 @@
   border-radius: 8px;
   font-size: 0.875rem;
   text-align: start;
-  color: var(--error);
+  color: var(--error-text);
   background: rgb(239 68 68 / 0.12);
 }
 
@@ -63,7 +63,7 @@
   gap: 0.75rem;
   font-size: 2rem;
   font-weight: 700;
-  color: var(--primary);
+  color: var(--primary-text);
   background: var(--bg-light);
   border: 2px dashed var(--border);
   padding: 1rem 2rem;

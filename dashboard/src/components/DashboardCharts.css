@@ -3,6 +3,34 @@
   margin-bottom: 2rem;
 }
 
+/* Overrides recharts' default of tinting the label with the series color, which is chosen to be
+   distinct as a fill and is not readable as text. The swatch beside it still carries the color. */
+.dashboard-charts .chart-legend-label {
+  color: var(--text-primary);
+}
+
+/* recharts hardcodes a white tooltip and tints each row with the series color. The white ignores
+   the theme entirely (a white card on the cream and dark themes) and the tinted rows land at
+   3.1:1. recharts writes both as inline styles, so !important is the only lever short of
+   replacing the tooltip with a custom component. */
+.dashboard-charts .recharts-default-tooltip {
+  background: var(--bg-card) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.dashboard-charts .recharts-tooltip-label {
+  color: var(--text-secondary) !important;
+}
+
+.dashboard-charts .recharts-tooltip-item,
+.dashboard-charts .recharts-tooltip-item-name,
+.dashboard-charts .recharts-tooltip-item-separator,
+.dashboard-charts .recharts-tooltip-item-value {
+  color: var(--text-primary) !important;
+}
+
 .dashboard-charts .charts-header {
   display: flex;
   align-items: center;

@@ -2,13 +2,13 @@
 .webhooks-page [data-theme='dark'] .modal-body .event-tag:hover,
 :root:not([data-theme='light']) .webhooks-page .modal-body .event-tag:hover {
   border-color: var(--primary);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .webhooks-page [data-theme='dark'] .modal-body .event-tag.selected,
 :root:not([data-theme='light']) .webhooks-page .modal-body .event-tag.selected {
   background: var(--primary);
-  color: white;
+  color: var(--primary-ink);
   border-color: var(--primary);
 }
 
@@ -99,7 +99,7 @@
 
 .webhooks-page .status-badge.active{
   background: color-mix(in srgb, var(--primary) 15%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .webhooks-page .status-badge.inactive{
@@ -126,7 +126,7 @@
 .webhooks-page .icon-btn.danger:hover{
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .webhooks-page .events-reference{
@@ -161,7 +161,7 @@
 
 .webhooks-page .event-item code{
   font-size: 0.8125rem;
-  color: var(--primary);
+  color: var(--primary-text);
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   padding: 0.25rem 0.5rem;
   border-radius: 4px;

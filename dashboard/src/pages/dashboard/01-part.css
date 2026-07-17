@@ -27,7 +27,7 @@
 
 .dashboard .status-badge.connected{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .stats-grid{
@@ -100,11 +100,11 @@
 }
 
 .dashboard .stat-trend.up{
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .stat-trend.down{
-  color: var(--error);
+  color: var(--error-text);
 }
 
 .dashboard .sessions-section{
@@ -205,12 +205,12 @@
 
 .dashboard .status-pill.ready{
   background: color-mix(in srgb, var(--primary) 10%, transparent);
-  color: var(--primary);
+  color: var(--primary-text);
 }
 
 .dashboard .status-pill.connecting{
   background: rgba(245, 158, 11, 0.15);
-  color: var(--warning);
+  color: var(--warning-text);
 }
 
 .dashboard .status-pill.disconnected{
@@ -247,7 +247,7 @@
 }
 
 .dashboard .btn-sm.danger{
-  color: var(--error);
+  color: var(--error-text);
   border-color: rgba(239, 68, 68, 0.3);
   background: rgba(239, 68, 68, 0.12);
 }
