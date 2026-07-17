@@ -30,6 +30,8 @@ export interface AdapterSendCtx {
   callbacks: () => EngineEventCallbacks;
   mapperCtx: () => InboundMapperCtx;
   ensureReady: () => void;
+  /** Register an id we just sent so the adapter skips its later 'notify' echo (avoids double emit). */
+  markOwnSendEchoed: (id: string) => void;
 }
 
 /**
@@ -107,6 +109,9 @@ export async function sendContent(
 export async function emitOwnSendEcho(ctx: AdapterSendCtx, sent: WAMessage): Promise<void> {
   const onMessageCreate = ctx.callbacks().onMessageCreate;
   if (!onMessageCreate) return;
+  // Register the id synchronously (before the async map below) so the adapter can skip Baileys' own
+  // 'notify' echo of this send even if it races in mid-map — the single choke point every send path hits.
+  if (sent.key?.id) ctx.markOwnSendEchoed(sent.key.id);
   try {
     const b = await ctx.loadLib();
     if (!sent.message || !sent.key?.remoteJid) return;

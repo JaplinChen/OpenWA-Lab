@@ -82,6 +82,12 @@ export class BaileysAdapter implements IWhatsAppEngine {
   /** Unix-seconds timestamp of the last 'open' connection.update, used to distinguish a genuinely
    *  live message misfiled as 'append' (see handleMessagesUpsert) from real history backfill. */
   private connectedAt = 0;
+  /** Message ids this session just sent via the API. emitOwnSendEcho already fires onMessageCreate for
+   *  them, so when Baileys echoes the same message back as a 'notify' upsert we must skip it (else the
+   *  own-send fires twice). Keyed id -> unix-ms; entries self-evict by age so the map stays bounded and
+   *  a never-echoed send can't leak. Own sends from the PHONE (no API call) are absent here and pass
+   *  through normally. */
+  private readonly echoedOwnSendIds = new Map<string, number>();
   private reconnectAttempts = 0;
   private reconnectTimer?: ReturnType<typeof setTimeout>;
   /** Lazily loaded @whiskeysockets/baileys module (ESM-only; loaded on first connect, not at boot). */
@@ -930,6 +936,11 @@ export class BaileysAdapter implements IWhatsAppEngine {
         if (toUnixSeconds(msg.messageTimestamp) < this.connectedAt) {
           continue;
         }
+      } else if (msg.key.fromMe === true && this.consumeOwnSendEcho(msg.key.id)) {
+        // notify echo of a message WE just sent via the API — emitOwnSendEcho already fired
+        // onMessageCreate for it. Skip so the own-send doesn't emit twice. A fromMe notify NOT in the
+        // echo set is a genuine phone-originated send (no API call, no prior echo) and falls through.
+        continue;
       }
       // Throttle through the limiter so a burst of media messages can't run unbounded parallel
       // downloads (each a full decrypted buffer in heap). Ordering stays correct — the message store
@@ -1193,7 +1204,25 @@ export class BaileysAdapter implements IWhatsAppEngine {
       callbacks: () => this.callbacks,
       mapperCtx: () => this.mapperCtx,
       ensureReady: () => this.ensureReady(),
+      markOwnSendEchoed: (id: string) => this.markOwnSendEchoed(id),
     };
+  }
+
+  /** Record an API-sent message id so its later 'notify' echo is skipped. Evicts entries older than
+   *  60s on each insert — well past the sub-second echo window, so it never drops a live echo. */
+  private markOwnSendEchoed(id: string): void {
+    if (!id) return;
+    const now = Date.now();
+    for (const [key, ts] of this.echoedOwnSendIds) {
+      if (now - ts > 60_000) this.echoedOwnSendIds.delete(key);
+    }
+    this.echoedOwnSendIds.set(id, now);
+  }
+
+  /** True (and forgets the id) if this id was an API send already echoed via emitOwnSendEcho. */
+  private consumeOwnSendEcho(id: string | null | undefined): boolean {
+    if (!id) return false;
+    return this.echoedOwnSendIds.delete(id);
   }
 
   private normalizedSelfJid(): string {

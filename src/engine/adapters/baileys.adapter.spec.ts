@@ -618,6 +618,31 @@ describe('BaileysAdapter messaging', () => {
     );
   });
 
+  it('does NOT emit onMessageCreate a second time when Baileys echoes an API send as a notify upsert', async () => {
+    const onMessageCreate = jest.fn();
+    fakeSock.sendMessage.mockResolvedValue({
+      key: { id: 'OUT1', fromMe: true, remoteJid: '628111@s.whatsapp.net' },
+      message: { conversation: 'hello' },
+      messageTimestamp: 1700000001,
+    });
+    const adapter = await readyAdapter({ onMessageCreate });
+    await adapter.sendTextMessage('628111@s.whatsapp.net', 'hello');
+    for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve));
+    // Baileys re-delivers our own just-sent message as a fromMe notify — must be skipped, not re-emitted.
+    fakeSock.fire('messages.upsert', {
+      type: 'notify',
+      messages: [
+        {
+          key: { remoteJid: '628111@s.whatsapp.net', fromMe: true, id: 'OUT1' },
+          message: { conversation: 'hello' },
+          messageTimestamp: 1700000001,
+        },
+      ],
+    });
+    await new Promise(resolve => setImmediate(resolve));
+    expect(onMessageCreate).toHaveBeenCalledTimes(1);
+  });
+
   it('skips the own-send echo when the returned message carries no neutral content (best-effort)', async () => {
     const onMessageCreate = jest.fn();
     fakeSock.sendMessage.mockResolvedValue({ key: { id: 'OUT1' }, messageTimestamp: 1700000001 });
