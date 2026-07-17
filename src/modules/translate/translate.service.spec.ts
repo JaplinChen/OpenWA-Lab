@@ -65,6 +65,23 @@ describe('TranslateService glossary', () => {
     expect(detect('我下週去 Đà Nẵng 出差三天談合約事宜')?.key).toBe('zh-tw:vi');
   });
 
+  it('translates an image caption (media with text is not skipped)', async () => {
+    const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ message: { content: '報告主管' } }) }) as never);
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    Object.assign(service as unknown as Record<string, unknown>, {
+      enabled: true, provider: 'ollama', endpoint: 'http://x/api/chat', model: 'qwen3:8b',
+      groupIds: new Set(['g@g.us']), minSendIntervalMs: 0,
+    });
+    const msg = { ...makeMsg('Báo cáo Sếp'), type: 'image' } as IncomingMessage;
+    await (service as unknown as {
+      onMessage: (c: unknown, s: boolean) => Promise<unknown>;
+    }).onMessage({ data: msg, sessionId: 'sess' }, false);
+    await (service as unknown as { queue: Promise<unknown> }).queue;
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0].text).toContain('報告主管');
+  });
+
   it('applies the sender override to the @mention before sending the prompt to Ollama', async () => {
     service.addSender('200859128434777', '總經理');
     let promptSent = '';
