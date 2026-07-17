@@ -50,6 +50,14 @@
   gap: 1.5rem;
 }
 
+/* LLM Settings reuses this page's CSS but renders only the first panel, so the 340px track was
+   the whole page: fields crushed into a third of a sidebar with an empty 1fr beside them. One
+   column, sized for a form rather than for a form plus a list. */
+.translate-page .translate-content--single {
+  grid-template-columns: minmax(0, 620px);
+  overflow-y: auto;
+}
+
 @media (max-width: 900px){
   .translate-page .translate-content {
     grid-template-columns: 1fr;
