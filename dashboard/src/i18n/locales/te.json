@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "సెషన్",
     "appName": "OpenWA-Lab",
     "appSubtitle": "WhatsApp API",
     "loading": "లోడ్ అవుతోంది...",

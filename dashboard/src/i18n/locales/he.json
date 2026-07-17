@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "Session",
     "appName": "OpenWA-Lab",
     "appSubtitle": "ממשק WhatsApp API",
     "loading": "טוען...",

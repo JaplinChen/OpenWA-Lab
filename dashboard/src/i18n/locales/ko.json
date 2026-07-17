@@ -6,6 +6,7 @@
     }
   },
   "common": {
+    "session": "세션",
     "appName": "OpenWA",
     "appSubtitle": "WhatsApp API",
     "loading": "로딩 중...",

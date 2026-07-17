@@ -121,6 +121,7 @@ export function Glossary() {
             <input
               type="text"
               placeholder={t('glossary.source', { defaultValue: '中文' })}
+              aria-label={t('glossary.source', { defaultValue: '中文' })}
               value={src}
               onChange={e => setSrc(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -129,6 +130,7 @@ export function Glossary() {
             <input
               type="text"
               placeholder={t('glossary.target', { defaultValue: 'Tiếng Việt' })}
+              aria-label={t('glossary.target', { defaultValue: 'Tiếng Việt' })}
               value={tgt}
               onChange={e => setTgt(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -145,6 +147,7 @@ export function Glossary() {
           <input
             type="text"
             placeholder={t('glossary.search', { defaultValue: 'Search terms...' })}
+            aria-label={t('glossary.search', { defaultValue: 'Search terms...' })}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />

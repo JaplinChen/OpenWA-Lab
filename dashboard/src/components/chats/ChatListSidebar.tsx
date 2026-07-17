@@ -59,6 +59,7 @@ export function ChatListSidebar({
           <input
             type="text"
             placeholder={t('chats.searchPlaceholder')}
+            aria-label={t('chats.searchPlaceholder')}
             value={searchQuery}
             onChange={e => onSearchChange(e.target.value)}
           />

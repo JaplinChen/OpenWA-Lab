@@ -147,6 +147,7 @@ export function Logs() {
           <input
             type="text"
             placeholder={t('logs.searchPlaceholder')}
+            aria-label={t('logs.searchPlaceholder')}
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
           />

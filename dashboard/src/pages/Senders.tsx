@@ -138,7 +138,11 @@ export function Senders() {
         actions={
           canWrite && (
             <div className="senders-import">
-              <select value={sessionId} onChange={e => setSessionId(e.target.value)}>
+              <select
+                aria-label={t('common.session')}
+                value={sessionId}
+                onChange={e => setSessionId(e.target.value)}
+              >
                 {sessions.length === 0 && (
                   <option value="">{t('senders.noSessions', { defaultValue: 'No sessions' })}</option>
                 )}
@@ -170,6 +174,7 @@ export function Senders() {
             <input
               type="text"
               placeholder={t('senders.jid', { defaultValue: 'JID 或 @號碼' })}
+              aria-label={t('senders.jid', { defaultValue: 'JID 或 @號碼' })}
               value={jid}
               onChange={e => setJid(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -178,6 +183,7 @@ export function Senders() {
             <input
               type="text"
               placeholder={t('senders.name', { defaultValue: '顯示名稱' })}
+              aria-label={t('senders.name', { defaultValue: '顯示名稱' })}
               value={name}
               onChange={e => setName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && add()}
@@ -194,6 +200,7 @@ export function Senders() {
           <input
             type="text"
             placeholder={t('senders.search', { defaultValue: 'Search...' })}
+            aria-label={t('senders.search', { defaultValue: 'Search...' })}
             value={filter}
             onChange={e => setFilter(e.target.value)}
           />
