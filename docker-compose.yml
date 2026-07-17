@@ -120,6 +120,10 @@ services:
       # ENGINE_TYPE as unset, so .env.generated wins. Set ENGINE_TYPE in your .env/host to pin an
       # engine (e.g. baileys) — a real value flows through here and keeps top precedence.
       - ENGINE_TYPE=${ENGINE_TYPE:-}
+      # Auto-relaunch previously authenticated sessions after an app/container restart. Without this
+      # line the var in .env never reaches the container, so the flag defaults false and a restarted
+      # session stays DISCONNECTED until manually reconnected.
+      - AUTO_START_SESSIONS=${AUTO_START_SESSIONS:-false}
       # Engine launch options (session data path, headless, browser args). Forwarded EMPTY by default
       # so the dashboard (Infrastructure > Engine) selections saved to data/.env.generated apply — like
       # ENGINE_TYPE above. main.ts treats a blank value as unset (.env.generated wins), and the app
