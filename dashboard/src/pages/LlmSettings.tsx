@@ -91,16 +91,26 @@ export function LlmSettings() {
 
   const meta = metaOf(cfg.llmProvider);
 
+  // Groq/Gemini have a fixed endpoint (field hidden); shown-endpoint providers use the user's value.
+  const effectiveEndpoint = meta.showEndpoint ? cfg.llmEndpoint || meta.endpoint : meta.endpoint;
+
   const probe = () => ({
     provider: cfg.llmProvider,
-    endpoint: cfg.llmEndpoint || meta.endpoint,
+    endpoint: effectiveEndpoint,
     model: cfg.llmModel,
     apiKey: cfg.llmApiKey,
   });
 
   const onProvider = (llmProvider: LlmProvider) => {
-    // Always seed the provider's endpoint — for Groq/Gemini it's hidden but still sent to the backend.
-    setCfg({ ...cfg, llmProvider, llmEndpoint: metaOf(llmProvider).endpoint });
+    const next = metaOf(llmProvider);
+    // Don't clobber a user-customized endpoint (e.g. a LAN Ollama at 192.168.x). Only seed the
+    // provider default when the field is empty or still holds the *previous* provider's default.
+    let llmEndpoint = cfg.llmEndpoint;
+    if (next.showEndpoint) {
+      const prevDefault = meta.endpoint;
+      if (!cfg.llmEndpoint || cfg.llmEndpoint === prevDefault) llmEndpoint = next.endpoint;
+    }
+    setCfg({ ...cfg, llmProvider, llmEndpoint });
     setModels([]);
     setTestResult(null);
   };
@@ -143,7 +153,8 @@ export function LlmSettings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const saved = await translateApi.updateConfig(cfg);
+      // Persist the effective endpoint so translate() uses the fixed URL for Groq/Gemini.
+      const saved = await translateApi.updateConfig({ ...cfg, llmEndpoint: effectiveEndpoint });
       setCfg({
         llmProvider: saved.llmProvider,
         llmEndpoint: saved.llmEndpoint,
