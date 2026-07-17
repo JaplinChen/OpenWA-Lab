@@ -41,6 +41,12 @@ const TYPE_COLORS: Record<string, string> = {
   unknown: '#64748b',
 };
 
+// recharts tints legend labels with the series color by default. Those colors are picked to be
+// distinguishable as fills, not readable as 16px text: on the cream surface they land between
+// 2.1:1 and 3.7:1, under the 4.5:1 floor. The swatch already carries the color, so the label is
+// plain body text and the series color stays where it reads — the fill.
+const renderLegendLabel = (value: string) => <span className="chart-legend-label">{value}</span>;
+
 // Deterministic fallback for any unmapped type, so its color is stable across renders.
 const FALLBACK_COLORS = ['#0ea5e9', '#d946ef', '#f97316', '#10b981', '#6366f1', '#eab308'];
 function colorForType(name: string): string {
@@ -126,7 +132,7 @@ export function DashboardCharts() {
                 <XAxis dataKey="label" tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
                 <YAxis allowDecimals={false} tick={{ fontSize: 12, fill: 'var(--text-secondary)' }} />
                 <Tooltip />
-                <Legend />
+                <Legend formatter={renderLegendLabel} />
                 <Area
                   type="monotone"
                   dataKey="sent"
@@ -160,7 +166,7 @@ export function DashboardCharts() {
                     ))}
                   </Pie>
                   <Tooltip />
-                  <Legend />
+                  <Legend formatter={renderLegendLabel} />
                 </PieChart>
               </ResponsiveContainer>
             )}
