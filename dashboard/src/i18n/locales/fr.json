@@ -80,7 +80,9 @@
     "logs": "Journaux",
     "translate": "Groupes de traduction",
     "glossary": "Glossaire",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "senders": "Senders",
+    "llm": "LLM Settings"
   },
   "chats": {
     "media": {
@@ -814,7 +816,9 @@
         "confirm": "Régénérer le secret de signature pour {{id}} ? Le secret actuel arrêtera de fonctionner immédiatement.",
         "action": "Régénérer"
       },
-      "edit": { "title": "Modifier {{id}}" },
+      "edit": {
+        "title": "Modifier {{id}}"
+      },
       "delete": {
         "title": "Supprimer l'instance",
         "confirm": "Supprimer l'instance {{id}} ? Son URL d'entrée et son secret arrêteront de fonctionner immédiatement.",
@@ -849,7 +853,34 @@
     "empty": "Aucun message trouvé.",
     "error": "Échec de la recherche. Réessayez.",
     "unavailable": "La recherche n'est pas configurée.",
-    "scope": { "current": "Cette session" },
+    "scope": {
+      "current": "Cette session"
+    },
     "loading": "Recherche…"
+  },
+  "llm": {
+    "subtitle": "Configure the model that powers auto-translation.",
+    "provider": "Engine",
+    "endpoint": "Server URL",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyApply": "Get API Key",
+    "verify": "Verify",
+    "test": "Test",
+    "testOk": "OK",
+    "fetchModels": "Fetch models",
+    "fallbackModels": "Fallback models",
+    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackPlaceholder": "Model name",
+    "add": "Add",
+    "save": "Save",
+    "style": "Translation style (Precise ↔ Fluent)",
+    "stylePrecise": "Precise",
+    "styleFluent": "Fluent",
+    "noModels": "No models returned",
+    "modelsFailed": "Fetch models failed: {{message}}",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed: {{message}}",
+    "loadFailed": "Failed to load config: {{message}}"
   }
 }

@@ -809,18 +809,50 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
             sessionId: id,
             source: 'Engine',
           })
-          .then(({ continue: shouldContinue, data: finalMessage }) => {
+          .then(async ({ continue: shouldContinue, data: finalMessage }) => {
             if (!shouldContinue) {
               return;
             }
 
-            // NOTE: unlike onMessage (incoming), this path intentionally does NOT mirror the message
-            // to the `messages` table. message_create ALSO fires for API-originated sends, which the
-            // REST send path already persists — saving here would double-persist them. Safe
-            // persistence of phone-composed sends needs a unique (sessionId, waMessageId) index +
-            // de-dup and is tracked as a separate enhancement; until then this path only webhooks/
-            // emits. So local message history reflects API sends + all inbound, but not sends
-            // composed on a linked phone.
+            // Persist phone-composed sends so the dashboard chat shows messages typed on the linked
+            // phone (not just API sends + inbound). message_create ALSO fires for API-originated sends,
+            // which the REST send path already persisted with the same waMessageId — so the
+            // UNIQUE(sessionId, waMessageId) index is the de-dup oracle: insert() throws on those and we
+            // skip, leaving exactly one row. ponytail: a rare race (message_create landing before the
+            // API path writes waMessageId) can double-insert; the API save() then logs a warning and
+            // moves on — acceptable, no data loss.
+            const sent: IncomingMessage = finalMessage;
+            const metadata: Record<string, unknown> = {};
+            if (sent.media) metadata.media = sent.media;
+            if (sent.quotedMessage) metadata.quotedMessage = sent.quotedMessage;
+
+            const dbMessage = this.messageRepository.create({
+              sessionId: id,
+              waMessageId: sent.id,
+              chatId: sent.chatId,
+              chatName: sent.contact?.pushName ?? sent.contact?.name ?? undefined,
+              from: sent.from,
+              to: sent.to,
+              body: sent.body,
+              type: sent.type,
+              direction: MessageDirection.OUTGOING,
+              timestamp: sent.timestamp,
+              status: MessageStatus.SENT,
+              metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+            });
+
+            if (this.isLiveEngine(id, engine)) {
+              try {
+                await this.messageRepository.insert(dbMessage as unknown as QueryDeepPartialEntity<Message>);
+              } catch (err) {
+                // Unique-constraint = the REST send already persisted this one; anything else is a real
+                // write error worth logging. Either way, never break the send-event path.
+                if (!isUniqueConstraintError(err)) {
+                  this.logger.error(`Failed to save sent message ${sent.id} to database`, String(err));
+                }
+              }
+            }
+
             void this.webhookService.dispatch(id, 'message.sent', finalMessage);
             // Emit real-time event to WebSocket clients (as message.sent, not message.received)
             this.eventsGateway.emitMessageSent(id, finalMessage);

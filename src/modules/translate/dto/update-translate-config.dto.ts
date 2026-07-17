@@ -1,4 +1,5 @@
-import { IsArray, IsBoolean, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import type { LlmProvider } from '../translate.service';
 
 export class UpdateTranslateConfigDto {
   @IsOptional()
@@ -18,4 +19,30 @@ export class UpdateTranslateConfigDto {
   @IsInt()
   @Min(0)
   minSendIntervalMs?: number;
+
+  @IsOptional()
+  @IsIn(['ollama', 'openai', 'groq', 'azure', 'gemini'])
+  llmProvider?: LlmProvider;
+
+  @IsOptional()
+  @IsString()
+  llmEndpoint?: string;
+
+  @IsOptional()
+  @IsString()
+  llmModel?: string;
+
+  @IsOptional()
+  @IsString()
+  llmApiKey?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  llmTemperature?: number;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  llmFallbackModels?: string[];
 }

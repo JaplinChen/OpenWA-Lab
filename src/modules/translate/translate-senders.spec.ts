@@ -32,4 +32,27 @@ describe('SenderDirectory', () => {
     expect(s.entries()).toEqual([]);
     expect(s.remove('nope')).toBe(false);
   });
+
+  it('learn stores a new sender once and never overwrites a known JID', () => {
+    const s = new SenderDirectory(file);
+    expect(s.learn('84912830550@c.us', 'Bạch Nga')).toBe(true);
+    expect(s.learn('84912830550', '改過的名')).toBe(false); // already known → keep first
+    expect(s.learn('999@c.us', '  ')).toBe(false); // blank → ignored
+    expect(s.entries()).toEqual([{ jid: '84912830550', name: 'Bạch Nga' }]);
+  });
+
+  it('importEntries adds only new JIDs and never overwrites existing names', () => {
+    const s = new SenderDirectory(file);
+    s.add('111@c.us', '手動名');
+    const added = s.importEntries([
+      { jid: '111@c.us', name: '聯絡人名' }, // existing → skipped
+      { jid: '222@c.us', name: '阿明' }, // new → added
+      { jid: '333@c.us', name: '  ' }, // blank → skipped
+    ]);
+    expect(added).toBe(1);
+    expect(s.entries()).toEqual([
+      { jid: '111', name: '手動名' },
+      { jid: '222', name: '阿明' },
+    ]);
+  });
 });

@@ -1,6 +1,6 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Smartphone, Webhook, ClipboardList, Send, Key, Server, Puzzle } from 'lucide-react';
+import { Smartphone, Webhook, ClipboardList, Send, Key, Server, Puzzle, Bot } from 'lucide-react';
 import { type UserRole } from '../hooks/useRole';
 import './Settings.css';
 
@@ -13,6 +13,7 @@ const settingsNavItems = [
   { to: 'webhooks', icon: Webhook, key: 'webhooks' as const, adminOnly: false },
   { to: 'templates', icon: ClipboardList, key: 'templates' as const, adminOnly: false },
   { to: 'message-tester', icon: Send, key: 'messageTester' as const, adminOnly: false },
+  { to: 'llm', icon: Bot, key: 'llm' as const, adminOnly: true },
   { to: 'api-keys', icon: Key, key: 'apiKeys' as const, adminOnly: true },
   { to: 'infrastructure', icon: Server, key: 'infrastructure' as const, adminOnly: true },
   { to: 'plugins', icon: Puzzle, key: 'plugins' as const, adminOnly: true },

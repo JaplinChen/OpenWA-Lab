@@ -80,7 +80,9 @@
     "logs": "로그",
     "translate": "번역 그룹",
     "glossary": "용어집",
-    "settings": "설정"
+    "settings": "설정",
+    "senders": "Senders",
+    "llm": "LLM Settings"
   },
   "chats": {
     "media": {
@@ -814,7 +816,9 @@
         "confirm": "{{id}}의 서명 시크릿을 재생성할까요? 기존 시크릿은 즉시 작동하지 않게 됩니다.",
         "action": "재생성"
       },
-      "edit": { "title": "{{id}} 편집" },
+      "edit": {
+        "title": "{{id}} 편집"
+      },
       "delete": {
         "title": "인스턴스 삭제",
         "confirm": "{{id}} 인스턴스를 삭제할까요? 인그레스 URL과 시크릿이 즉시 작동하지 않게 됩니다.",
@@ -849,7 +853,34 @@
     "empty": "메시지를 찾을 수 없습니다.",
     "error": "검색에 실패했습니다. 다시 시도하세요.",
     "unavailable": "검색이 설정되어 있지 않습니다.",
-    "scope": { "current": "현재 세션" },
+    "scope": {
+      "current": "현재 세션"
+    },
     "loading": "검색하는 중…"
+  },
+  "llm": {
+    "subtitle": "Configure the model that powers auto-translation.",
+    "provider": "Engine",
+    "endpoint": "Server URL",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyApply": "Get API Key",
+    "verify": "Verify",
+    "test": "Test",
+    "testOk": "OK",
+    "fetchModels": "Fetch models",
+    "fallbackModels": "Fallback models",
+    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackPlaceholder": "Model name",
+    "add": "Add",
+    "save": "Save",
+    "style": "Translation style (Precise ↔ Fluent)",
+    "stylePrecise": "Precise",
+    "styleFluent": "Fluent",
+    "noModels": "No models returned",
+    "modelsFailed": "Fetch models failed: {{message}}",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed: {{message}}",
+    "loadFailed": "Failed to load config: {{message}}"
   }
 }

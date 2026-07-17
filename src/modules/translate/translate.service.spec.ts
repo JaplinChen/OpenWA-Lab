@@ -83,4 +83,52 @@ describe('TranslateService glossary', () => {
     expect(promptSent).toContain('@總經理');
     expect(promptSent).not.toContain('@200859128434777');
   });
+
+  it('falls back to the next model when the primary model call fails', async () => {
+    Object.assign(service as unknown as Record<string, unknown>, {
+      provider: 'ollama',
+      endpoint: 'http://x/api/chat',
+      model: 'primary',
+      fallbackModels: ['backup'],
+    });
+    const tried: string[] = [];
+    const fetchMock = jest.fn(async (_url: string, init: { body: string }) => {
+      const model = JSON.parse(init.body).model as string;
+      tried.push(model);
+      if (model === 'primary') return { ok: false, status: 500 } as never;
+      return { ok: true, json: async () => ({ message: { content: 'dịch xong' } }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+
+    const translate = (service as unknown as {
+      translate: (t: string, p: { key: string }) => Promise<string>;
+    }).translate.bind(service);
+    const out = await translate('你好', { key: 'zh-tw:vi' } as never);
+
+    expect(tried).toEqual(['primary', 'backup']);
+    expect(out).toBe('dịch xong');
+  });
+
+  it('routes to the OpenAI-compatible shape and parses choices when provider=openai', async () => {
+    // Poke private fields directly — updateConfig() would persist to the shared data/translate-config.json.
+    Object.assign(service as unknown as Record<string, unknown>, {
+      provider: 'openai',
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      apiKey: 'sk-x',
+    });
+    let authHeader = '';
+    const fetchMock = jest.fn(async (_url: string, init: { headers: Record<string, string> }) => {
+      authHeader = init.headers.authorization;
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'xin chào' } }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+
+    const translate = (service as unknown as {
+      translate: (t: string, p: { key: string }) => Promise<string>;
+    }).translate.bind(service);
+    const out = await translate('你好', { key: 'zh-tw:vi' } as never);
+
+    expect(out).toBe('xin chào');
+    expect(authHeader).toBe('Bearer sk-x');
+  });
 });

@@ -28,9 +28,15 @@ describe('Glossary', () => {
     expect(g.remove('nope')).toBe(false);
   });
 
-  it('injects added terms into the prompt section', () => {
+  it('injects only terms present in the text, not the whole table', () => {
     const g = new Glossary(file);
     g.add('電腦', 'máy tính');
-    expect(g.section('zh-tw:vi')).toContain('電腦 → máy tính');
+    g.add('印表機', 'máy in');
+    // term appears in the text → included
+    expect(g.section('zh-tw:vi', '我的電腦壞了')).toContain('電腦 → máy tính');
+    // other term absent from the text → excluded (prevents dumping the full glossary)
+    expect(g.section('zh-tw:vi', '我的電腦壞了')).not.toContain('印表機');
+    // no matching term → empty section
+    expect(g.section('zh-tw:vi', '你好嗎')).toBe('');
   });
 });

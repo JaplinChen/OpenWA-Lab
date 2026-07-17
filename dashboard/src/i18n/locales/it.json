@@ -80,7 +80,9 @@
     "logs": "Log",
     "translate": "Gruppi di traduzione",
     "glossary": "Glossario",
-    "settings": "Impostazioni"
+    "settings": "Impostazioni",
+    "senders": "Senders",
+    "llm": "LLM Settings"
   },
   "chats": {
     "media": {
@@ -814,7 +816,9 @@
         "confirm": "Rigenerare il segreto di firma per {{id}}? Il segreto attuale smetterà di funzionare immediatamente.",
         "action": "Rigenera"
       },
-      "edit": { "title": "Modifica {{id}}" },
+      "edit": {
+        "title": "Modifica {{id}}"
+      },
       "delete": {
         "title": "Elimina istanza",
         "confirm": "Eliminare l'istanza {{id}}? Il relativo URL di ingresso e segreto smetteranno di funzionare immediatamente.",
@@ -849,7 +853,34 @@
     "empty": "Nessun messaggio trovato.",
     "error": "Ricerca fallita. Riprova.",
     "unavailable": "La ricerca non è configurata.",
-    "scope": { "current": "Questa sessione" },
+    "scope": {
+      "current": "Questa sessione"
+    },
     "loading": "Ricerca…"
+  },
+  "llm": {
+    "subtitle": "Configure the model that powers auto-translation.",
+    "provider": "Engine",
+    "endpoint": "Server URL",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyApply": "Get API Key",
+    "verify": "Verify",
+    "test": "Test",
+    "testOk": "OK",
+    "fetchModels": "Fetch models",
+    "fallbackModels": "Fallback models",
+    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackPlaceholder": "Model name",
+    "add": "Add",
+    "save": "Save",
+    "style": "Translation style (Precise ↔ Fluent)",
+    "stylePrecise": "Precise",
+    "styleFluent": "Fluent",
+    "noModels": "No models returned",
+    "modelsFailed": "Fetch models failed: {{message}}",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed: {{message}}",
+    "loadFailed": "Failed to load config: {{message}}"
   }
 }

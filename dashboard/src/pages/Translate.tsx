@@ -22,6 +22,12 @@ export function Translate() {
     groupIds: [],
     includeFromMe: false,
     minSendIntervalMs: 1000,
+    llmProvider: 'ollama',
+    llmEndpoint: '',
+    llmModel: '',
+    llmApiKey: '',
+    llmTemperature: 0,
+    llmFallbackModels: [],
   });
   const [loading, setLoading] = useState(true);
   // Guard against saving before a successful load: the initial config is empty, so a save issued

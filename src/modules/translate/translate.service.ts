@@ -11,11 +11,29 @@ import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep } from './translate-la
 
 const CONFIG_PATH = 'data/translate-config.json';
 
+export type LlmProvider = 'ollama' | 'openai' | 'groq' | 'azure' | 'gemini';
+export const LLM_PROVIDERS: LlmProvider[] = ['ollama', 'openai', 'groq', 'azure', 'gemini'];
+
 export interface TranslateConfig {
   enabled: boolean;
   groupIds: string[];
   includeFromMe: boolean;
   minSendIntervalMs: number;
+  llmProvider: LlmProvider;
+  llmEndpoint: string;
+  llmModel: string;
+  llmApiKey: string;
+  llmTemperature: number;
+  llmFallbackModels: string[];
+}
+
+/** The subset needed to make one LLM call — used by translate + the test/models probes. */
+export interface LlmParams {
+  provider: LlmProvider;
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  temperature: number;
 }
 
 @Injectable()
@@ -24,8 +42,14 @@ export class TranslateService implements OnModuleInit {
 
   private enabled = false;
   private groupIds = new Set<string>();
+  private provider: LlmProvider = 'ollama';
   private endpoint = 'http://127.0.0.1:11434/api/chat';
   private model = 'translategemma-12b-cline-32768:latest';
+  private apiKey = '';
+  // 0 = deterministic; kept low for stable translations.
+  private temperature = 0;
+  // Tried in order when the primary model call throws (e.g. model not loaded, timeout).
+  private fallbackModels: string[] = [];
   // zh<->vi term overrides injected into the prompt (see Glossary).
   private glossary!: Glossary;
   // Defaults to the writable data dir (like CONFIG_PATH) so the glossary persists on the read-only
@@ -64,8 +88,18 @@ export class TranslateService implements OnModuleInit {
         .map(s => s.trim())
         .filter(Boolean),
     );
-    this.endpoint = process.env.OLLAMA_ENDPOINT || this.endpoint;
-    this.model = process.env.OLLAMA_MODEL || this.model;
+    if (LLM_PROVIDERS.includes(process.env.LLM_PROVIDER as LlmProvider)) {
+      this.provider = process.env.LLM_PROVIDER as LlmProvider;
+    }
+    this.endpoint = process.env.LLM_ENDPOINT || process.env.OLLAMA_ENDPOINT || this.endpoint;
+    this.model = process.env.LLM_MODEL || process.env.OLLAMA_MODEL || this.model;
+    this.apiKey = process.env.LLM_API_KEY || this.apiKey;
+    const temp = Number(process.env.LLM_TEMPERATURE);
+    if (Number.isFinite(temp) && temp >= 0) this.temperature = temp;
+    this.fallbackModels = (process.env.LLM_FALLBACK_MODELS || '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
     this.glossaryPath = process.env.TRANSLATE_GLOSSARY_PATH || this.glossaryPath;
     this.includeFromMe = process.env.TRANSLATE_INCLUDE_FROM_ME === 'true';
     const si = Number(process.env.TRANSLATE_MIN_SEND_INTERVAL_MS);
@@ -110,6 +144,12 @@ export class TranslateService implements OnModuleInit {
       groupIds: [...this.groupIds],
       includeFromMe: this.includeFromMe,
       minSendIntervalMs: this.minSendIntervalMs,
+      llmProvider: this.provider,
+      llmEndpoint: this.endpoint,
+      llmModel: this.model,
+      llmApiKey: this.apiKey,
+      llmTemperature: this.temperature,
+      llmFallbackModels: [...this.fallbackModels],
     };
   }
 
@@ -125,6 +165,18 @@ export class TranslateService implements OnModuleInit {
       this.includeFromMe = partial.includeFromMe;
       if (this.includeFromMe) this.registerSentHook();
       else this.unregisterSentHook();
+    }
+    if (partial.llmProvider !== undefined && LLM_PROVIDERS.includes(partial.llmProvider)) {
+      this.provider = partial.llmProvider;
+    }
+    if (partial.llmEndpoint !== undefined) this.endpoint = partial.llmEndpoint.trim();
+    if (partial.llmModel !== undefined) this.model = partial.llmModel.trim();
+    if (partial.llmApiKey !== undefined) this.apiKey = partial.llmApiKey.trim();
+    if (partial.llmTemperature !== undefined && partial.llmTemperature >= 0) {
+      this.temperature = partial.llmTemperature;
+    }
+    if (partial.llmFallbackModels !== undefined) {
+      this.fallbackModels = partial.llmFallbackModels.map(s => s.trim()).filter(Boolean);
     }
     this.saveConfig();
     return this.getConfig();
@@ -168,6 +220,14 @@ export class TranslateService implements OnModuleInit {
     return this.senders.entries();
   }
 
+  importSenders(items: { jid: string; name: string }[]): {
+    added: number;
+    entries: { jid: string; name: string }[];
+  } {
+    const added = this.senders.importEntries(items);
+    return { added, entries: this.senders.entries() };
+  }
+
   private registerSentHook(): void {
     if (this.sentHookId) return;
     // fromMe messages never reach message:received — the adapter routes them to message:sent.
@@ -196,6 +256,14 @@ export class TranslateService implements OnModuleInit {
       if (typeof raw.minSendIntervalMs === 'number' && raw.minSendIntervalMs >= 0) {
         this.minSendIntervalMs = raw.minSendIntervalMs;
       }
+      if (LLM_PROVIDERS.includes(raw.llmProvider as LlmProvider)) this.provider = raw.llmProvider as LlmProvider;
+      if (typeof raw.llmEndpoint === 'string' && raw.llmEndpoint) this.endpoint = raw.llmEndpoint;
+      if (typeof raw.llmModel === 'string' && raw.llmModel) this.model = raw.llmModel;
+      if (typeof raw.llmApiKey === 'string') this.apiKey = raw.llmApiKey;
+      if (typeof raw.llmTemperature === 'number' && raw.llmTemperature >= 0) this.temperature = raw.llmTemperature;
+      if (Array.isArray(raw.llmFallbackModels)) {
+        this.fallbackModels = raw.llmFallbackModels.map(s => String(s).trim()).filter(Boolean);
+      }
     } catch {
       // No file yet (or unreadable): keep the .env-seeded values and write out an initial file.
       this.saveConfig();
@@ -222,6 +290,18 @@ export class TranslateService implements OnModuleInit {
       // received-path fromMe shouldn't occur (adapter routes fromMe to message:sent); guard anyway.
       if (msg.fromMe && !isSentPath) return pass;
       if (!msg.isGroup || !this.groupIds.has(msg.chatId)) return pass;
+
+      // Passive learn: the sender's JID + name only coexist here (live message). Remember it so a later
+      // @mention of this person resolves to a name without any manual entry. Skips known JIDs.
+      if (!isSentPath && msg.author) {
+        const nm =
+          msg.contact?.pushName || msg.contact?.name || msg.contact?.verifiedName || msg.contact?.shortName;
+        if (nm) {
+          this.senders.learn(msg.author, nm);
+          if (msg.senderPhone) this.senders.learn(msg.senderPhone, nm);
+        }
+      }
+
       const body = msg.body || '';
       // marker skip is load-bearing on the sent path: the bot's own translation is fromMe+marker,
       // so this is what stops an infinite translate→send→translate loop.
@@ -305,14 +385,51 @@ export class TranslateService implements OnModuleInit {
 
   private async translate(text: string, pair: Pair): Promise<string> {
     // Resolve unknown @mention JIDs (e.g. @200859128434777) to names before the model sees them.
-    const prompt = buildPrompt(this.senders.apply(text), pair, this.glossary.section(pair.key));
-    const res = await fetch(this.endpoint, {
+    const applied = this.senders.apply(text);
+    // Only inject glossary terms that actually appear in this message (see Glossary.section).
+    const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied));
+
+    // Try the primary model, then each fallback in order — covers "model not loaded"/timeout on a
+    // local Ollama or a rate-limited cloud model without dropping the translation.
+    const models = [this.model, ...this.fallbackModels].filter(Boolean);
+    let lastErr: unknown;
+    for (const model of models) {
+      try {
+        return await this.callLlm({ ...this.baseParams(), model }, prompt);
+      } catch (err) {
+        lastErr = err;
+        this.logger.warn(`Model "${model}" failed, trying next fallback: ${String(err)}`);
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error('All models failed');
+  }
+
+  private baseParams(): LlmParams {
+    return {
+      provider: this.provider,
+      endpoint: this.endpoint,
+      model: this.model,
+      apiKey: this.apiKey,
+      temperature: this.temperature,
+    };
+  }
+
+  /** Single LLM call, provider-dispatched. Static-ish (all inputs in `p`) so the probes can reuse it. */
+  private async callLlm(p: LlmParams, prompt: string): Promise<string> {
+    if (p.provider === 'gemini') return this.callGemini(p, prompt);
+    if (p.provider === 'ollama') return this.callOllama(p, prompt);
+    // openai, groq, azure all speak the OpenAI /chat/completions shape (auth header differs for azure).
+    return this.callOpenAiCompatible(p, prompt);
+  }
+
+  private async callOllama(p: LlmParams, prompt: string): Promise<string> {
+    const res = await fetch(p.endpoint, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        model: this.model,
+        model: p.model,
         stream: false,
-        options: { temperature: 0 },
+        options: { temperature: p.temperature },
         messages: [{ role: 'user', content: prompt }],
       }),
     });
@@ -321,5 +438,81 @@ export class TranslateService implements OnModuleInit {
     const out = data.message?.content?.trim();
     if (!out) throw new Error('Ollama empty response');
     return out;
+  }
+
+  // OpenAI / Groq (Bearer) and Azure OpenAI (api-key header; deployment in the endpoint URL).
+  private async callOpenAiCompatible(p: LlmParams, prompt: string): Promise<string> {
+    const auth: Record<string, string> = {};
+    if (p.apiKey) {
+      if (p.provider === 'azure') auth['api-key'] = p.apiKey;
+      else auth.authorization = `Bearer ${p.apiKey}`;
+    }
+    const res = await fetch(p.endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...auth },
+      body: JSON.stringify({
+        model: p.model,
+        temperature: p.temperature,
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);
+    const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+    const out = data.choices?.[0]?.message?.content?.trim();
+    if (!out) throw new Error(`${p.provider} empty response`);
+    return out;
+  }
+
+  // Gemini generateContent. endpoint = API base (e.g. https://generativelanguage.googleapis.com/v1beta).
+  private async callGemini(p: LlmParams, prompt: string): Promise<string> {
+    const base = p.endpoint.replace(/\/+$/, '');
+    const url = `${base}/models/${p.model}:generateContent?key=${encodeURIComponent(p.apiKey)}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: p.temperature },
+      }),
+    });
+    if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const out = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!out) throw new Error('Gemini empty response');
+    return out;
+  }
+
+  /** Test-connection probe: one tiny call with the given (possibly unsaved) params. */
+  async testConnection(p: LlmParams): Promise<{ ok: boolean; message: string }> {
+    try {
+      const out = await this.callLlm({ ...p, temperature: 0 }, 'ping');
+      return { ok: true, message: out.slice(0, 40) || 'ok' };
+    } catch (err) {
+      return { ok: false, message: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /** List available model names for the endpoint (Ollama /api/tags, OpenAI-compatible /models). */
+  async listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
+    if (p.provider === 'ollama') {
+      const url = p.endpoint.replace(/\/api\/chat\/?$/, '/api/tags');
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
+      const data = (await res.json()) as { models?: { name?: string }[] };
+      return (data.models ?? []).map(m => m.name ?? '').filter(Boolean);
+    }
+    if (p.provider === 'openai' || p.provider === 'groq') {
+      const url = p.endpoint.replace(/\/chat\/completions\/?$/, '/models');
+      const res = await fetch(url, {
+        headers: p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {},
+      });
+      if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);
+      const data = (await res.json()) as { data?: { id?: string }[] };
+      return (data.data ?? []).map(m => m.id ?? '').filter(Boolean);
+    }
+    // azure/gemini don't expose a portable list endpoint here — enter the model manually.
+    return [];
   }
 }

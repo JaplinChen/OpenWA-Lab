@@ -80,7 +80,9 @@
     "logs": "לוגים",
     "translate": "קבוצות תרגום",
     "glossary": "מילון מונחים",
-    "settings": "הגדרות"
+    "settings": "הגדרות",
+    "senders": "Senders",
+    "llm": "LLM Settings"
   },
   "chats": {
     "media": {
@@ -815,7 +817,9 @@
         "confirm": "ליצור מחדש את מפתח החתימה הסודי של {{id}}? הסוד הנוכחי יפסיק לעבוד באופן מיידי.",
         "action": "יצירה מחדש"
       },
-      "edit": { "title": "עריכת {{id}}" },
+      "edit": {
+        "title": "עריכת {{id}}"
+      },
       "delete": {
         "title": "מחיקת מופע",
         "confirm": "למחוק את המופע {{id}}? כתובת ה-URL והסוד שלו יפסיקו לעבוד באופן מיידי.",
@@ -850,7 +854,34 @@
     "empty": "לא נמצאו הודעות.",
     "error": "החיפוש נכשל. נסה שוב.",
     "unavailable": "החיפוש אינו מוגדר.",
-    "scope": { "current": "הפעלה זו" },
+    "scope": {
+      "current": "הפעלה זו"
+    },
     "loading": "מחפש…"
+  },
+  "llm": {
+    "subtitle": "Configure the model that powers auto-translation.",
+    "provider": "Engine",
+    "endpoint": "Server URL",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyApply": "Get API Key",
+    "verify": "Verify",
+    "test": "Test",
+    "testOk": "OK",
+    "fetchModels": "Fetch models",
+    "fallbackModels": "Fallback models",
+    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackPlaceholder": "Model name",
+    "add": "Add",
+    "save": "Save",
+    "style": "Translation style (Precise ↔ Fluent)",
+    "stylePrecise": "Precise",
+    "styleFluent": "Fluent",
+    "noModels": "No models returned",
+    "modelsFailed": "Fetch models failed: {{message}}",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed: {{message}}",
+    "loadFailed": "Failed to load config: {{message}}"
   }
 }

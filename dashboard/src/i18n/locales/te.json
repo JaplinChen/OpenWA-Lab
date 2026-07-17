@@ -80,7 +80,9 @@
     "logs": "లాగ్స్",
     "translate": "అనువాద సమూహాలు",
     "glossary": "పదకోశం",
-    "settings": "సెట్టింగ్‌లు"
+    "settings": "సెట్టింగ్‌లు",
+    "senders": "Senders",
+    "llm": "LLM Settings"
   },
   "chats": {
     "media": {
@@ -814,7 +816,9 @@
         "confirm": "{{id}} కోసం సైనింగ్ సీక్రెట్‌ను రీజెనరేట్ చేయాలా? ప్రస్తుత సీక్రెట్ వెంటనే పనిచేయడం మానేస్తుంది.",
         "action": "రీజెనరేట్ చేయి"
       },
-      "edit": { "title": "{{id}}ను ఎడిట్ చేయండి" },
+      "edit": {
+        "title": "{{id}}ను ఎడిట్ చేయండి"
+      },
       "delete": {
         "title": "ఇన్‌స్టాన్స్‌ను డిలీట్ చేయండి",
         "confirm": "ఇన్‌స్టాన్స్ {{id}}ను డిలీట్ చేయాలా? దీని ఇన్‌గ్రెస్ URL మరియు సీక్రెట్ వెంటనే పనిచేయడం మానేస్తాయి.",
@@ -849,7 +853,34 @@
     "empty": "ఏ సందేశాలు కనుగొనబడలేదు.",
     "error": "శోధన విఫలమైంది. మళ్ళీ ప్రయత్నించండి.",
     "unavailable": "శోధన ఆకృతీకరించబడలేదు.",
-    "scope": { "current": "ఈ సెషన్" },
+    "scope": {
+      "current": "ఈ సెషన్"
+    },
     "loading": "శోధిస్తోంది…"
+  },
+  "llm": {
+    "subtitle": "Configure the model that powers auto-translation.",
+    "provider": "Engine",
+    "endpoint": "Server URL",
+    "model": "Model",
+    "apiKey": "API Key",
+    "apiKeyApply": "Get API Key",
+    "verify": "Verify",
+    "test": "Test",
+    "testOk": "OK",
+    "fetchModels": "Fetch models",
+    "fallbackModels": "Fallback models",
+    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackPlaceholder": "Model name",
+    "add": "Add",
+    "save": "Save",
+    "style": "Translation style (Precise ↔ Fluent)",
+    "stylePrecise": "Precise",
+    "styleFluent": "Fluent",
+    "noModels": "No models returned",
+    "modelsFailed": "Fetch models failed: {{message}}",
+    "saved": "Settings saved",
+    "saveFailed": "Save failed: {{message}}",
+    "loadFailed": "Failed to load config: {{message}}"
   }
 }
