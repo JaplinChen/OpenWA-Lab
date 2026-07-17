@@ -33,6 +33,14 @@
   margin-bottom: 1.5rem;
 }
 
+/* The logo is the page title, so it carries the h1. Strip the heading's own box
+   and let .logo-icon keep defining the size. */
+.login-container .logo-heading{
+  margin: 0;
+  font-size: 0;
+  line-height: 0;
+}
+
 .login-container .logo-icon{
   width: 127px;
   height: 127px;
@@ -132,14 +140,20 @@
 
 .login-container .toggle-visibility{
   position: absolute;
-  right: 0.75rem;
+  right: 0.5rem;
   top: 50%;
   transform: translateY(-50%);
   background: none;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 0.25rem;
+  /* 44px hit area (was 28x32). The 20px icon still sets the visual size. */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
 }
 
 .login-container .toggle-visibility:hover{
@@ -205,6 +219,12 @@
 .login-container .login-footer .github-link{
   color: var(--text-muted);
   transition: color 0.2s;
+  /* 44px hit area (was 18x23); the 18px glyph stays the visual size. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
 }
 
 .login-container .login-footer .github-link:hover{

@@ -56,9 +56,11 @@ export function Login({ onLogin }: LoginProps) {
 
   return (
     <div className="login-container">
-      <div className="login-card">
+      <main className="login-card">
         <div className="login-logo">
-          <img src="/openwa_logo.webp" alt="OpenWA-Lab" className="logo-icon" />
+          <h1 className="logo-heading">
+            <img src="/openwa_logo.webp" alt="OpenWA-Lab" className="logo-icon" />
+          </h1>
           <span className="version-info">
             {t('login.version', {
               version: __APP_VERSION__,
@@ -116,7 +118,7 @@ export function Login({ onLogin }: LoginProps) {
             {t('login.viewDocs')}
           </a>
         </p>
-      </div>
+      </main>
 
       <footer className="login-footer">
         <span>{t('login.footer')}</span>
