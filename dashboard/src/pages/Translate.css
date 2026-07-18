@@ -6,9 +6,14 @@
   gap: 0.5rem;
   align-items: center;
 }
-.translate-page .llm-row input{
+.translate-page .llm-row input,
+.translate-page .llm-row select{
   flex: 1;
   min-width: 0;
+}
+.translate-page .llm-row button{
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .translate-page .llm-status{
   display: inline-flex;
