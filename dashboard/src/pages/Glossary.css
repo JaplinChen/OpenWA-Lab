@@ -168,6 +168,13 @@
   color: var(--text-primary);
 }
 
+/* Edit and delete share the row's last grid cell. */
+.glossary-page .glossary-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
 .glossary-page .glossary-del {
   display: inline-flex;
   align-items: center;
@@ -178,6 +185,33 @@
   color: var(--text-secondary);
   border-radius: var(--radius);
   cursor: pointer;
+  /* 24px pointer target (WCAG 2.5.8) without growing the icon. */
+  min-width: 24px;
+  min-height: 24px;
+}
+
+.glossary-page .glossary-del:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* The row keeps its grid while editing, so the fields land in the same columns as the text they
+   replace and nothing shifts when the row flips. */
+.glossary-page .glossary-edit {
+  width: 100%;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--bg-light);
+  color: var(--text-primary);
+  font-size: 0.9375rem;
+  font-family: inherit;
+}
+
+.glossary-page .glossary-edit:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
 .glossary-page .glossary-del:hover:not(:disabled) {

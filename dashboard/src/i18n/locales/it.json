@@ -56,7 +56,8 @@
     "errorGeneric": "Si è verificato un errore",
     "unknownError": "Errore sconosciuto",
     "retry": "Riprova",
-    "failed": "Failed: {{message}}"
+    "failed": "Failed: {{message}}",
+    "saved": "Saved"
   },
   "theme": {
     "light": "Chiaro",

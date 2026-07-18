@@ -56,7 +56,8 @@
     "errorGeneric": "Une erreur est survenue",
     "unknownError": "Erreur inconnue",
     "retry": "Réessayer",
-    "failed": "Failed: {{message}}"
+    "failed": "Failed: {{message}}",
+    "saved": "Saved"
   },
   "theme": {
     "light": "Clair",

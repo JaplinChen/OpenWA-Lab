@@ -56,7 +56,8 @@
     "showApiKey": "Mostrar clave API",
     "hideApiKey": "Ocultar clave API",
     "retry": "Reintentar",
-    "failed": "Failed: {{message}}"
+    "failed": "Failed: {{message}}",
+    "saved": "Saved"
   },
   "theme": {
     "light": "Claro",
