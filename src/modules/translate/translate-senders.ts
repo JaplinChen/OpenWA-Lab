@@ -54,7 +54,7 @@ export class SenderDirectory {
   learn(jid: string, name: string): boolean {
     const key = this.normalize(jid);
     const n = name.trim();
-    if (!key || !n || key in this.data) return false;
+    if (!key || !n || this.data[key]) return false; // empty-name pending entries may be filled
     this.data[key] = n;
     this.save();
     return true;
@@ -65,7 +65,7 @@ export class SenderDirectory {
     let added = 0;
     for (const { jid, name } of items) {
       const key = this.normalize(jid);
-      if (!key || key in this.data || !name.trim()) continue;
+      if (!key || this.data[key] || !name.trim()) continue;
       this.data[key] = name.trim();
       added++;
     }
@@ -81,13 +81,45 @@ export class SenderDirectory {
     return true;
   }
 
+  /**
+   * Queue unresolved mentioned jids as empty-name entries so the dashboard lists them for an admin
+   * to fill in. Only jids whose raw `@<digits>` token actually leaked into the body qualify — a
+   * resolved mention was already replaced by the adapter. Empty names are skipped by apply().
+   */
+  notePending(jids: string[], body: string): void {
+    let added = false;
+    for (const jid of jids) {
+      const key = this.normalize(jid);
+      if (!key || key in this.data || !body.includes(`@${key}`)) continue;
+      this.data[key] = '';
+      added = true;
+    }
+    if (added) this.save();
+  }
+
+  /**
+   * Count a usage hit for each mentioned jid present in the table. The adapter already swaps the
+   * `@<digits>` token for the name at receive time (session-store senderOverride reads the same file),
+   * so apply() below never sees the raw token anymore — mentionedIds is the reliable usage signal.
+   */
+  markUsed(jids: string[] = []): void {
+    let hit = false;
+    for (const jid of jids) {
+      const key = this.normalize(jid);
+      if (!(key in this.data)) continue;
+      this.usage[key] = (this.usage[key] ?? 0) + 1;
+      hit = true;
+    }
+    if (hit) fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+  }
+
   /** Replace every known `@<jid>` token in the text with `@<name>`, counting each jid actually hit. */
   apply(text: string): string {
     if (!text) return text;
     let out = text;
     let hit = false;
     for (const [jid, name] of Object.entries(this.data)) {
-      if (!out.includes(`@${jid}`)) continue;
+      if (!name || !out.includes(`@${jid}`)) continue; // empty name = pending entry, don't replace
       out = out.split(`@${jid}`).join(`@${name}`);
       this.usage[jid] = (this.usage[jid] ?? 0) + 1;
       hit = true;

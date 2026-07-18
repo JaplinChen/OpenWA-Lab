@@ -370,6 +370,15 @@ export class TranslateService implements OnModuleInit {
       const pair = this.detectPair(body);
       if (!pair) return pass; // not zh/vi — leave it alone
 
+      // Usage counting rides on mentionedIds: the adapter already replaced the raw @<digits> token
+      // with a name before this hook runs, so apply()'s token-based counting never fires for mentions.
+      if (msg.mentionedIds?.length) {
+        this.senders.markUsed(msg.mentionedIds);
+        // Unresolved mention (raw @<digits> still in the body) -> queue an empty-name entry so the
+        // senders page surfaces it for an admin to name.
+        this.senders.notePending(msg.mentionedIds, body);
+      }
+
       void this.enqueue(async () => {
         const translated = await this.translate(body, pair);
         // The model can echo the source when it's not translatable natural language — don't spam

@@ -25,6 +25,29 @@ describe('SenderDirectory', () => {
     expect(s.apply('報告給@200859128434777以及其他同事')).toBe('報告給@總經理以及其他同事');
   });
 
+  it('markUsed counts mentioned jids in the table (any dialect) and persists, ignoring unknown jids', () => {
+    const s = new SenderDirectory(file);
+    s.add('84396422018', 'Cuong');
+    s.markUsed(['84396422018@c.us', '61998440124575@lid', '84396422018@c.us']);
+    expect(s.entries()).toEqual([{ jid: '84396422018', name: 'Cuong', count: 2 }]);
+    const reloaded = new SenderDirectory(file);
+    reloaded.load();
+    expect(reloaded.entries()[0].count).toBe(2);
+  });
+
+  it('notePending queues only leaked unknown mentions as empty-name entries, later fillable by learn', () => {
+    const s = new SenderDirectory(file);
+    s.add('84396422018', 'Cuong');
+    s.notePending(['84396422018@c.us', '225821461577953@lid', '999@lid'], '@225821461577953 nói gì đó');
+    expect(s.entries()).toEqual([
+      { jid: '84396422018', name: 'Cuong', count: 0 },
+      { jid: '225821461577953', name: '', count: 0 }, // leaked -> queued; 999 not in body -> skipped
+    ]);
+    expect(s.apply('hi @225821461577953')).toBe('hi @225821461577953'); // pending entry never replaces
+    expect(s.learn('225821461577953@lid', 'Minh Kien')).toBe(true); // pending filled when they speak
+    expect(s.apply('hi @225821461577953')).toBe('hi @Minh Kien');
+  });
+
   it('removes by any JID form', () => {
     const s = new SenderDirectory(file);
     s.add('200859128434777', '總經理');

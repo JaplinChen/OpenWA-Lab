@@ -169,7 +169,7 @@ export class BaileysSessionStore {
     } catch {
       this.overrideCache = { mtimeMs: 0, map: {} };
     }
-    return this.overrideCache.map[digits];
+    return this.overrideCache.map[digits] || undefined; // '' = pending entry, fall through to contacts
   }
 
   /**
