@@ -82,37 +82,4 @@ export class SenderDirectory {
     return out;
   }
 
-  /**
-   * Handle a `/sender ...` command body (already stripped of the leading token). `canMutate` gates
-   * add/del (admin allowlist). Returns the reply text; mutations persist immediately.
-   *   /sender                            list all overrides
-   *   /sender add <JID|@號碼> = <名稱>    add/overwrite
-   *   /sender del <JID|@號碼>             remove
-   */
-  command(rest: string, canMutate: boolean): string {
-    if (!rest || /^list$/i.test(rest)) {
-      const entries = Object.entries(this.data);
-      return entries.length
-        ? ['發送者對照表：', ...entries.map(([j, n]) => `- @${j} → ${n}`)].join('\n')
-        : '發送者對照表目前為空。';
-    }
-    if (!canMutate) return '此指令僅限管理員使用。';
-
-    const add = rest.match(/^add\s+(.+?)\s*(?:=|→|->)\s*(.+)$/i);
-    if (add) {
-      const jid = add[1].trim();
-      const name = add[2].trim();
-      if (!jid || !name) return '格式錯誤，請用：/sender add <JID或@號碼> = 名稱';
-      this.add(jid, name);
-      return `已新增發送者：@${this.normalize(jid)} → ${name}`;
-    }
-
-    const del = rest.match(/^del(?:ete)?\s+(.+)$/i);
-    if (del) {
-      const jid = del[1].trim();
-      return this.remove(jid) ? `已移除發送者：${jid}` : `找不到發送者：${jid}`;
-    }
-
-    return ['指令：', '/sender  列出對照', '/sender add <JID或@號碼> = 名稱', '/sender del <JID>'].join('\n');
-  }
 }

@@ -360,12 +360,6 @@ export class TranslateService implements OnModuleInit {
         );
         return pass; // command, not content to translate
       }
-      if (lower === '/sender' || lower.startsWith('/sender ') || lower === '/s' || lower.startsWith('/s ')) {
-        void this.handleSenderCommand(sessionId, msg, trimmed).catch(err =>
-          this.logger.error('Sender command failed', String(err)),
-        );
-        return pass; // command, not content to translate
-      }
       if (lower === '/help' || lower === '/h') {
         void this.handleHelpCommand(sessionId, msg).catch(err =>
           this.logger.error('Help command failed', String(err)),
@@ -428,22 +422,9 @@ export class TranslateService implements OnModuleInit {
       '核准建議：/g ok 編號（管理員）',
       '退回建議：/g no 編號（管理員）',
       '刪除詞彙：/g del 詞（管理員）',
-      '發送者對照：/s',
-      '新增對照：/s add 電話號碼=名稱（管理員）',
-      '刪除對照：/s del 電話號碼（管理員）',
       '顯示說明：/help',
     ].join('\n');
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + help });
-  }
-
-  private async handleSenderCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
-    const rest = raw.replace(/^\/(?:sender|s)(?=\s|$)\s*/i, '').trim();
-    const author = msg.author || msg.from;
-    const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
-    const reply = this.senders.command(rest, canMutate);
-    const target = msg.isGroup && rest === '' ? author : msg.chatId;
-    if (!target) return;
-    await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
   }
 
   // Thin instance wrapper over the pure detector (kept a method so the spec's private-method poke works).
