@@ -1,10 +1,11 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, X, ListRestart } from 'lucide-react';
+import { Loader2, Save, ListRestart } from 'lucide-react';
 import { translateApi } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
+import { useToast } from '../components/Toast';
 import './Translate.css';
 
 export function TranslatePrompt() {
@@ -18,7 +19,7 @@ export function TranslatePrompt() {
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -32,10 +33,7 @@ export function TranslatePrompt() {
       })
       .catch(err =>
         active &&
-        setToast({
-          type: 'error',
-          message: t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' }),
-        }),
+        toast.error(t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' })),
       )
       .finally(() => active && setLoading(false));
     return () => {
@@ -43,21 +41,15 @@ export function TranslatePrompt() {
     };
   }, [t]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
   const handleSave = async (promptOverride?: string) => {
     setSaving(true);
     try {
       const llmPromptTemplate = promptOverride ?? prompt;
       const saved = await translateApi.updateConfig({ llmPromptTemplate });
       setPrompt(saved.llmPromptTemplate ?? llmPromptTemplate);
-      setToast({ type: 'success', message: t('llm.saved') });
+      toast.success(t('llm.saved'));
     } catch (err) {
-      setToast({ type: 'error', message: t('llm.saveFailed', { message: err instanceof Error ? err.message : 'unknown' }) });
+      toast.error(t('llm.saveFailed', { message: err instanceof Error ? err.message : 'unknown' }));
     } finally {
       setSaving(false);
     }
@@ -73,16 +65,6 @@ export function TranslatePrompt() {
 
   return (
     <div className="translate-page">
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
-          <span>{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
       <PageHeader
         title={t('nav.translatePrompt', { defaultValue: 'Translation Prompt' })}
         subtitle={t('llm.promptHint')}

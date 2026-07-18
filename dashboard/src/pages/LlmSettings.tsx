@@ -1,10 +1,11 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, X, Plug, ListRestart, Plus, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { Loader2, Save, Check, AlertTriangle, Plug, ListRestart, Plus, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { translateApi, type TranslateConfig, type LlmProvider, type LlmProviderSaved } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
+import { useToast } from '../components/Toast';
 import './Translate.css';
 
 interface ProviderMeta {
@@ -63,7 +64,7 @@ export function LlmSettings() {
   // Per-provider saved settings — restored when switching engines so each keeps its own endpoint/key.
   const [pcfgs, setPcfgs] = useState<Record<string, LlmProviderSaved>>({});
   const [fallbackInput, setFallbackInput] = useState('');
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toast = useToast();
 
   useEffect(() => {
     let active = true;
@@ -85,22 +86,13 @@ export function LlmSettings() {
       })
       .catch(err =>
         active &&
-        setToast({
-          type: 'error',
-          message: t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' }),
-        }),
+        toast.error(t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' })),
       )
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
   }, [t]);
-
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
 
   const meta = metaOf(cfg.llmProvider);
 
@@ -160,9 +152,9 @@ export function LlmSettings() {
     try {
       const { models: list } = await translateApi.listLlmModels(probe());
       setModels(list);
-      if (list.length === 0) setToast({ type: 'error', message: t('llm.noModels') });
+      if (list.length === 0) toast.error(t('llm.noModels'));
     } catch (err) {
-      setToast({ type: 'error', message: t('llm.modelsFailed', { message: err instanceof Error ? err.message : 'unknown' }) });
+      toast.error(t('llm.modelsFailed', { message: err instanceof Error ? err.message : 'unknown' }));
     } finally {
       setFetchingModels(false);
     }
@@ -195,9 +187,9 @@ export function LlmSettings() {
         llmFallbackModels: saved.llmFallbackModels ?? [],
         llmPromptTemplate: saved.llmPromptTemplate ?? cfg.llmPromptTemplate,
       });
-      setToast({ type: 'success', message: t('llm.saved') });
+      toast.success(t('llm.saved'));
     } catch (err) {
-      setToast({ type: 'error', message: t('llm.saveFailed', { message: err instanceof Error ? err.message : 'unknown' }) });
+      toast.error(t('llm.saveFailed', { message: err instanceof Error ? err.message : 'unknown' }));
     } finally {
       setSaving(false);
     }
@@ -220,16 +212,6 @@ export function LlmSettings() {
 
   return (
     <div className="translate-page">
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
-          <span>{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
       <PageHeader
         title={t('nav.llm', { defaultValue: 'LLM Settings' })}
         subtitle={t('llm.subtitle')}

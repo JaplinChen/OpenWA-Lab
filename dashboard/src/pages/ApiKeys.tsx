@@ -25,6 +25,7 @@ import type { ApiKey } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useApiKeysQuery, useCreateApiKeyMutation, useDeleteApiKeyMutation, useRevokeApiKeyMutation } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
 import { copyToClipboard } from '../utils/clipboard';
 import './ApiKeys.css';
 
@@ -206,12 +207,7 @@ export function ApiKeys() {
 
   if (loading) {
     return (
-      <div
-        className="api-keys-page"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="api-keys-page" />
     );
   }
 

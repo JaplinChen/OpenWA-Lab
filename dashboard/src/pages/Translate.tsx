@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, X, Search, Languages } from 'lucide-react';
+import { Loader2, Save, Search, Languages } from 'lucide-react';
 import { translateApi, type TranslateConfig } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { useToast } from '../components/Toast';
 import './Translate.css';
 
 const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
@@ -40,7 +41,7 @@ export function Translate() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('');
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const toast = useToast();
 
   const { data: groups = [], isLoading: loadingGroups } = useSessionGroupsQuery(sessionId, !!sessionId);
 
@@ -57,13 +58,12 @@ export function Translate() {
       })
       .catch(err => {
         if (active)
-          setToast({
-            type: 'error',
-            message: t('translate.toasts.loadFailed', {
+          toast.error(
+            t('translate.toasts.loadFailed', {
               defaultValue: 'Failed to load config: {{message}}',
               message: err instanceof Error ? err.message : 'unknown',
             }),
-          });
+          );
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -79,13 +79,6 @@ export function Translate() {
     const ready = sessions.find(s => READY_STATUSES.includes(s.status)) ?? sessions[0];
     setSessionId(ready.id);
   }, [sessions, sessionId]);
-
-  useEffect(() => {
-    if (toast) {
-      const timer = setTimeout(() => setToast(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [toast]);
 
   const filteredGroups = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -107,15 +100,14 @@ export function Translate() {
     try {
       const saved = await translateApi.updateConfig(config);
       setConfig(saved);
-      setToast({ type: 'success', message: t('translate.toasts.saved', { defaultValue: 'Settings saved' }) });
+      toast.success(t('translate.toasts.saved', { defaultValue: 'Settings saved' }));
     } catch (err) {
-      setToast({
-        type: 'error',
-        message: t('translate.toasts.saveFailed', {
+      toast.error(
+        t('translate.toasts.saveFailed', {
           defaultValue: 'Save failed: {{message}}',
           message: err instanceof Error ? err.message : 'unknown',
         }),
-      });
+      );
     } finally {
       setSaving(false);
     }
@@ -131,16 +123,6 @@ export function Translate() {
 
   return (
     <div className="translate-page">
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
-          <span>{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
       <PageHeader
         title={t('translate.title', { defaultValue: 'Translation' })}
         subtitle={t('translate.subtitle', {

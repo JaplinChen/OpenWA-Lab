@@ -26,12 +26,12 @@ export function Glossary() {
     translateApi
       .getGlossary()
       .then(list => active && setTerms(list))
-      .catch(() => {})
+      .catch(err => active && fail(err))
       .finally(() => active && setLoading(false));
     translateApi
       .getPendingGlossary()
       .then(list => active && setPending(list))
-      .catch(() => {});
+      .catch(err => active && fail(err));
     return () => {
       active = false;
     };

@@ -29,6 +29,8 @@ import type { Plugin, CatalogPlugin } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { usePluginsQuery, queryKeys } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
+import { EmptyState } from '../components/EmptyState';
 import { useToast } from '../components/Toast';
 import { PluginInstances } from '../components/PluginInstances';
 import { ConfigField } from '../components/plugins/ConfigField';
@@ -247,12 +249,7 @@ export default function Plugins() {
 
   if (loading) {
     return (
-      <div
-        className="plugins-page"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="plugins-page" />
     );
   }
 
@@ -426,11 +423,11 @@ export default function Plugins() {
       </div>
 
       {visiblePlugins.length === 0 && !loading && (
-        <div className="empty-state">
-          <Puzzle size={64} />
-          <h3>{t('plugins.empty.title')}</h3>
-          <p>{t('plugins.empty.description')}</p>
-        </div>
+        <EmptyState
+          icon={<Puzzle size={64} />}
+          title={t('plugins.empty.title')}
+          description={t('plugins.empty.description')}
+        />
       )}
 
       {showInstallModal && (

@@ -3,6 +3,7 @@ import { Loader2, AlertTriangle, Save } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useInfrastructureForm } from '../hooks/useInfrastructureForm';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
 import { DatabaseCard } from '../components/infrastructure/DatabaseCard';
 import { EngineCard } from '../components/infrastructure/EngineCard';
 import { RedisCard } from '../components/infrastructure/RedisCard';
@@ -51,12 +52,7 @@ export function Infrastructure() {
 
   if (loading) {
     return (
-      <div
-        className="infrastructure-page"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="infrastructure-page" />
     );
   }
 

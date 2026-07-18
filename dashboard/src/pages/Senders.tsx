@@ -36,7 +36,7 @@ export function Senders() {
     translateApi
       .getSenders()
       .then(list => active && setEntries(list))
-      .catch(() => {})
+      .catch(err => active && fail(err))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;

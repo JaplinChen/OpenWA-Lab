@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
-import { Plus, QrCode, RefreshCw, Trash2, Eye, Loader2, Play, Square, X, Search, Filter, Skull } from 'lucide-react';
+import { Plus, QrCode, RefreshCw, Trash2, Eye, Loader2, Play, Square, X, Search, Filter, Skull, AlertCircle } from 'lucide-react';
 import { sessionApi, type Session } from '../services/api';
 import { queryKeys } from '../hooks/queries';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
@@ -9,6 +9,8 @@ import { useToast } from '../components/Toast';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
+import { EmptyState } from '../components/EmptyState';
 import { CustomSelect } from '../components/CustomSelect';
 import './Sessions.css';
 
@@ -318,12 +320,7 @@ export function Sessions() {
 
   if (loading) {
     return (
-      <div
-        className="sessions-page"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="sessions-page" />
     );
   }
 
@@ -370,16 +367,9 @@ export function Sessions() {
       </div>
 
       {error && (
-        <div
-          style={{
-            background: 'rgba(239, 68, 68, 0.12)',
-            padding: '1rem',
-            borderRadius: '8px',
-            color: 'var(--error)',
-            marginBottom: '1rem',
-          }}
-        >
-          {error}
+        <div className="error-banner" role="alert">
+          <AlertCircle size={20} />
+          <span className="error-banner-text">{error}</span>
         </div>
       )}
 
@@ -714,11 +704,11 @@ export function Sessions() {
 
       <div className="sessions-grid">
         {filteredSessions.length === 0 ? (
-          <div className="empty-state">
-            <QrCode size={48} />
-            <h3>{t('sessions.empty.title')}</h3>
-            <p>{t('sessions.empty.description')}</p>
-          </div>
+          <EmptyState
+            icon={<QrCode size={48} />}
+            title={t('sessions.empty.title')}
+            description={t('sessions.empty.description')}
+          />
         ) : (
           filteredSessions.map(session => (
             <div key={session.id} className="session-card">

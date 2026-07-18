@@ -6,6 +6,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
 import './MessageTester.css';
 
 interface ApiResponse {
@@ -118,12 +119,7 @@ export function MessageTester() {
 
   if (loadingSessions) {
     return (
-      <div
-        className="message-tester"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="message-tester" />
     );
   }
 

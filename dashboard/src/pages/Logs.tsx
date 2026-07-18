@@ -6,6 +6,7 @@ import { auditApi } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useLogsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { PageLoader } from '../components/PageLoader';
 import { CustomSelect } from '../components/CustomSelect';
 import { pageWindow } from '../utils/pageWindow';
 import './Logs.css';
@@ -112,12 +113,7 @@ export function Logs() {
 
   if (loading && logs.length === 0) {
     return (
-      <div
-        className="logs-page"
-        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}
-      >
-        <Loader2 className="animate-spin" size={32} />
-      </div>
+      <PageLoader className="logs-page" />
     );
   }
 

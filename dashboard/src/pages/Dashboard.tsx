@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import { lazyWithRetry as lazy } from '../utils/lazyWithRetry';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { MessageSquare, Send, Webhook, Activity, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { MessageSquare, Send, Webhook, Activity, ArrowUpRight, ArrowDownRight, AlertCircle } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import {
   useSessionsQuery,
@@ -79,9 +79,10 @@ export function Dashboard() {
 
   if (error) {
     return (
-      <div className="dashboard" style={{ padding: '2rem' }}>
-        <div style={{ background: 'rgba(239, 68, 68, 0.12)', padding: '1rem', borderRadius: '8px', color: 'var(--error)' }}>
-          {t('dashboard.errorPrefix', { message: error })}
+      <div className="dashboard">
+        <div className="error-banner" role="alert">
+          <AlertCircle size={20} />
+          <span className="error-banner-text">{t('dashboard.errorPrefix', { message: error })}</span>
         </div>
       </div>
     );
