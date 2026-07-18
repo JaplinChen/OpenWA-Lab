@@ -409,15 +409,16 @@ export class TranslateService implements OnModuleInit {
     const author = msg.author || msg.from;
     const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
     const reply = this.glossary.command(rest, canMutate, author);
-    // ponytail: reply in DM so the term list doesn't flood the group
-    const target = msg.isGroup ? author : msg.chatId;
+    // ponytail: long lists (full glossary / pending queue) DM the author so they don't flood the
+    // group; short results (add/suggest/ok/no/del acks, usage) reply in place.
+    const isList = rest === '' || /^pending(?=\s|$)/i.test(rest);
+    const target = msg.isGroup && isList ? author : msg.chatId;
     if (!target) return;
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
   }
 
   private async handleHelpCommand(sessionId: string, msg: IncomingMessage): Promise<void> {
-    const author = msg.author || msg.from;
-    const target = msg.isGroup ? author : msg.chatId;
+    const target = msg.chatId;
     if (!target) return;
     const help = [
       '指令一覽：',
@@ -439,7 +440,7 @@ export class TranslateService implements OnModuleInit {
     const author = msg.author || msg.from;
     const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
     const reply = this.senders.command(rest, canMutate);
-    const target = msg.isGroup ? author : msg.chatId;
+    const target = msg.isGroup && rest === '' ? author : msg.chatId;
     if (!target) return;
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
   }
