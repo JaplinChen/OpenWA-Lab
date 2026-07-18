@@ -59,6 +59,7 @@ describe('MessageService', () => {
       save: jest.fn().mockImplementation(msg => Promise.resolve(msg)),
       findOne: jest.fn().mockResolvedValue(null),
       update: jest.fn().mockResolvedValue({ affected: 1 }),
+      delete: jest.fn().mockResolvedValue({ affected: 1 }),
       createQueryBuilder: jest.fn(),
     };
 
@@ -171,6 +172,17 @@ describe('MessageService', () => {
       expect(result.messageId).toBe('wa-msg-1');
       expect(result.timestamp).toBe(1706868000);
       expect(hookManager.execute).not.toHaveBeenCalledWith('message:failed', expect.anything(), expect.anything());
+    });
+
+    it('deletes its own PENDING row when the SENT-state save hits the waMessageId unique constraint (message_create won the race)', async () => {
+      (repository.save as jest.Mock)
+        .mockImplementationOnce((msg: unknown) => Promise.resolve(msg))
+        .mockRejectedValueOnce(new Error('UNIQUE constraint failed: messages.sessionId, messages.waMessageId'));
+
+      const result = await service.sendText('sess-1', { chatId: '628123456789@c.us', text: 'Hello' });
+
+      expect(result.messageId).toBe('wa-msg-1');
+      expect(repository.delete).toHaveBeenCalledWith('msg-uuid-1');
     });
 
     it('executes the message:sending hook (message:sent now fires once from the engine message_create path)', async () => {

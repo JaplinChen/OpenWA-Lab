@@ -818,9 +818,9 @@ export class SessionService implements OnModuleDestroy, OnModuleInit, OnApplicat
             // phone (not just API sends + inbound). message_create ALSO fires for API-originated sends,
             // which the REST send path already persisted with the same waMessageId — so the
             // UNIQUE(sessionId, waMessageId) index is the de-dup oracle: insert() throws on those and we
-            // skip, leaving exactly one row. ponytail: a rare race (message_create landing before the
-            // API path writes waMessageId) can double-insert; the API save() then logs a warning and
-            // moves on — acceptable, no data loss.
+            // skip, leaving exactly one row. If message_create lands before the API path writes
+            // waMessageId, this insert wins and persistSentState deletes its own PENDING row on the
+            // unique-constraint clash — still exactly one row.
             const sent: IncomingMessage = finalMessage;
             const metadata: Record<string, unknown> = {};
             if (sent.media) metadata.media = sent.media;

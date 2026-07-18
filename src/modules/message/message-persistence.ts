@@ -1,4 +1,5 @@
 import { Repository } from 'typeorm';
+import { isUniqueConstraintError } from '../../common/utils/unique-constraint.util';
 import { SessionService } from '../session/session.service';
 import { HookManager } from '../../core/hooks';
 import { Message, MessageDirection, MessageStatus } from './entities/message.entity';
@@ -104,9 +105,16 @@ export async function persistSentState(
   try {
     await deps.messageRepository.save(message);
   } catch (persistError) {
-    deps.logger.warn(`Persisting SENT state failed after a successful send (id=${result.id})`, {
-      error: persistError instanceof Error ? persistError.message : String(persistError),
-    });
+    if (isUniqueConstraintError(persistError)) {
+      // Race lost: message_create already inserted a SENT row with this waMessageId before we could
+      // write it onto our PENDING row. Keeping ours would leave a duplicate forever stuck on the
+      // pending clock in the dashboard — delete it and let the message_create row be the one copy.
+      await deps.messageRepository.delete(message.id).catch(() => undefined);
+    } else {
+      deps.logger.warn(`Persisting SENT state failed after a successful send (id=${result.id})`, {
+        error: persistError instanceof Error ? persistError.message : String(persistError),
+      });
+    }
   }
   return { messageId: result.id, timestamp: result.timestamp };
 }
