@@ -14,29 +14,8 @@ import { AuthService } from '../auth/auth.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { resolveCorsPolicy } from '../../config/bootstrap-security';
-import { resolveClientIp as resolveRequestClientIp, type RequestLike } from '../../common/utils/ip';
+import { resolveClientIp as resolveRequestClientIp, readTrustedProxies, type RequestLike } from '../../common/utils/ip';
 import type { ApiKey } from '../auth/entities/api-key.entity';
-
-/**
- * WebSocket CORS origin: reuse the HTTP CORS policy instead of a hardcoded '*'.
- * Dev → allow any origin; production → the configured CORS_ORIGINS allowlist (or none).
- * Read from process.env at module load (real env vars apply; same-origin is unaffected).
- */
-function resolveWsCorsOrigin(): boolean | string[] {
-  const policy = resolveCorsPolicy(process.env.CORS_ORIGINS, process.env.NODE_ENV);
-  return policy.allowAnyOrigin ? true : policy.origins;
-}
-
-/**
- * Read TRUSTED_PROXIES once as a list — mirrors mcp.server.ts so the WS surface resolves the
- * client IP with the same trusted-proxy-aware logic as the REST guard and the MCP mount.
- */
-function readTrustedProxies(): string[] {
-  return (process.env.TRUSTED_PROXIES ?? '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
-}
 import type {
   WSClientMessage,
   WSSubscribeRequest,
@@ -49,6 +28,22 @@ import type {
 } from './dto/ws-messages.dto';
 import { SUBSCRIBABLE_EVENTS, buildRoomName } from './dto/ws-messages.dto';
 import type { DeliveryStatus } from '../../engine/interfaces/whatsapp-engine.interface';
+
+/** Per-socket auth state stamped at handshake and read by later handlers. */
+interface SocketData {
+  apiKey?: ApiKey;
+  rawApiKey?: string;
+}
+
+/**
+ * WebSocket CORS origin: reuse the HTTP CORS policy instead of a hardcoded '*'.
+ * Dev → allow any origin; production → the configured CORS_ORIGINS allowlist (or none).
+ * Read from process.env at module load (real env vars apply; same-origin is unaffected).
+ */
+function resolveWsCorsOrigin(): boolean | string[] {
+  const policy = resolveCorsPolicy(process.env.CORS_ORIGINS, process.env.NODE_ENV);
+  return policy.allowAnyOrigin ? true : policy.origins;
+}
 
 /**
  * Whether an API key may subscribe to a session's WebSocket event rooms.
@@ -130,7 +125,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   private untrackSocket(client: Socket): void {
-    const keyId = (client.data as { apiKey?: Pick<ApiKey, 'id'> } | undefined)?.apiKey?.id;
+    const keyId = (client.data as SocketData | undefined)?.apiKey?.id;
     if (!keyId) return;
     const sockets = this.socketsByKeyId.get(keyId);
     if (!sockets) return;
@@ -189,8 +184,8 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
       // Store the validated key AND the raw key — the raw key lets handleSubscribe
       // RE-validate on each subscription so a key revoked mid-connection is caught.
-      (client.data as { apiKey: unknown; rawApiKey: string }).apiKey = validKey;
-      (client.data as { rawApiKey: string }).rawApiKey = apiKey;
+      (client.data as SocketData).apiKey = validKey;
+      (client.data as SocketData).rawApiKey = apiKey;
       this.trackSocket(validKey.id, client);
       this.logger.log(`Client connected: ${client.id} (key: ${validKey.name})`);
     } catch (error) {
@@ -247,7 +242,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     // revoked/expired after connect must not be able to keep opening new subscriptions.
     // The clientIp is re-resolved (trusted-proxy-aware) so an IP-restricted key is enforced
     // here too, not just at connect.
-    const rawApiKey = (client.data as { rawApiKey?: string }).rawApiKey;
+    const rawApiKey = (client.data as SocketData).rawApiKey;
     const clientIp = this.resolveClientIp(client);
     let subscriberKey: { allowedSessions?: string[] | null } | null;
     try {

@@ -1,4 +1,5 @@
 import { computeFeatureFlags } from './feature-flags';
+import { readTrustedProxies } from '../common/utils/ip';
 
 export default () => ({
   port: parseInt(process.env.PORT || '2785', 10),
@@ -159,10 +160,7 @@ export default () => ({
     // may be trusted for client-IP resolution. Empty by default: X-Forwarded-For
     // is ignored and the direct socket address is used, preventing spoofing of
     // the API-key allowedIps whitelist.
-    trustedProxies: (process.env.TRUSTED_PROXIES || '')
-      .split(',')
-      .map(proxy => proxy.trim())
-      .filter(Boolean),
+    trustedProxies: readTrustedProxies(),
   },
 
   // Plugin platform configuration

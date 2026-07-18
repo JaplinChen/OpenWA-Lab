@@ -12,7 +12,7 @@ import type { AuditService } from '../audit/audit.service';
 import { AuditAction } from '../audit/entities/audit-log.entity';
 import { handleToolError, jsonToolResult, smartToolResult } from './tool-result';
 import type { KeyRateLimiter } from './mcp-rate-limit';
-import { resolveClientIp } from '../../common/utils/ip';
+import { resolveClientIp, readTrustedProxies } from '../../common/utils/ip';
 
 const logger = new Logger('McpServer');
 
@@ -62,14 +62,6 @@ export function auditMcpAuthFailure(
       errorMessage: error instanceof Error ? error.message : String(error),
     });
   }
-}
-
-/** Read TRUSTED_PROXIES once as a list (shared by the pre-auth throttle and the audit IP resolver). */
-function readTrustedProxies(): string[] {
-  return (process.env.TRUSTED_PROXIES ?? '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean);
 }
 
 /** Resolve the trusted-proxy-aware client IP + HTTP method/path for an audit record. */

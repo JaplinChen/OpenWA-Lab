@@ -9,6 +9,17 @@ export function normalizeIp(ip: string): string {
   return match ? match[1] : ip;
 }
 
+/**
+ * Parse TRUSTED_PROXIES into a list. Reads process.env on every call — specs
+ * mutate the variable at runtime and expect the change to take effect.
+ */
+export function readTrustedProxies(): string[] {
+  return (process.env.TRUSTED_PROXIES ?? '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+}
+
 /** Minimal request shape needed for client-IP resolution (framework-agnostic). */
 export interface RequestLike {
   ip?: string;
