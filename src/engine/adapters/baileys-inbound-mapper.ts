@@ -40,7 +40,13 @@ export function resolveMentionNames(ctx: InboundMapperCtx, body: string, mention
     if (!digits) {
       continue;
     }
-    const name = ctx.sessionStore.displayName(jid);
+    let name = ctx.sessionStore.displayName(jid);
+    // A mentioned @lid often has no contact entry under the lid itself — resolve lid->phone and
+    // retry the name lookup (contact store + sender overrides are usually keyed by phone digits).
+    if (name === digits && jid.includes('@lid')) {
+      const phone = ctx.sessionStore.resolvePhone(jid);
+      if (phone) name = ctx.sessionStore.displayName(`${phone}@s.whatsapp.net`);
+    }
     if (name && name !== digits) {
       out = out.split(`@${digits}`).join(`@${name}`);
     }
