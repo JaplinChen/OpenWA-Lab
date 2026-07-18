@@ -176,6 +176,10 @@
   margin-top: 1rem;
 }
 
+.plugins-page .no-config-icon{
+  opacity: 0.3;
+}
+
 .plugins-page .btn-primary{
   padding: 0.75rem 1.5rem;
   background: var(--primary, #22c55e);
