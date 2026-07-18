@@ -21,6 +21,13 @@ export class Glossary {
     this.pendingPath = pendingPath || filePath.replace(/\.json$/, '-pending.json');
   }
 
+  private static readonly CJK = /[一-鿿]/;
+
+  /** Users type pairs in either direction; put the CJK term on the zh side (no-op when ambiguous). */
+  private static orient(a: string, b: string): [string, string] {
+    return !Glossary.CJK.test(a) && Glossary.CJK.test(b) ? [b, a] : [a, b];
+  }
+
   /** Load from disk; returns the total term count (0 if absent/unreadable — fine, translate without it). */
   load(): number {
     try {
@@ -30,11 +37,32 @@ export class Glossary {
     }
     try {
       this.data = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as Record<string, Record<string, string>>;
+      this.migrateReversed();
       return Object.values(this.data).reduce((n, m) => n + Object.keys(m).length, 0);
     } catch {
       this.data = {};
       return 0;
     }
+  }
+
+  /** Self-heal entries stored on the wrong side by pre-orient versions (e.g. "sếp ơi" under zh). */
+  private migrateReversed(): void {
+    let changed = false;
+    const pairs: [string, string][] = [
+      ...Object.entries(this.data['zh-tw:vi'] || {}).map(([zh, vi]): [string, string] => [zh, vi]),
+      ...Object.entries(this.data['vi:zh-tw'] || {}).map(([vi, zh]): [string, string] => [zh, vi]),
+    ];
+    for (const [zh, vi] of pairs) {
+      const [z, v] = Glossary.orient(zh, vi);
+      if (z !== zh) {
+        delete this.data['zh-tw:vi']?.[zh];
+        delete this.data['vi:zh-tw']?.[vi];
+        (this.data['zh-tw:vi'] ??= {})[z] = v;
+        (this.data['vi:zh-tw'] ??= {})[v] = z;
+        changed = true;
+      }
+    }
+    if (changed) this.save();
   }
 
   private save(): void {
@@ -54,6 +82,7 @@ export class Glossary {
 
   /** Add/overwrite a zh<->vi term in both directions, persisting immediately. */
   add(zh: string, vi: string): void {
+    [zh, vi] = Glossary.orient(zh, vi);
     (this.data['zh-tw:vi'] ??= {})[zh] = vi;
     (this.data['vi:zh-tw'] ??= {})[vi] = zh;
     this.save();
@@ -84,6 +113,7 @@ export class Glossary {
 
   /** Queue a suggestion; returns the assigned id, or null when the pair already exists (glossary or pending). */
   suggest(zh: string, vi: string, suggestedBy: string): number | null {
+    [zh, vi] = Glossary.orient(zh, vi);
     if (this.has(zh, vi) || this.pendingData.some(p => p.zh === zh && p.vi === vi)) return null;
     const id = this.pendingData.reduce((m, p) => Math.max(m, p.id), 0) + 1;
     this.pendingData.push({ id, zh, vi, suggestedBy, at: new Date().toISOString() });

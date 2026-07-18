@@ -20,6 +20,28 @@ describe('Glossary', () => {
     expect(reloaded.entries()).toEqual([{ source: '電腦', target: 'máy tính' }]);
   });
 
+  it('orients reversed input so the CJK term lands on the zh side', () => {
+    const g = new Glossary(file);
+    g.add('sếp ơi', '長官啊');
+    expect(g.entries()).toEqual([{ source: '長官啊', target: 'sếp ơi' }]);
+    expect(g.section('vi:zh-tw', 'sếp ơi giúp em')).toContain('sếp ơi → 長官啊');
+  });
+
+  it('migrates reversed entries persisted by older versions on load', () => {
+    fs.writeFileSync(
+      file,
+      JSON.stringify({ 'zh-tw:vi': { 'sếp ơi': '長官啊', 電腦: 'máy tính' }, 'vi:zh-tw': { 長官啊: 'sếp ơi', 'máy tính': '電腦' } }),
+      'utf8',
+    );
+    const g = new Glossary(file);
+    g.load();
+    expect(g.entries()).toEqual(expect.arrayContaining([
+      { source: '長官啊', target: 'sếp ơi' },
+      { source: '電腦', target: 'máy tính' },
+    ]));
+    expect(g.section('vi:zh-tw', 'sếp ơi')).toContain('sếp ơi → 長官啊');
+  });
+
   it('removes a pairing when the term appears on either side', () => {
     const g = new Glossary(file);
     g.add('電腦', 'máy tính');
