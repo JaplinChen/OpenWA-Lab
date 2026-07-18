@@ -86,7 +86,11 @@ export class Glossary {
   /** Usage counters keyed by the zh term, persisted beside the glossary so its format stays WA-Translate compatible. */
   private bump(zh: string): void {
     this.usage[zh] = (this.usage[zh] ?? 0) + 1;
-    fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+    try {
+      fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+    } catch {
+      // Best-effort sidecar: a write failure must never break a translation in flight.
+    }
   }
 
   /** zh->vi terms as a flat list for the dashboard/API (source = 中文, target = 越南文). */

@@ -110,21 +110,27 @@ export class SenderDirectory {
       this.usage[key] = (this.usage[key] ?? 0) + 1;
       hit = true;
     }
-    if (hit) fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+    if (hit) this.saveUsage();
   }
 
-  /** Replace every known `@<jid>` token in the text with `@<name>`, counting each jid actually hit. */
+  // Best-effort: a sidecar write failure must never break a translation in flight.
+  private saveUsage(): void {
+    try {
+      fs.mkdirSync(this.filePath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
+      fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+    } catch {
+      // ignore
+    }
+  }
+
+  /** Replace every known `@<jid>` token in the text with `@<name>` (counting lives in markUsed). */
   apply(text: string): string {
     if (!text) return text;
     let out = text;
-    let hit = false;
     for (const [jid, name] of Object.entries(this.data)) {
       if (!name || !out.includes(`@${jid}`)) continue; // empty name = pending entry, don't replace
       out = out.split(`@${jid}`).join(`@${name}`);
-      this.usage[jid] = (this.usage[jid] ?? 0) + 1;
-      hit = true;
     }
-    if (hit) fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
     return out;
   }
 

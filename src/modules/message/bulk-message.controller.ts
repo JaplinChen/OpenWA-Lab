@@ -45,6 +45,7 @@ export class BulkMessageController {
   }
 
   @Get('batch/:batchId')
+  @RequireRole(ApiKeyRole.VIEWER)
   @ApiOperation({ summary: 'Get batch processing status' })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
   @ApiParam({ name: 'batchId', description: 'Batch ID' })

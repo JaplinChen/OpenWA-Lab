@@ -154,7 +154,24 @@ export class TranslateService implements OnModuleInit {
     );
   }
 
-  getConfig(): TranslateConfig & { llmPromptTemplateDefault: string } {
+  // Keys never leave the server: llmApiKey (and each provider config's apiKey) is masked to '' with
+  // an apiKeySet flag instead — '' round-trips through the dashboard PUT as "keep the stored key".
+  getConfig(): TranslateConfig & { llmPromptTemplateDefault: string; apiKeySet: boolean } {
+    const llmProviderConfigs: Record<string, Record<string, unknown>> = {};
+    for (const [prov, cfg] of Object.entries(this.providerConfigs)) {
+      llmProviderConfigs[prov] =
+        typeof cfg.apiKey === 'string' && cfg.apiKey ? { ...cfg, apiKey: '', apiKeySet: true } : { ...cfg };
+    }
+    return {
+      ...this.persistedConfig(),
+      llmApiKey: '',
+      apiKeySet: this.apiKey !== '',
+      llmProviderConfigs,
+      llmPromptTemplateDefault: DEFAULT_PROMPT_TEMPLATE,
+    };
+  }
+
+  private persistedConfig(): TranslateConfig {
     return {
       enabled: this.enabled,
       groupIds: [...this.groupIds],
@@ -167,7 +184,6 @@ export class TranslateService implements OnModuleInit {
       llmTemperature: this.temperature,
       llmFallbackModels: [...this.fallbackModels],
       llmPromptTemplate: this.promptTemplate,
-      llmPromptTemplateDefault: DEFAULT_PROMPT_TEMPLATE,
       llmProviderConfigs: this.providerConfigs,
     };
   }
@@ -190,7 +206,8 @@ export class TranslateService implements OnModuleInit {
     }
     if (partial.llmEndpoint !== undefined) this.endpoint = partial.llmEndpoint.trim();
     if (partial.llmModel !== undefined) this.model = partial.llmModel.trim();
-    if (partial.llmApiKey !== undefined) this.apiKey = partial.llmApiKey.trim();
+    // '' = masked value round-tripped from getConfig(): keep the stored key.
+    if (partial.llmApiKey !== undefined && partial.llmApiKey.trim()) this.apiKey = partial.llmApiKey.trim();
     if (partial.llmTemperature !== undefined && partial.llmTemperature >= 0) {
       this.temperature = partial.llmTemperature;
     }
@@ -199,7 +216,14 @@ export class TranslateService implements OnModuleInit {
     }
     if (partial.llmPromptTemplate !== undefined) this.promptTemplate = partial.llmPromptTemplate;
     if (partial.llmProviderConfigs !== undefined && partial.llmProviderConfigs !== null) {
-      this.providerConfigs = partial.llmProviderConfigs;
+      const merged: Record<string, Record<string, unknown>> = {};
+      for (const [prov, cfg] of Object.entries(partial.llmProviderConfigs)) {
+        const { apiKeySet: _set, ...rest } = cfg;
+        const stored = this.providerConfigs[prov]?.apiKey;
+        if (!rest.apiKey && typeof stored === 'string' && stored) rest.apiKey = stored;
+        merged[prov] = rest;
+      }
+      this.providerConfigs = merged;
     }
     this.saveConfig();
     return this.getConfig();
@@ -283,8 +307,20 @@ export class TranslateService implements OnModuleInit {
   }
 
   private loadConfig(): void {
+    let raw: Partial<TranslateConfig>;
     try {
-      const raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as Partial<TranslateConfig>;
+      raw = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as Partial<TranslateConfig>;
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        // No file yet: seed it from the .env-derived values.
+        this.saveConfig();
+      } else {
+        // Unreadable/corrupt: keep the file for inspection, don't clobber it with defaults.
+        this.logger.warn(`Config unreadable, keeping ${CONFIG_PATH} untouched: ${String(err)}`);
+      }
+      return;
+    }
+    try {
       if (typeof raw.enabled === 'boolean') this.enabled = raw.enabled;
       if (Array.isArray(raw.groupIds)) {
         this.groupIds = new Set(raw.groupIds.map(s => String(s).trim()).filter(Boolean));
@@ -305,17 +341,17 @@ export class TranslateService implements OnModuleInit {
       if (raw.llmProviderConfigs && typeof raw.llmProviderConfigs === 'object') {
         this.providerConfigs = raw.llmProviderConfigs;
       }
-    } catch {
-      // No file yet (or unreadable): keep the .env-seeded values and write out an initial file.
-      this.saveConfig();
+    } catch (err) {
+      this.logger.warn(`Config partially applied: ${String(err)}`);
     }
   }
 
   private saveConfig(): void {
     const dir = path.dirname(CONFIG_PATH);
     fs.mkdirSync(dir, { recursive: true });
-    const { llmPromptTemplateDefault: _default, ...persisted } = this.getConfig();
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(persisted, null, 2), 'utf8');
+    const tmp = CONFIG_PATH + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(this.persistedConfig(), null, 2), 'utf8');
+    fs.renameSync(tmp, CONFIG_PATH);
   }
 
   // Fire-and-forget: never block the receive pipeline (SessionService awaits the hook chain before
@@ -370,8 +406,8 @@ export class TranslateService implements OnModuleInit {
       const pair = this.detectPair(body);
       if (!pair) return pass; // not zh/vi — leave it alone
 
-      // Usage counting rides on mentionedIds: the adapter already replaced the raw @<digits> token
-      // with a name before this hook runs, so apply()'s token-based counting never fires for mentions.
+      // markUsed(mentionedIds) is the sole usage counter: the adapter already replaced the raw
+      // @<digits> token with a name before this hook runs, so apply() can't see mentions reliably.
       if (msg.mentionedIds?.length) {
         this.senders.markUsed(msg.mentionedIds);
         // Unresolved mention (raw @<digits> still in the body) -> queue an empty-name entry so the
@@ -571,7 +607,16 @@ export class TranslateService implements OnModuleInit {
    * OpenAI/Groq /models) so a wrong/blank model name doesn't fail key validation; only azure/gemini
    * (no portable list endpoint) fall back to a tiny generation, which does need a valid model.
    */
-  async testConnection(p: LlmParams): Promise<{ ok: boolean; message: string }> {
+  // Dashboard probes send apiKey:'' (getConfig masks it) — fall back to the stored key so
+  // Test Connection / Fetch Models keep working without re-entering the secret.
+  private storedKey(provider: LlmProvider): string {
+    if (provider === this.provider && this.apiKey) return this.apiKey;
+    const k = this.providerConfigs[provider]?.apiKey;
+    return typeof k === 'string' ? k : '';
+  }
+
+  async testConnection(raw: LlmParams): Promise<{ ok: boolean; message: string }> {
+    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider) };
     try {
       // Model-agnostic providers validate via the list endpoint (key/endpoint only); azure has no
       // portable list, so it does a tiny generation which needs a valid deployment/model.
@@ -615,7 +660,8 @@ export class TranslateService implements OnModuleInit {
   }
 
   /** List model names for the endpoint (Ollama /api/tags, OpenAI/Groq /models, Gemini /v1beta/models). */
-  async listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
+  async listModels(raw: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
+    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider) };
     if (p.provider === 'ollama') {
       const res = await fetch(this.replacePath(p.endpoint, '/api/tags'));
       if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);

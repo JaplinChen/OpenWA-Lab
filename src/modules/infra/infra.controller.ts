@@ -293,7 +293,7 @@ export class InfraController {
               removalResult.errors.push(`Failed to remove ${profile}`);
             }
           } catch (err) {
-            removalResult.errors.push(`Error removing ${profile}: ${err}`);
+            removalResult.errors.push(`Error removing ${profile}: ${err instanceof Error ? err.message : String(err)}`);
           }
         }
         this.logger.log('Removal result', { removalResult });

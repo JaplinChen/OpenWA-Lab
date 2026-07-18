@@ -79,16 +79,17 @@ describe('SenderDirectory', () => {
     ]);
   });
 
-  it('apply counts each jid actually replaced and persists across reload', () => {
+  it('markUsed is the sole usage counter; apply never bumps counts', () => {
     const s = new SenderDirectory(file);
     s.add('111', '總經理');
     s.add('222', '阿明');
-    s.apply('報告給@111');
-    s.apply('報告給@111，cc @999');
+    expect(s.apply('報告給@111')).toBe('報告給@總經理');
     expect(s.entries()).toEqual([
-      { jid: '111', name: '總經理', count: 2 },
+      { jid: '111', name: '總經理', count: 0 },
       { jid: '222', name: '阿明', count: 0 },
     ]);
+    s.markUsed(['111', '999']);
+    s.markUsed(['111']);
     const reloaded = new SenderDirectory(file);
     reloaded.load();
     expect(reloaded.entries().find(e => e.jid === '111')?.count).toBe(2);

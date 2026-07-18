@@ -14,6 +14,7 @@ import {
 } from './dto/message-actions.dto';
 import { RequireRole } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
+import { parsePositiveInt } from '../../common/utils/parse-int';
 
 @ApiTags('messages')
 @Controller('sessions/:sessionId/messages')
@@ -21,6 +22,7 @@ export class MessageController {
   constructor(private readonly messageService: MessageService) {}
 
   @Get()
+  @RequireRole(ApiKeyRole.VIEWER)
   @ApiOperation({ summary: 'Get message history for a session' })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
   @ApiQuery({ name: 'chatId', required: false, description: 'Filter by chat ID' })
@@ -45,8 +47,8 @@ export class MessageController {
     return this.messageService.getMessages(sessionId, {
       chatId,
       from,
-      limit: limit ? parseInt(limit, 10) : undefined,
-      offset: offset ? parseInt(offset, 10) : undefined,
+      limit: parsePositiveInt(limit),
+      offset: parsePositiveInt(offset),
     });
   }
 
@@ -273,6 +275,7 @@ export class MessageController {
   }
 
   @Get(':chatId/history')
+  @RequireRole(ApiKeyRole.VIEWER)
   @ApiOperation({
     summary: 'Fetch chat history live from WhatsApp',
     description:
@@ -305,19 +308,17 @@ export class MessageController {
     @Query('includeMedia') includeMedia?: string,
     @Query('deep') deep?: string,
   ) {
-    // Parse the limit defensively: a non-numeric query value (?limit=abc) yields NaN,
-    // so fall back to undefined and let the service apply its default + clamp.
-    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
     return this.messageService.getChatHistory(
       sessionId,
       chatId,
-      parsedLimit !== undefined && !Number.isNaN(parsedLimit) ? parsedLimit : undefined,
+      parsePositiveInt(limit),
       includeMedia === 'true' || includeMedia === '1',
       deep === 'true' || deep === '1',
     );
   }
 
   @Get(':chatId/:messageId/reactions')
+  @RequireRole(ApiKeyRole.VIEWER)
   @ApiOperation({ summary: 'Get reactions for a specific message' })
   @ApiParam({ name: 'sessionId', description: 'Session ID' })
   @ApiParam({ name: 'chatId', description: 'Chat ID containing the message' })
