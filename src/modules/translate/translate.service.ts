@@ -366,6 +366,12 @@ export class TranslateService implements OnModuleInit {
         );
         return pass; // command, not content to translate
       }
+      if (lower === '/help' || lower === '/h') {
+        void this.handleHelpCommand(sessionId, msg).catch(err =>
+          this.logger.error('Help command failed', String(err)),
+        );
+        return pass; // command, not content to translate
+      }
 
       const pair = this.detectPair(body);
       if (!pair) return pass; // not zh/vi — leave it alone
@@ -407,6 +413,25 @@ export class TranslateService implements OnModuleInit {
     const target = msg.isGroup ? author : msg.chatId;
     if (!target) return;
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + reply });
+  }
+
+  private async handleHelpCommand(sessionId: string, msg: IncomingMessage): Promise<void> {
+    const author = msg.author || msg.from;
+    const target = msg.isGroup ? author : msg.chatId;
+    if (!target) return;
+    const help = [
+      '指令一覽：',
+      '/g 詞 = nghĩa   建議詞彙（管理員=直接新增）',
+      '/g              列出詞彙',
+      '/g pending      待審清單（管理員）',
+      '/g ok|no <id>   核准/退回建議（管理員）',
+      '/g del <詞>     刪除詞彙（管理員）',
+      '/s              列出發送者對照',
+      '/s add <JID>=名稱   新增對照（管理員）',
+      '/s del <JID>    刪除對照（管理員）',
+      '/help           顯示本說明',
+    ].join('\n');
+    await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + help });
   }
 
   private async handleSenderCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
