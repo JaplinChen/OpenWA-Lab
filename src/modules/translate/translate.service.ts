@@ -5,7 +5,7 @@ import { HookManager, HookContext, HookResult } from '../../core/hooks';
 import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
 import { createLogger } from '../../common/services/logger.service';
-import { Glossary } from './translate-glossary';
+import { Glossary, PendingSuggestion } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
 import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, detectPair, buildPrompt, sleep, stripThinking } from './translate-lang';
 
@@ -224,6 +224,20 @@ export class TranslateService implements OnModuleInit {
     return this.glossary.entries();
   }
 
+  getPendingGlossary(): PendingSuggestion[] {
+    return this.glossary.pending();
+  }
+
+  approvePendingGlossary(id: number): PendingSuggestion[] {
+    if (!this.glossary.approve(id)) throw new BadRequestException(`unknown pending id: ${id}`);
+    return this.glossary.pending();
+  }
+
+  rejectPendingGlossary(id: number): PendingSuggestion[] {
+    if (!this.glossary.reject(id)) throw new BadRequestException(`unknown pending id: ${id}`);
+    return this.glossary.pending();
+  }
+
   getSenders(): { jid: string; name: string }[] {
     return this.senders.entries();
   }
@@ -340,13 +354,13 @@ export class TranslateService implements OnModuleInit {
 
       const trimmed = body.trim();
       const lower = trimmed.toLowerCase();
-      if (lower === '/glossary' || lower.startsWith('/glossary ')) {
+      if (lower === '/glossary' || lower.startsWith('/glossary ') || lower === '/g' || lower.startsWith('/g ')) {
         void this.handleGlossaryCommand(sessionId, msg, trimmed).catch(err =>
           this.logger.error('Glossary command failed', String(err)),
         );
         return pass; // command, not content to translate
       }
-      if (lower === '/sender' || lower.startsWith('/sender ')) {
+      if (lower === '/sender' || lower.startsWith('/sender ') || lower === '/s' || lower.startsWith('/s ')) {
         void this.handleSenderCommand(sessionId, msg, trimmed).catch(err =>
           this.logger.error('Sender command failed', String(err)),
         );
@@ -385,10 +399,10 @@ export class TranslateService implements OnModuleInit {
   // Marker-prefixed reply so the bot never re-translates its own output. Admin allowlist (if set)
   // gates mutating subcommands; the parsing/persistence lives in Glossary.
   private async handleGlossaryCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
-    const rest = raw.replace(/^\/glossary\s*/i, '').trim();
+    const rest = raw.replace(/^\/(?:glossary|g)(?=\s|$)\s*/i, '').trim();
     const author = msg.author || msg.from;
     const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
-    const reply = this.glossary.command(rest, canMutate);
+    const reply = this.glossary.command(rest, canMutate, author);
     // ponytail: reply in DM so the term list doesn't flood the group
     const target = msg.isGroup ? author : msg.chatId;
     if (!target) return;
@@ -396,7 +410,7 @@ export class TranslateService implements OnModuleInit {
   }
 
   private async handleSenderCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
-    const rest = raw.replace(/^\/sender\s*/i, '').trim();
+    const rest = raw.replace(/^\/(?:sender|s)(?=\s|$)\s*/i, '').trim();
     const author = msg.author || msg.from;
     const canMutate = this.adminIds.size === 0 || this.adminIds.has(author);
     const reply = this.senders.command(rest, canMutate);
@@ -499,6 +513,9 @@ export class TranslateService implements OnModuleInit {
         model: p.model,
         temperature: p.temperature,
         messages: [{ role: 'user', content: prompt }],
+        // Groq qwen3 models are reasoning models: without this they spend the reply on <think> blocks and
+        // stripThinking() yields '' → constant fallback. Mirrors callOllama's think:false / Gemini's thinkingBudget:0.
+        ...(p.provider === 'groq' && /qwen-?3/i.test(p.model) ? { reasoning_effort: 'none' } : {}),
       }),
     });
     if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);

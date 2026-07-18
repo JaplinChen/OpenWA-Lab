@@ -50,6 +50,12 @@ describe('TranslateService glossary', () => {
     expect(saved['vi:zh-tw']['giao hàng']).toBeUndefined();
   });
 
+  it('/g alias strips the short token and routes to the glossary', async () => {
+    await cmd('/g 出貨 = giao hàng');
+    const saved = JSON.parse(fs.readFileSync(glossaryPath, 'utf8'));
+    expect(saved['zh-tw:vi']['出貨']).toBe('giao hàng');
+  });
+
   it('detects zh and vi source directions', () => {
     const detect = (service as unknown as { detectPair: (t: string) => { key: string } | null }).detectPair.bind(service);
     expect(detect('今天出貨')?.key).toBe('zh-tw:vi');

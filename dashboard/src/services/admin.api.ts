@@ -183,6 +183,14 @@ export interface GlossaryTerm {
   target: string; // 越南文
 }
 
+export interface PendingGlossaryTerm {
+  id: number;
+  zh: string;
+  vi: string;
+  suggestedBy: string;
+  at: string;
+}
+
 export interface SenderEntry {
   jid: string; // @mention 的號碼 (digits)
   name: string; // 顯示名稱
@@ -309,6 +317,11 @@ export const translateApi = {
     request<GlossaryTerm[]>(`/translate/glossary?term=${encodeURIComponent(term)}`, {
       method: 'DELETE',
     }),
+  getPendingGlossary: () => request<PendingGlossaryTerm[]>('/translate/glossary/pending'),
+  approvePendingGlossary: (id: number) =>
+    request<void>(`/translate/glossary/pending/${id}/approve`, { method: 'POST' }),
+  rejectPendingGlossary: (id: number) =>
+    request<void>(`/translate/glossary/pending/${id}`, { method: 'DELETE' }),
   getSenders: () => request<SenderEntry[]>('/translate/senders'),
   addSender: (jid: string, name: string) =>
     request<SenderEntry[]>('/translate/senders', {

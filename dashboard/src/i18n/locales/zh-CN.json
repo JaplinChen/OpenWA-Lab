@@ -896,7 +896,13 @@
     "terms": "词条",
     "add": "新增",
     "added": "已新增词条",
-    "empty": "尚无词条。"
+    "empty": "尚无词条。",
+    "pendingTitle": "待审建议",
+    "approve": "批准",
+    "reject": "拒绝",
+    "approved": "已批准建议",
+    "rejected": "已拒绝建议",
+    "suggestedBy": "由 {{name}} 建议"
   },
   "senders": {
     "title": "发送者",

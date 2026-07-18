@@ -39,4 +39,66 @@ describe('Glossary', () => {
     // no matching term → empty section
     expect(g.section('zh-tw:vi', '你好嗎')).toBe('');
   });
+
+  it('suggest queues a pending entry and approve moves it into the glossary', () => {
+    const g = new Glossary(file);
+    const reply = g.command('suggest 電腦 = máy tính', false, 'user@c.us');
+    expect(reply).toContain('#1');
+    expect(g.pending()).toMatchObject([{ id: 1, zh: '電腦', vi: 'máy tính', suggestedBy: 'user@c.us' }]);
+    // persisted and reloadable
+    const reloaded = new Glossary(file);
+    reloaded.load();
+    expect(reloaded.pending()).toHaveLength(1);
+
+    expect(g.command('approve 1', true)).toContain('已核准');
+    expect(g.pending()).toEqual([]);
+    expect(g.entries()).toEqual([{ source: '電腦', target: 'máy tính' }]);
+  });
+
+  it('reject drops the pending entry without touching the glossary', () => {
+    const g = new Glossary(file);
+    g.command('suggest 電腦 = máy tính', false, 'user@c.us');
+    expect(g.command('reject 1', true)).toContain('已拒絕');
+    expect(g.pending()).toEqual([]);
+    expect(g.entries()).toEqual([]);
+    expect(g.command('approve 1', true)).toContain('找不到');
+  });
+
+  it('blocks non-admins from pending/approve/reject but not suggest', () => {
+    const g = new Glossary(file);
+    g.command('suggest 電腦 = máy tính', false, 'user@c.us');
+    expect(g.command('pending', false)).toBe('此指令僅限管理員使用。');
+    expect(g.command('approve 1', false)).toBe('此指令僅限管理員使用。');
+    expect(g.command('reject 1', false)).toBe('此指令僅限管理員使用。');
+    expect(g.pending()).toHaveLength(1);
+    expect(g.command('pending', true)).toContain('#1 電腦 = máy tính（user@c.us）');
+  });
+
+  it('bare pair adds as admin and suggests as member', () => {
+    const g = new Glossary(file);
+    expect(g.command('電腦 = máy tính', true)).toContain('已新增術語');
+    expect(g.entries()).toEqual([{ source: '電腦', target: 'máy tính' }]);
+    expect(g.command('印表機 = máy in', false, 'user@c.us')).toContain('#1');
+    expect(g.pending()).toMatchObject([{ id: 1, zh: '印表機', vi: 'máy in', suggestedBy: 'user@c.us' }]);
+  });
+
+  it('ok/no aliases approve and reject', () => {
+    const g = new Glossary(file);
+    g.command('suggest 電腦 = máy tính', false, 'a');
+    g.command('suggest 印表機 = máy in', false, 'a');
+    expect(g.command('ok 1', true)).toContain('已核准');
+    expect(g.entries()).toEqual([{ source: '電腦', target: 'máy tính' }]);
+    expect(g.command('no 2', true)).toContain('已拒絕');
+    expect(g.pending()).toEqual([]);
+  });
+
+  it('dedupes suggestions against the glossary and the pending list', () => {
+    const g = new Glossary(file);
+    g.add('電腦', 'máy tính');
+    expect(g.command('suggest 電腦 = máy tính', false, 'a')).toContain('已存在');
+    expect(g.pending()).toEqual([]);
+    g.command('suggest 印表機 = máy in', false, 'a');
+    expect(g.command('suggest 印表機 = máy in', false, 'b')).toContain('已存在');
+    expect(g.pending()).toHaveLength(1);
+  });
 });

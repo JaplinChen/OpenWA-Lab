@@ -896,7 +896,13 @@
     "terms": "Thuật ngữ",
     "add": "Thêm",
     "added": "Đã thêm thuật ngữ",
-    "empty": "Chưa có thuật ngữ nào."
+    "empty": "Chưa có thuật ngữ nào.",
+    "pendingTitle": "Đề xuất chờ duyệt",
+    "approve": "Duyệt",
+    "reject": "Từ chối",
+    "approved": "Đã duyệt đề xuất",
+    "rejected": "Đã từ chối đề xuất",
+    "suggestedBy": "Đề xuất bởi {{name}}"
   },
   "senders": {
     "title": "Người gửi",

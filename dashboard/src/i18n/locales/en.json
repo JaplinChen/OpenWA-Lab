@@ -896,7 +896,13 @@
     "terms": "Terms",
     "add": "Add",
     "added": "Term added",
-    "empty": "No glossary terms yet."
+    "empty": "No glossary terms yet.",
+    "pendingTitle": "Pending suggestions",
+    "approve": "Approve",
+    "reject": "Reject",
+    "approved": "Suggestion approved",
+    "rejected": "Suggestion rejected",
+    "suggestedBy": "Suggested by {{name}}"
   },
   "senders": {
     "title": "Senders",

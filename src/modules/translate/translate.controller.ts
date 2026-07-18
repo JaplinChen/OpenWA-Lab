@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RequireRole } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { TranslateService } from './translate.service';
 import type { TranslateConfig } from './translate.service';
+import type { PendingSuggestion } from './translate-glossary';
 import { ContactService } from '../contact/contact.service';
 import { GroupService } from '../group/group.service';
 import type { Contact, Group } from '../../engine/interfaces/whatsapp-engine.types';
@@ -90,6 +91,30 @@ export class TranslateController {
   @ApiResponse({ status: 200, description: 'Updated glossary terms' })
   removeGlossary(@Query('term') term: string): GlossaryEntry[] {
     return this.translateService.removeGlossaryTerm(term ?? '');
+  }
+
+  @Get('glossary/pending')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'List pending glossary suggestions' })
+  @ApiResponse({ status: 200, description: 'Pending suggestions' })
+  getPendingGlossary(): PendingSuggestion[] {
+    return this.translateService.getPendingGlossary();
+  }
+
+  @Post('glossary/pending/:id/approve')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Approve a pending glossary suggestion into the glossary' })
+  @ApiResponse({ status: 201, description: 'Remaining pending suggestions' })
+  approvePendingGlossary(@Param('id', ParseIntPipe) id: number): PendingSuggestion[] {
+    return this.translateService.approvePendingGlossary(id);
+  }
+
+  @Delete('glossary/pending/:id')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Reject (drop) a pending glossary suggestion' })
+  @ApiResponse({ status: 200, description: 'Remaining pending suggestions' })
+  rejectPendingGlossary(@Param('id', ParseIntPipe) id: number): PendingSuggestion[] {
+    return this.translateService.rejectPendingGlossary(id);
   }
 
   @Get('senders')

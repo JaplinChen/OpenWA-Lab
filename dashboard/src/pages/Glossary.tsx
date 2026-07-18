@@ -1,10 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, BookMarked, Pencil } from 'lucide-react';
-import { translateApi, type GlossaryTerm } from '../services/api';
+import { translateApi, type GlossaryTerm, type PendingGlossaryTerm } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
+import { GlossaryPending } from './GlossaryPending';
 import './Glossary.css';
 
 export function Glossary() {
@@ -13,6 +14,7 @@ export function Glossary() {
   const { canWrite } = useRole();
 
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
+  const [pending, setPending] = useState<PendingGlossaryTerm[]>([]);
   const [loading, setLoading] = useState(true);
   const [src, setSrc] = useState('');
   const [tgt, setTgt] = useState('');
@@ -32,6 +34,10 @@ export function Glossary() {
       .then(list => active && setTerms(list))
       .catch(() => {})
       .finally(() => active && setLoading(false));
+    translateApi
+      .getPendingGlossary()
+      .then(list => active && setPending(list))
+      .catch(() => {});
     return () => {
       active = false;
     };
@@ -115,6 +121,41 @@ export function Glossary() {
     }
   };
 
+  const refetch = async () => {
+    const [list, pend] = await Promise.all([
+      translateApi.getGlossary(),
+      translateApi.getPendingGlossary(),
+    ]);
+    setTerms(list);
+    setPending(pend);
+  };
+
+  const approve = async (id: number) => {
+    setBusy(true);
+    try {
+      await translateApi.approvePendingGlossary(id);
+      await refetch();
+      setToast({ type: 'success', message: t('glossary.approved') });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reject = async (id: number) => {
+    setBusy(true);
+    try {
+      await translateApi.rejectPendingGlossary(id);
+      setPending(await translateApi.getPendingGlossary());
+      setToast({ type: 'success', message: t('glossary.rejected') });
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="glossary-page glossary-loading">
@@ -138,6 +179,14 @@ export function Glossary() {
       <PageHeader
         title={t('glossary.title')}
         subtitle={t('glossary.subtitle')}
+      />
+
+      <GlossaryPending
+        pending={pending}
+        canWrite={canWrite}
+        busy={busy}
+        onApprove={approve}
+        onReject={reject}
       />
 
       <section className="glossary-panel">
