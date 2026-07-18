@@ -1,0 +1,43 @@
+.sessions-page .qr-modal .modal-body {
+  text-align: center;
+}
+
+.sessions-page .qr-modal .btn-close {
+  color: var(--text-muted);
+}
+
+.sessions-page .qr-image {
+  max-width: 280px;
+  border-radius: 12px;
+}
+
+.sessions-page .qr-loading {
+  padding: 2rem;
+}
+
+.sessions-page .pairing-phone-hint {
+  margin-bottom: 1.5rem;
+}
+
+.sessions-page .pairing-generate-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+.sessions-page .pairing-generating-label {
+  margin-left: 0.5rem;
+}
+
+.sessions-page .pairing-code-label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.sessions-page .pairing-change-wrap {
+  margin-top: 1.5rem;
+}
+
+.sessions-page .pairing-change-btn {
+  width: 100%;
+}
