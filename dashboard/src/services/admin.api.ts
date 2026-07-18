@@ -292,7 +292,7 @@ export const infraApi = {
 
 export const translateApi = {
   getConfig: () => request<TranslateConfig>('/translate/config'),
-  updateConfig: (config: Partial<TranslateConfig>) =>
+  updateConfig: ({ llmPromptTemplateDefault: _readonly, ...config }: Partial<TranslateConfig>) =>
     request<TranslateConfig>('/translate/config', {
       method: 'PUT',
       body: JSON.stringify(config),
