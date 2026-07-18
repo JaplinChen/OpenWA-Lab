@@ -7,7 +7,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
-import { BOT_MARKER, Pair, detectPair, buildPrompt, sleep, stripThinking } from './translate-lang';
+import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, detectPair, buildPrompt, sleep, stripThinking } from './translate-lang';
 
 const CONFIG_PATH = 'data/translate-config.json';
 
@@ -31,6 +31,8 @@ export interface TranslateConfig {
   llmApiKey: string;
   llmTemperature: number;
   llmFallbackModels: string[];
+  // Custom prompt template ({source}/{target}/{glossary}/{text} placeholders). '' = built-in default.
+  llmPromptTemplate: string;
   // Per-provider saved settings so switching engines in the UI restores each one's endpoint/model/key
   // (like TypeTwo's providerConfigs). Opaque to the backend — only the flat active fields above drive
   // translate(); this is storage the dashboard reads back.
@@ -60,6 +62,8 @@ export class TranslateService implements OnModuleInit {
   private temperature = 0;
   // Tried in order when the primary model call throws (e.g. model not loaded, timeout).
   private fallbackModels: string[] = [];
+  // Custom prompt template; '' = use DEFAULT_PROMPT_TEMPLATE.
+  private promptTemplate = '';
   // Per-provider saved settings (opaque passthrough for the dashboard; see TranslateConfig).
   private providerConfigs: Record<string, Record<string, unknown>> = {};
   // zh<->vi term overrides injected into the prompt (see Glossary).
@@ -150,7 +154,7 @@ export class TranslateService implements OnModuleInit {
     );
   }
 
-  getConfig(): TranslateConfig {
+  getConfig(): TranslateConfig & { llmPromptTemplateDefault: string } {
     return {
       enabled: this.enabled,
       groupIds: [...this.groupIds],
@@ -162,6 +166,8 @@ export class TranslateService implements OnModuleInit {
       llmApiKey: this.apiKey,
       llmTemperature: this.temperature,
       llmFallbackModels: [...this.fallbackModels],
+      llmPromptTemplate: this.promptTemplate,
+      llmPromptTemplateDefault: DEFAULT_PROMPT_TEMPLATE,
       llmProviderConfigs: this.providerConfigs,
     };
   }
@@ -191,6 +197,7 @@ export class TranslateService implements OnModuleInit {
     if (partial.llmFallbackModels !== undefined) {
       this.fallbackModels = partial.llmFallbackModels.map(s => s.trim()).filter(Boolean);
     }
+    if (partial.llmPromptTemplate !== undefined) this.promptTemplate = partial.llmPromptTemplate;
     if (partial.llmProviderConfigs !== undefined && partial.llmProviderConfigs !== null) {
       this.providerConfigs = partial.llmProviderConfigs;
     }
@@ -280,6 +287,7 @@ export class TranslateService implements OnModuleInit {
       if (Array.isArray(raw.llmFallbackModels)) {
         this.fallbackModels = raw.llmFallbackModels.map(s => String(s).trim()).filter(Boolean);
       }
+      if (typeof raw.llmPromptTemplate === 'string') this.promptTemplate = raw.llmPromptTemplate;
       if (raw.llmProviderConfigs && typeof raw.llmProviderConfigs === 'object') {
         this.providerConfigs = raw.llmProviderConfigs;
       }
@@ -292,7 +300,8 @@ export class TranslateService implements OnModuleInit {
   private saveConfig(): void {
     const dir = path.dirname(CONFIG_PATH);
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(this.getConfig(), null, 2), 'utf8');
+    const { llmPromptTemplateDefault: _default, ...persisted } = this.getConfig();
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(persisted, null, 2), 'utf8');
   }
 
   // Fire-and-forget: never block the receive pipeline (SessionService awaits the hook chain before
@@ -411,7 +420,7 @@ export class TranslateService implements OnModuleInit {
     // Resolve unknown @mention JIDs (e.g. @200859128434777) to names before the model sees them.
     const applied = this.senders.apply(text);
     // Only inject glossary terms that actually appear in this message (see Glossary.section).
-    const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied));
+    const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied), this.promptTemplate);
 
     // Try the primary model, then each fallback in order — covers "model not loaded"/timeout on a
     // local Ollama or a rate-limited cloud model without dropping the translation.

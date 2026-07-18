@@ -24,6 +24,7 @@ const Logs = lazy(() => import('./pages/Logs').then(m => ({ default: m.Logs })))
 const ApiKeys = lazy(() => import('./pages/ApiKeys').then(m => ({ default: m.ApiKeys })));
 const MessageTester = lazy(() => import('./pages/MessageTester').then(m => ({ default: m.MessageTester })));
 const LlmSettings = lazy(() => import('./pages/LlmSettings').then(m => ({ default: m.LlmSettings })));
+const TranslatePrompt = lazy(() => import('./pages/TranslatePrompt').then(m => ({ default: m.TranslatePrompt })));
 const Infrastructure = lazy(() => import('./pages/Infrastructure').then(m => ({ default: m.Infrastructure })));
 const Plugins = lazy(() => import('./pages/Plugins'));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
@@ -122,6 +123,7 @@ function AppContent() {
               <Route path="templates" element={<Templates />} />
               <Route path="message-tester" element={<MessageTester />} />
               {role === 'admin' && <Route path="llm" element={<LlmSettings />} />}
+              {role === 'admin' && <Route path="translate-prompt" element={<TranslatePrompt />} />}
               {role === 'admin' && <Route path="api-keys" element={<ApiKeys />} />}
               {role === 'admin' && <Route path="infrastructure" element={<Infrastructure />} />}
               {role === 'admin' && <Route path="plugins" element={<Plugins />} />}

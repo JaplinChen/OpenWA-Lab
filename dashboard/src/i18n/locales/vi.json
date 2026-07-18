@@ -93,7 +93,10 @@
     "modelsFailed": "Lấy mô hình thất bại: {{message}}",
     "saved": "Đã lưu cài đặt",
     "saveFailed": "Lưu thất bại: {{message}}",
-    "loadFailed": "Tải cấu hình thất bại: {{message}}"
+    "loadFailed": "Tải cấu hình thất bại: {{message}}",
+    "promptTemplate": "Prompt dịch",
+    "promptHint": "Biến thay thế: {source}, {target}, {glossary}, {text}. Để trống để dùng prompt mặc định.",
+    "promptReset": "Khôi phục mặc định"
   },
   "nav": {
     "dashboard": "Bảng điều khiển",
@@ -105,6 +108,7 @@
     "glossary": "Từ điển",
     "senders": "Người gửi",
     "llm": "Cài đặt LLM",
+    "translatePrompt": "Prompt dịch",
     "settings": "Cài đặt",
     "apiKeys": "API Key",
     "messageTester": "Kiểm tra tin nhắn",

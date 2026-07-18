@@ -1,4 +1,32 @@
-import { stripThinking, detectPair, VI_TO_ZH, ZH_TO_VI } from './translate-lang';
+import { stripThinking, detectPair, buildPrompt, VI_TO_ZH, ZH_TO_VI } from './translate-lang';
+
+describe('buildPrompt', () => {
+  it('renders the built-in default when no template is given', () => {
+    const out = buildPrompt('xin chào', VI_TO_ZH, 'GLOSSARY');
+    expect(out).toBe(
+      [
+        '你是專業翻譯引擎，只做翻譯。',
+        '請把以下內容從 越南文 翻譯成 繁體中文。',
+        '規則：',
+        '1) 僅輸出翻譯結果，不要解釋。',
+        '2) 保留人名、網址、程式碼、數字與專有名詞（術語表另有指定者除外）。',
+        '3) 若原文主要不是可翻譯自然語言，回傳原文。',
+        'GLOSSARY',
+        'xin chào',
+      ].join('\n'),
+    );
+  });
+
+  it('falls back to the default when the template is empty', () => {
+    expect(buildPrompt('hi', ZH_TO_VI, 'G', '')).toBe(buildPrompt('hi', ZH_TO_VI, 'G'));
+  });
+
+  it('renders a custom template with placeholders', () => {
+    expect(buildPrompt('hello', ZH_TO_VI, 'G', 'Translate {source}->{target}\n{glossary}\n{text}')).toBe(
+      'Translate 繁體中文->越南文 (Tiếng Việt)\nG\nhello',
+    );
+  });
+});
 
 describe('detectPair', () => {
   it('detects Vietnamese typed without diacritics', () => {

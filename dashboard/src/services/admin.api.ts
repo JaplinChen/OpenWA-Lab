@@ -158,6 +158,8 @@ export interface TranslateConfig {
   llmApiKey: string;
   llmTemperature: number;
   llmFallbackModels: string[];
+  llmPromptTemplate: string;
+  llmPromptTemplateDefault?: string;
   llmProviderConfigs: Record<string, LlmProviderSaved>;
 }
 

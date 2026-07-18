@@ -54,18 +54,24 @@ export function detectPair(text: string): Pair | null {
   return null;
 }
 
+export const DEFAULT_PROMPT_TEMPLATE = [
+  '你是專業翻譯引擎，只做翻譯。',
+  '請把以下內容從 {source} 翻譯成 {target}。',
+  '規則：',
+  '1) 僅輸出翻譯結果，不要解釋。',
+  '2) 保留人名、網址、程式碼、數字與專有名詞（術語表另有指定者除外）。',
+  '3) 若原文主要不是可翻譯自然語言，回傳原文。',
+  '{glossary}',
+  '{text}',
+].join('\n');
+
 /** Build the translation prompt for the local model, injecting the glossary section for this pair. */
-export function buildPrompt(text: string, pair: Pair, glossarySection: string): string {
-  return [
-    '你是專業翻譯引擎，只做翻譯。',
-    `請把以下內容從 ${pair.source} 翻譯成 ${pair.targetLabel}。`,
-    '規則：',
-    '1) 僅輸出翻譯結果，不要解釋。',
-    '2) 保留人名、網址、程式碼、數字與專有名詞（術語表另有指定者除外）。',
-    '3) 若原文主要不是可翻譯自然語言，回傳原文。',
-    glossarySection,
-    text,
-  ].join('\n');
+export function buildPrompt(text: string, pair: Pair, glossarySection: string, template?: string): string {
+  return (template || DEFAULT_PROMPT_TEMPLATE)
+    .replaceAll('{source}', pair.source)
+    .replaceAll('{target}', pair.targetLabel)
+    .replaceAll('{glossary}', glossarySection)
+    .replaceAll('{text}', text);
 }
 
 export function sleep(ms: number): Promise<void> {

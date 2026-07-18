@@ -31,6 +31,7 @@ export function Translate() {
     llmApiKey: '',
     llmTemperature: 0,
     llmFallbackModels: [],
+    llmPromptTemplate: '',
     llmProviderConfigs: {},
   });
   const [loading, setLoading] = useState(true);

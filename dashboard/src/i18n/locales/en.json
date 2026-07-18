@@ -93,7 +93,10 @@
     "modelsFailed": "Fetch models failed: {{message}}",
     "saved": "Settings saved",
     "saveFailed": "Save failed: {{message}}",
-    "loadFailed": "Failed to load config: {{message}}"
+    "loadFailed": "Failed to load config: {{message}}",
+    "promptTemplate": "Translation prompt",
+    "promptHint": "Placeholders: {source}, {target}, {glossary}, {text}. Leave empty to use the default prompt.",
+    "promptReset": "Reset to default"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -105,6 +108,7 @@
     "glossary": "Glossary",
     "senders": "Senders",
     "llm": "LLM Settings",
+    "translatePrompt": "Translation Prompt",
     "apiKeys": "API Keys",
     "messageTester": "Message Tester",
     "infrastructure": "Infrastructure",

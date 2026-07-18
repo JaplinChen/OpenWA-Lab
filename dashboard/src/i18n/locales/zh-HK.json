@@ -93,7 +93,10 @@
     "modelsFailed": "取得模型失敗：{{message}}",
     "saved": "設定已儲存",
     "saveFailed": "儲存失敗：{{message}}",
-    "loadFailed": "載入設定失敗：{{message}}"
+    "loadFailed": "載入設定失敗：{{message}}",
+    "promptTemplate": "翻譯提示詞",
+    "promptHint": "可用佔位符：{source}、{target}、{glossary}、{text}。留空則使用預設提示詞。",
+    "promptReset": "還原預設"
   },
   "nav": {
     "dashboard": "控制面板",
@@ -106,6 +109,7 @@
     "glossary": "詞彙表",
     "senders": "發送者",
     "llm": "LLM 設定",
+    "translatePrompt": "翻譯提示詞",
     "apiKeys": "API 金鑰",
     "messageTester": "訊息測試器",
     "infrastructure": "基礎架構",

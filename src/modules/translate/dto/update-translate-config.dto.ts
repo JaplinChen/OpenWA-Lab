@@ -47,6 +47,10 @@ export class UpdateTranslateConfigDto {
   llmFallbackModels?: string[];
 
   @IsOptional()
+  @IsString()
+  llmPromptTemplate?: string;
+
+  @IsOptional()
   @IsObject()
   llmProviderConfigs?: Record<string, Record<string, unknown>>;
 }

@@ -27,7 +27,7 @@ const metaOf = (p: LlmProvider): ProviderMeta => PROVIDERS.find(x => x.value ===
 
 type LlmFields = Pick<
   TranslateConfig,
-  'llmProvider' | 'llmEndpoint' | 'llmModel' | 'llmApiKey' | 'llmTemperature' | 'llmFallbackModels'
+  'llmProvider' | 'llmEndpoint' | 'llmModel' | 'llmApiKey' | 'llmTemperature' | 'llmFallbackModels' | 'llmPromptTemplate'
 >;
 
 export function LlmSettings() {
@@ -50,6 +50,7 @@ export function LlmSettings() {
     llmApiKey: '',
     llmTemperature: 0,
     llmFallbackModels: [],
+    llmPromptTemplate: '',
   });
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
@@ -77,6 +78,7 @@ export function LlmSettings() {
           llmApiKey: c.llmApiKey,
           llmTemperature: c.llmTemperature,
           llmFallbackModels: c.llmFallbackModels ?? [],
+          llmPromptTemplate: c.llmPromptTemplate ?? '',
         });
         setPcfgs(c.llmProviderConfigs ?? {});
         setLoaded(true);
@@ -191,6 +193,7 @@ export function LlmSettings() {
         llmApiKey: saved.llmApiKey,
         llmTemperature: saved.llmTemperature,
         llmFallbackModels: saved.llmFallbackModels ?? [],
+        llmPromptTemplate: saved.llmPromptTemplate ?? cfg.llmPromptTemplate,
       });
       setToast({ type: 'success', message: t('llm.saved') });
     } catch (err) {
