@@ -1,4 +1,4 @@
-.glossary-page{
+.etable-page{
   padding: 2rem;
   width: 100%;
   /* The rows are term pairs mirrored around an arrow, so their columns are 1fr each. Unbounded,
@@ -13,16 +13,16 @@
   flex-direction: column;
 }
 
-.glossary-page.glossary-loading{
+.etable-page.etable-loading{
   align-items: center;
   justify-content: center;
 }
 
-.glossary-page .page-header{
+.etable-page .page-header{
   margin-bottom: 1.5rem;
 }
 
-.glossary-page .btn-primary{
+.etable-page .btn-primary{
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -37,16 +37,16 @@
   transition: background 0.2s;
 }
 
-.glossary-page .btn-primary:hover:not(:disabled){
+.etable-page .btn-primary:hover:not(:disabled){
   background: var(--primary-hover);
 }
 
-.glossary-page .btn-primary:disabled{
+.etable-page .btn-primary:disabled{
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.glossary-page .glossary-panel {
+.etable-page .etable-panel {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -57,7 +57,7 @@
   padding: 1.25rem;
 }
 
-.glossary-page .glossary-panel-title {
+.etable-page .etable-panel-title {
   margin: 0 0 1rem;
   font-size: 1rem;
   font-weight: 600;
@@ -67,7 +67,7 @@
   gap: 0.5rem;
 }
 
-.glossary-page .glossary-count {
+.etable-page .etable-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -81,7 +81,7 @@
   font-weight: 600;
 }
 
-.glossary-page .glossary-add {
+.etable-page .etable-add {
   display: flex;
   /* Without wrapping, a narrow viewport crushed both inputs to 72px, too small to type a term
      into and short enough to clip the placeholder. The pair stays on one line and the button
@@ -92,7 +92,7 @@
   margin-bottom: 0.75rem;
 }
 
-.glossary-page .glossary-add input {
+.etable-page .etable-add input {
   /* Basis keeps the two inputs and the arrow together on one line while pushing the button to
      the next; they still grow to share the full row on wide viewports, as before. */
   flex: 1 1 6rem;
@@ -105,17 +105,17 @@
   font-size: 0.9375rem;
 }
 
-.glossary-page .glossary-arrow {
+.etable-page .etable-arrow {
   color: var(--text-secondary);
   font-size: 1.1rem;
 }
 
-.glossary-page .glossary-search {
+.etable-page .etable-search {
   position: relative;
   margin-top: 0.5rem;
 }
 
-.glossary-page .glossary-search-icon {
+.etable-page .etable-search-icon {
   position: absolute;
   left: 0.65rem;
   top: 50%;
@@ -124,7 +124,7 @@
   pointer-events: none;
 }
 
-.glossary-page .glossary-search input {
+.etable-page .etable-search input {
   width: 100%;
   box-sizing: border-box;
   padding: 0.6rem 0.75rem 0.6rem 2.2rem;
@@ -135,7 +135,7 @@
   font-size: 0.9375rem;
 }
 
-.glossary-page .glossary-list {
+.etable-page .etable-list {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -145,7 +145,7 @@
   gap: 0.4rem;
 }
 
-.glossary-page .glossary-item {
+.etable-page .etable-item {
   display: grid;
   /* src / arrow / tgt / usage badge / row actions — empty auto columns collapse in edit mode.
      --col-src is set by useResizableCol when the user drags the header divider. */
@@ -157,27 +157,27 @@
   border-radius: var(--radius);
 }
 
-.glossary-page .glossary-item:hover {
+.etable-page .etable-item:hover {
   background: var(--bg-light);
 }
 
-.glossary-page .glossary-src {
+.etable-page .etable-src {
   text-align: left;
   color: var(--text-primary);
 }
 
-.glossary-page .glossary-tgt {
+.etable-page .etable-tgt {
   color: var(--text-primary);
 }
 
 /* Edit and delete share the row's last grid cell. */
-.glossary-page .glossary-row-actions {
+.etable-page .etable-row-actions {
   display: flex;
   align-items: center;
   gap: 0.125rem;
 }
 
-.glossary-page .glossary-del {
+.etable-page .etable-del {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -192,14 +192,14 @@
   min-height: 24px;
 }
 
-.glossary-page .glossary-del:disabled {
+.etable-page .etable-del:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
 /* The row keeps its grid while editing, so the fields land in the same columns as the text they
    replace and nothing shifts when the row flips. */
-.glossary-page .glossary-edit {
+.etable-page .etable-edit {
   width: 100%;
   min-width: 0;
   padding: 0.3rem 0.5rem;
@@ -211,22 +211,22 @@
   font-family: inherit;
 }
 
-.glossary-page .glossary-edit:focus {
+.etable-page .etable-edit:focus {
   outline: none;
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
 }
 
-.glossary-page .glossary-del:hover:not(:disabled) {
+.etable-page .etable-del:hover:not(:disabled) {
   color: var(--error-text);
   background: var(--bg-light);
 }
 
-.glossary-page .glossary-del:disabled {
+.etable-page .etable-del:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.glossary-page .glossary-empty {
+.etable-page .etable-empty {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -238,16 +238,16 @@
   padding: 2rem 1rem;
 }
 
-.glossary-page .glossary-panel--pending {
+.etable-page .etable-panel--pending {
   flex: 0 0 auto;
   margin-bottom: 1rem;
 }
 
-.glossary-page .glossary-item--pending {
+.etable-page .etable-item--pending {
   grid-template-columns: 1fr auto 1fr auto auto;
 }
 
-.glossary-page .glossary-head {
+.etable-page .etable-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -255,7 +255,7 @@
 }
 
 /* Header row mirrors the item grid so its labels sit over the columns they sort. */
-.glossary-page .glossary-cols {
+.etable-page .etable-cols {
   display: grid;
   grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto;
   align-items: center;
@@ -267,7 +267,7 @@
 
 /* Sits where the rows' arrow sits, so it keeps the header's target column aligned; the invisible
    arrow glyph reserves the same width while the cell doubles as the column-resize handle. */
-.glossary-page .glossary-col-resize {
+.etable-page .etable-col-resize {
   color: transparent;
   font-size: 1.1rem;
   cursor: col-resize;
@@ -275,7 +275,7 @@
   padding: 0 0.25rem;
 }
 
-.glossary-page .glossary-col-sort {
+.etable-page .etable-col-sort {
   border: none;
   background: transparent;
   padding: 0;
@@ -286,22 +286,22 @@
   font-weight: 600;
 }
 
-.glossary-page .glossary-col-sort:hover {
+.etable-page .etable-col-sort:hover {
   color: var(--text-primary);
 }
 
-.glossary-page .glossary-col-sort--num {
+.etable-page .etable-col-sort--num {
   min-width: 2rem;
   text-align: right;
 }
 
-.glossary-page .glossary-col-label {
+.etable-page .etable-col-label {
   color: var(--text-secondary);
   font-size: 0.8125rem;
   font-weight: 600;
 }
 
-.glossary-page .glossary-usage {
+.etable-page .etable-usage {
   min-width: 2rem;
   text-align: right;
   color: var(--text-muted);
@@ -309,14 +309,14 @@
   font-variant-numeric: tabular-nums;
 }
 
-.glossary-page .glossary-pending-meta {
+.etable-page .etable-pending-meta {
   color: var(--text-muted);
   font-size: 0.8125rem;
   white-space: nowrap;
 }
 
 /* Pagination (scoped copy of the logs-page pattern) */
-.glossary-page .pagination{
+.etable-page .pagination{
   display: flex;
   justify-content: center;
   align-items: center;
@@ -324,7 +324,7 @@
   margin-top: 0.75rem;
 }
 
-.glossary-page .pagination button{
+.etable-page .pagination button{
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   background: var(--bg-white);
@@ -335,73 +335,32 @@
   transition: all 0.2s;
 }
 
-.glossary-page .pagination button:hover:not(:disabled){
+.etable-page .pagination button:hover:not(:disabled){
   background: var(--bg-light);
 }
 
-.glossary-page .pagination button:disabled{
+.etable-page .pagination button:disabled{
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.glossary-page .page-numbers{
+.etable-page .page-numbers{
   display: flex;
   gap: 0.25rem;
 }
 
-.glossary-page .page-numbers button{
+.etable-page .page-numbers button{
   min-width: 36px;
   padding: 0.5rem;
 }
 
-.glossary-page .page-numbers button.active{
+.etable-page .page-numbers button.active{
   background: var(--primary);
   border-color: var(--primary);
   color: var(--primary-ink);
 }
 
-/* Toast (scoped copy) */
-.glossary-page .toast{
-  position: fixed;
-  top: 1.5rem;
-  right: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem 1.25rem;
-  border-radius: 10px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  z-index: 1000;
-}
-
-.glossary-page .toast.success{
-  background: color-mix(in srgb, var(--primary) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
-  color: var(--success-text);
-}
-
-.glossary-page .toast.error{
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--error-text);
-}
-
-.glossary-page .toast-close{
-  background: transparent;
-  border: none;
-  padding: 0.25rem;
-  cursor: pointer;
-  opacity: 0.6;
-  color: inherit;
-}
-
-.glossary-page .toast-close:hover{
-  opacity: 1;
-}
-
-.glossary-page .animate-spin{
+.etable-page .animate-spin{
   animation: spin 1s linear infinite;
 }
 
@@ -410,7 +369,7 @@
   to{ transform: rotate(360deg); }
 }
 
-.glossary-page .senders-import{
+.etable-page .senders-import{
   display: flex;
   gap: 0.5rem;
   align-items: center;
@@ -419,16 +378,16 @@
 /* The select was claiming its full 220px and leaving the button ~110px, which broke
    "Import from contacts" across three lines. The button keeps its natural width; the select
    gives way. */
-.glossary-page .senders-import .btn-primary{
+.etable-page .senders-import .btn-primary{
   flex: 0 0 auto;
   white-space: nowrap;
 }
 
-.glossary-page .senders-import select{
+.etable-page .senders-import select{
   min-width: 0;
 }
 
-.glossary-page .senders-import select{
+.etable-page .senders-import select{
   height: 36px;
   padding: 0 0.6rem;
   border: 1px solid var(--border, #e2e2e2);

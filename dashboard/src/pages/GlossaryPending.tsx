@@ -14,26 +14,26 @@ export function GlossaryPending({ pending, canWrite, busy, onApprove, onReject }
   const { t } = useTranslation();
   if (pending.length === 0) return null;
   return (
-    <section className="glossary-panel glossary-panel--pending">
-      <h3 className="glossary-panel-title">
+    <section className="etable-panel etable-panel--pending">
+      <h3 className="etable-panel-title">
         {t('glossary.pendingTitle')}
-        <span className="glossary-count">{pending.length}</span>
+        <span className="etable-count">{pending.length}</span>
       </h3>
-      <div className="glossary-list">
+      <div className="etable-list">
         {pending.map(p => (
-          <div key={p.id} className="glossary-item glossary-item--pending">
-            <span className="glossary-src">{p.zh}</span>
-            <span className="glossary-arrow">→</span>
-            <span className="glossary-tgt">{p.vi}</span>
-            <span className="glossary-pending-meta">
+          <div key={p.id} className="etable-item etable-item--pending">
+            <span className="etable-src">{p.zh}</span>
+            <span className="etable-arrow">→</span>
+            <span className="etable-tgt">{p.vi}</span>
+            <span className="etable-pending-meta">
               {t('glossary.suggestedBy', { name: p.suggestedBy })}
               {' · '}
               {new Date(p.at).toLocaleString()}
             </span>
             {canWrite && (
-              <div className="glossary-row-actions">
+              <div className="etable-row-actions">
                 <button
-                  className="glossary-del"
+                  className="etable-del"
                   onClick={() => onApprove(p.id)}
                   disabled={busy}
                   title={t('glossary.approve')}
@@ -41,7 +41,7 @@ export function GlossaryPending({ pending, canWrite, busy, onApprove, onReject }
                   <Check size={16} />
                 </button>
                 <button
-                  className="glossary-del"
+                  className="etable-del"
                   onClick={() => onReject(p.id)}
                   disabled={busy}
                   title={t('glossary.reject')}

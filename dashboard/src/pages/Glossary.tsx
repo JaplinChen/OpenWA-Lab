@@ -1,37 +1,25 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, BookMarked, Pencil } from 'lucide-react';
+import { Loader2, BookMarked } from 'lucide-react';
 import { translateApi, type GlossaryTerm, type PendingGlossaryTerm } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
-import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
+import { useToast } from '../components/Toast';
 import { PageHeader } from '../components/PageHeader';
+import { EditableKeyValueTable } from '../components/EditableKeyValueTable';
 import { GlossaryPending } from './GlossaryPending';
-import { pageWindow } from '../utils/pageWindow';
-import './Glossary.css';
-
-const PAGE_SIZE = 50;
+import '../components/EditableTable.css';
 
 export function Glossary() {
   const { t } = useTranslation();
   useDocumentTitle(t('glossary.title'));
   const { canWrite } = useRole();
+  const toast = useToast();
 
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [pending, setPending] = useState<PendingGlossaryTerm[]>([]);
   const [loading, setLoading] = useState(true);
-  const [src, setSrc] = useState('');
-  const [tgt, setTgt] = useState('');
-  const [filter, setFilter] = useState('');
-  const [sortKey, setSortKey] = useState<'source' | 'target' | 'count'>('source');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [busy, setBusy] = useState(false);
-  const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  // The source term is the record's key, so the row being edited is tracked by its original
-  // source; renaming one has to drop the old key, which `editing` still holds.
-  const [editing, setEditing] = useState<string | null>(null);
-  const [editSrc, setEditSrc] = useState('');
-  const [editTgt, setEditTgt] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -49,62 +37,18 @@ export function Glossary() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!toast) return;
-    const timer = setTimeout(() => setToast(null), 4000);
-    return () => clearTimeout(timer);
-  }, [toast]);
-
-  const filtered = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const list = q ? terms.filter(g => `${g.source}\n${g.target}`.toLowerCase().includes(q)) : [...terms];
-    const dir = sortDir === 'asc' ? 1 : -1;
-    return list.sort((a, b) =>
-      sortKey === 'count'
-        ? ((a.count ?? 0) - (b.count ?? 0)) * dir || a.source.localeCompare(b.source)
-        : a[sortKey].localeCompare(b[sortKey]) * dir,
-    );
-  }, [terms, filter, sortKey, sortDir]);
-
-  const toggleSort = (key: 'source' | 'target' | 'count') => {
-    if (key === sortKey) {
-      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    } else {
-      setSortKey(key);
-      setSortDir(key === 'count' ? 'desc' : 'asc');
-    }
-  };
-
-  const sortMark = (key: 'source' | 'target' | 'count') =>
-    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
-
-  const { ref: panelRef, onResizeStart } = useResizableCol('glossary-col-src');
-
-  const [page, setPage] = useState(1);
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  // Clamp instead of resetting via effect: a filter change that shrinks the list lands on the
-  // nearest valid page without an extra render.
-  const current = Math.min(page, totalPages);
-  const paged = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
-
   const fail = (err: unknown) =>
-    setToast({
-      type: 'error',
-      message: t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }),
-    });
+    toast.error(t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }));
 
-  const add = async () => {
-    const zh = src.trim();
-    const vi = tgt.trim();
-    if (!zh || !vi) return;
+  const add = async (zh: string, vi: string) => {
     setBusy(true);
     try {
       setTerms(await translateApi.addGlossaryTerm(zh, vi));
-      setSrc('');
-      setTgt('');
-      setToast({ type: 'success', message: t('glossary.added') });
+      toast.success(t('glossary.added'));
+      return true;
     } catch (err) {
       fail(err);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -121,22 +65,7 @@ export function Glossary() {
     }
   };
 
-  const startEdit = (term: GlossaryTerm) => {
-    setEditing(term.source);
-    setEditSrc(term.source);
-    setEditTgt(term.target);
-  };
-
-  const cancelEdit = () => setEditing(null);
-
-  const saveEdit = async (original: string) => {
-    const zh = editSrc.trim();
-    const vi = editTgt.trim();
-    if (!zh || !vi) return;
-    if (zh === original && vi === terms.find(term => term.source === original)?.target) {
-      setEditing(null);
-      return;
-    }
+  const saveEdit = async (original: string, zh: string, vi: string) => {
     setBusy(true);
     try {
       // POST upserts on the source key, so an unchanged source is a plain overwrite. A changed
@@ -144,10 +73,11 @@ export function Glossary() {
       let list = await translateApi.addGlossaryTerm(zh, vi);
       if (zh !== original) list = await translateApi.removeGlossaryTerm(original);
       setTerms(list);
-      setEditing(null);
-      setToast({ type: 'success', message: t('common.saved') });
+      toast.success(t('common.saved'));
+      return true;
     } catch (err) {
       fail(err);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -167,7 +97,7 @@ export function Glossary() {
     try {
       await translateApi.approvePendingGlossary(id);
       await refetch();
-      setToast({ type: 'success', message: t('glossary.approved') });
+      toast.success(t('glossary.approved'));
     } catch (err) {
       fail(err);
     } finally {
@@ -180,7 +110,7 @@ export function Glossary() {
     try {
       await translateApi.rejectPendingGlossary(id);
       setPending(await translateApi.getPendingGlossary());
-      setToast({ type: 'success', message: t('glossary.rejected') });
+      toast.success(t('glossary.rejected'));
     } catch (err) {
       fail(err);
     } finally {
@@ -190,24 +120,14 @@ export function Glossary() {
 
   if (loading) {
     return (
-      <div className="glossary-page glossary-loading">
+      <div className="etable-page etable-loading">
         <Loader2 className="animate-spin" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="glossary-page">
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          {toast.type === 'success' ? <Check size={18} /> : <AlertTriangle size={18} />}
-          <span>{toast.message}</span>
-          <button className="toast-close" onClick={() => setToast(null)}>
-            <X size={16} />
-          </button>
-        </div>
-      )}
-
+    <div className="etable-page">
       <PageHeader
         title={t('glossary.title')}
         subtitle={t('glossary.subtitle')}
@@ -221,167 +141,30 @@ export function Glossary() {
         onReject={reject}
       />
 
-      <section className="glossary-panel" ref={panelRef as React.RefObject<HTMLElement>}>
-        <div className="glossary-head">
-          <h3 className="glossary-panel-title">
-            {t('glossary.terms')}
-            <span className="glossary-count">{terms.length}</span>
-          </h3>
-        </div>
-
-        {canWrite && (
-          <div className="glossary-add">
-            {/* The glossary maps 中文 to Tiếng Việt, so these two name the languages themselves and
-                are written in their own script, as a language picker would. They were t() calls
-                against keys that exist in no locale file, which read as translatable and never
-                were. */}
-            <input
-              type="text"
-              placeholder="中文"
-              aria-label="中文"
-              value={src}
-              onChange={e => setSrc(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && add()}
-            />
-            <span className="glossary-arrow">→</span>
-            <input
-              type="text"
-              placeholder="Tiếng Việt"
-              aria-label="Tiếng Việt"
-              value={tgt}
-              onChange={e => setTgt(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && add()}
-            />
-            <button className="btn-primary" onClick={add} disabled={busy || !src.trim() || !tgt.trim()}>
-              <Plus size={16} />
-              {t('glossary.add')}
-            </button>
-          </div>
-        )}
-
-        <div className="glossary-search">
-          <Search size={16} className="glossary-search-icon" />
-          <input
-            type="text"
-            placeholder={t('common.search')}
-            aria-label={t('common.search')}
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          />
-        </div>
-
-        {filtered.length > 0 && (
-          <div className="glossary-cols">
-            {/* Column labels name the languages themselves, like the add-row placeholders above. */}
-            <button className="glossary-col-sort" onClick={() => toggleSort('source')}>
-              中文{sortMark('source')}
-            </button>
-            <span className="glossary-col-resize" aria-hidden="true" onMouseDown={onResizeStart}>→</span>
-            <button className="glossary-col-sort" onClick={() => toggleSort('target')}>
-              Tiếng Việt{sortMark('target')}
-            </button>
-            <button className="glossary-col-sort glossary-col-sort--num" onClick={() => toggleSort('count')}>
-              {t('common.usageCount')}{sortMark('count')}
-            </button>
-            {canWrite && <span className="glossary-col-label">{t('common.actions')}</span>}
-          </div>
-        )}
-        <div className="glossary-list">
-          {filtered.length === 0 ? (
-            <div className="glossary-empty">
-              <BookMarked size={32} strokeWidth={1} />
-              <p>{t('glossary.empty')}</p>
-            </div>
-          ) : (
-            paged.map(g =>
-              editing === g.source ? (
-                <div key={g.source} className="glossary-item glossary-item--editing">
-                  <input
-                    className="glossary-edit"
-                    value={editSrc}
-                    aria-label="中文"
-                    autoFocus
-                    onChange={e => setEditSrc(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') void saveEdit(g.source);
-                      if (e.key === 'Escape') cancelEdit();
-                    }}
-                  />
-                  <span className="glossary-arrow">→</span>
-                  <input
-                    className="glossary-edit"
-                    value={editTgt}
-                    aria-label="Tiếng Việt"
-                    onChange={e => setEditTgt(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') void saveEdit(g.source);
-                      if (e.key === 'Escape') cancelEdit();
-                    }}
-                  />
-                  <div className="glossary-row-actions">
-                    <button
-                      className="glossary-del"
-                      onClick={() => void saveEdit(g.source)}
-                      disabled={busy || !editSrc.trim() || !editTgt.trim()}
-                      title={t('common.save')}
-                    >
-                      <Check size={16} />
-                    </button>
-                    <button className="glossary-del" onClick={cancelEdit} disabled={busy} title={t('common.cancel')}>
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div key={g.source} className="glossary-item">
-                  <span className="glossary-src">{g.source}</span>
-                  <span className="glossary-arrow">→</span>
-                  <span className="glossary-tgt">{g.target}</span>
-                  <span className="glossary-usage" title={t('common.usageCount')}>{g.count ?? 0}</span>
-                  {canWrite && (
-                    <div className="glossary-row-actions">
-                      <button
-                        className="glossary-del"
-                        onClick={() => startEdit(g)}
-                        disabled={busy}
-                        title={t('common.edit')}
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        className="glossary-del"
-                        onClick={() => remove(g.source)}
-                        disabled={busy}
-                        title={t('common.delete')}
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ),
-            )
-          )}
-        </div>
-
-        {totalPages > 1 && (
-          <div className="pagination">
-            <button disabled={current === 1} onClick={() => setPage(current - 1)}>
-              {t('common.previous')}
-            </button>
-            <span className="page-numbers">
-              {pageWindow(current, totalPages).map(p => (
-                <button key={p} className={p === current ? 'active' : ''} onClick={() => setPage(p)}>
-                  {p}
-                </button>
-              ))}
-            </span>
-            <button disabled={current >= totalPages} onClick={() => setPage(current + 1)}>
-              {t('common.next')}
-            </button>
-          </div>
-        )}
-      </section>
+      {/* The glossary maps 中文 to Tiếng Việt, so the key/val labels name the languages themselves
+          and are written in their own script, as a language picker would. */}
+      <EditableKeyValueTable
+        rows={terms}
+        titleLabel={t('glossary.terms')}
+        keyLabel="中文"
+        valLabel="Tiếng Việt"
+        addLabel={t('glossary.add')}
+        emptyIcon={<BookMarked size={32} strokeWidth={1} />}
+        emptyText={t('glossary.empty')}
+        canWrite={canWrite}
+        busy={busy}
+        resizeStorageKey="glossary-col-src"
+        initialSortKey="key"
+        rowKey={g => g.source}
+        rowVal={g => g.target}
+        rowCount={g => g.count ?? 0}
+        compareKey={(a, b) => a.source.localeCompare(b.source)}
+        compareVal={(a, b) => a.target.localeCompare(b.target)}
+        tieBreak={(a, b) => a.source.localeCompare(b.source)}
+        onAdd={add}
+        onSaveEdit={saveEdit}
+        onRemove={remove}
+      />
     </div>
   );
 }
