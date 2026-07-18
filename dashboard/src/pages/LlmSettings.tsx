@@ -277,24 +277,36 @@ export function LlmSettings() {
           <div className="form-group">
             <label htmlFor={modelFieldId}>{t('llm.model')}</label>
             <div className="llm-row">
-              <input
-                id={modelFieldId}
-                type="text"
-                list="llm-models"
-                value={cfg.llmModel}
-                disabled={!canWrite}
-                onChange={e => setCfg({ ...cfg, llmModel: e.target.value })}
-              />
+              {/* A native datalist filters options by the input's current value, hiding most fetched
+                  models — render a select once the list is loaded so all of them show. */}
+              {models.length > 0 ? (
+                <select
+                  id={modelFieldId}
+                  value={cfg.llmModel}
+                  disabled={!canWrite}
+                  onChange={e => setCfg({ ...cfg, llmModel: e.target.value })}
+                >
+                  {!models.includes(cfg.llmModel) && <option value={cfg.llmModel}>{cfg.llmModel}</option>}
+                  {models.map(m => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  id={modelFieldId}
+                  type="text"
+                  value={cfg.llmModel}
+                  disabled={!canWrite}
+                  onChange={e => setCfg({ ...cfg, llmModel: e.target.value })}
+                />
+              )}
               <button className="btn-secondary" onClick={handleFetchModels} disabled={fetchingModels || (!cfg.llmEndpoint && !meta.endpoint)}>
                 {fetchingModels ? <Loader2 size={16} className="animate-spin" /> : <ListRestart size={16} />}
                 {t('llm.fetchModels')}
               </button>
             </div>
-            <datalist id="llm-models">
-              {models.map(m => (
-                <option key={m} value={m} />
-              ))}
-            </datalist>
           </div>
 
           <div className="form-group">
@@ -302,15 +314,25 @@ export function LlmSettings() {
             <span className="llm-hint">{t('llm.fallbackHint')}</span>
             {canWrite && (
               <div className="llm-row">
-                <input
-                  id={fallbackFieldId}
-                  type="text"
-                  list="llm-models"
-                  value={fallbackInput}
-                  placeholder={t('llm.fallbackPlaceholder')}
-                  onChange={e => setFallbackInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFallback())}
-                />
+                {models.length > 0 ? (
+                  <select id={fallbackFieldId} value={fallbackInput} onChange={e => setFallbackInput(e.target.value)}>
+                    <option value="">{t('llm.fallbackPlaceholder')}</option>
+                    {models.map(m => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    id={fallbackFieldId}
+                    type="text"
+                    value={fallbackInput}
+                    placeholder={t('llm.fallbackPlaceholder')}
+                    onChange={e => setFallbackInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFallback())}
+                  />
+                )}
                 <button className="btn-secondary" onClick={addFallback} disabled={!fallbackInput.trim()}>
                   <Plus size={16} />
                   {t('llm.add')}
