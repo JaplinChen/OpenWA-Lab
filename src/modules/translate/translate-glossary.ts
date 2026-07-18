@@ -15,10 +15,13 @@ export interface PendingSuggestion {
 export class Glossary {
   private data: Record<string, Record<string, string>> = {};
   private pendingData: PendingSuggestion[] = [];
+  private usage: Record<string, number> = {};
   private readonly pendingPath: string;
+  private readonly usagePath: string;
 
   constructor(private readonly filePath: string, pendingPath?: string) {
     this.pendingPath = pendingPath || filePath.replace(/\.json$/, '-pending.json');
+    this.usagePath = filePath.replace(/\.json$/, '-usage.json');
   }
 
   private static readonly CJK = /[一-鿿]/;
@@ -34,6 +37,11 @@ export class Glossary {
       this.pendingData = JSON.parse(fs.readFileSync(this.pendingPath, 'utf8')) as PendingSuggestion[];
     } catch {
       this.pendingData = [];
+    }
+    try {
+      this.usage = JSON.parse(fs.readFileSync(this.usagePath, 'utf8')) as Record<string, number>;
+    } catch {
+      this.usage = {};
     }
     try {
       this.data = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as Record<string, Record<string, string>>;
@@ -75,9 +83,19 @@ export class Glossary {
     fs.writeFileSync(this.pendingPath, JSON.stringify(this.pendingData, null, 2), 'utf8');
   }
 
+  /** Usage counters keyed by the zh term, persisted beside the glossary so its format stays WA-Translate compatible. */
+  private bump(zh: string): void {
+    this.usage[zh] = (this.usage[zh] ?? 0) + 1;
+    fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+  }
+
   /** zh->vi terms as a flat list for the dashboard/API (source = 中文, target = 越南文). */
-  entries(): { source: string; target: string }[] {
-    return Object.entries(this.data['zh-tw:vi'] || {}).map(([source, target]) => ({ source, target }));
+  entries(): { source: string; target: string; count: number }[] {
+    return Object.entries(this.data['zh-tw:vi'] || {}).map(([source, target]) => ({
+      source,
+      target,
+      count: this.usage[source] ?? 0,
+    }));
   }
 
   /** Add/overwrite a zh<->vi term in both directions, persisting immediately. */
@@ -148,6 +166,7 @@ export class Glossary {
   section(pairKey: string, text = ''): string {
     const entries = Object.entries(this.data[pairKey] || {}).filter(([source]) => text.includes(source));
     if (!entries.length) return '';
+    for (const [s, t] of entries) this.bump(pairKey.startsWith('vi') ? t : s);
     return ['', '術語表（必須使用以下對照翻譯）：', ...entries.map(([s, t]) => `- ${s} → ${t}`), ''].join('\n');
   }
 

@@ -7,11 +7,20 @@ import * as fs from 'node:fs';
  */
 export class SenderDirectory {
   private data: Record<string, string> = {};
+  private usage: Record<string, number> = {};
+  private readonly usagePath: string;
 
-  constructor(private readonly filePath: string) {}
+  constructor(private readonly filePath: string) {
+    this.usagePath = filePath.replace(/\.json$/, '-usage.json');
+  }
 
   /** Load from disk; returns the entry count (0 if absent/unreadable — fine, translate without it). */
   load(): number {
+    try {
+      this.usage = JSON.parse(fs.readFileSync(this.usagePath, 'utf8')) as Record<string, number>;
+    } catch {
+      this.usage = {};
+    }
     try {
       this.data = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as Record<string, string>;
       return Object.keys(this.data).length;
@@ -32,8 +41,8 @@ export class SenderDirectory {
     return m ? m[0] : jid.trim();
   }
 
-  entries(): { jid: string; name: string }[] {
-    return Object.entries(this.data).map(([jid, name]) => ({ jid, name }));
+  entries(): { jid: string; name: string; count: number }[] {
+    return Object.entries(this.data).map(([jid, name]) => ({ jid, name, count: this.usage[jid] ?? 0 }));
   }
 
   add(jid: string, name: string): void {
@@ -72,13 +81,18 @@ export class SenderDirectory {
     return true;
   }
 
-  /** Replace every known `@<jid>` token in the text with `@<name>`. */
+  /** Replace every known `@<jid>` token in the text with `@<name>`, counting each jid actually hit. */
   apply(text: string): string {
     if (!text) return text;
     let out = text;
+    let hit = false;
     for (const [jid, name] of Object.entries(this.data)) {
+      if (!out.includes(`@${jid}`)) continue;
       out = out.split(`@${jid}`).join(`@${name}`);
+      this.usage[jid] = (this.usage[jid] ?? 0) + 1;
+      hit = true;
     }
+    if (hit) fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
     return out;
   }
 

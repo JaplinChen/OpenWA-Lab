@@ -147,7 +147,8 @@
 
 .glossary-page .glossary-item {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto;
+  /* src / arrow / tgt / usage badge / row actions — empty auto columns collapse in edit mode. */
+  grid-template-columns: 1fr auto 1fr auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
@@ -160,7 +161,7 @@
 }
 
 .glossary-page .glossary-src {
-  text-align: right;
+  text-align: left;
   color: var(--text-primary);
 }
 
@@ -243,6 +244,31 @@
 
 .glossary-page .glossary-item--pending {
   grid-template-columns: 1fr auto 1fr auto auto;
+}
+
+.glossary-page .glossary-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.glossary-page .glossary-sort {
+  height: 32px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-light);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+}
+
+.glossary-page .glossary-usage {
+  min-width: 2rem;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .glossary-page .glossary-pending-meta {

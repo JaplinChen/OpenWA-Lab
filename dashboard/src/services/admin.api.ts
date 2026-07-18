@@ -181,6 +181,7 @@ export interface LlmProbe {
 export interface GlossaryTerm {
   source: string; // 中文
   target: string; // 越南文
+  count?: number; // 翻譯時實際套用次數
 }
 
 export interface PendingGlossaryTerm {
@@ -194,6 +195,7 @@ export interface PendingGlossaryTerm {
 export interface SenderEntry {
   jid: string; // @mention 的號碼 (digits)
   name: string; // 顯示名稱
+  count?: number; // 翻譯時實際替換次數
 }
 
 // =============================================================================

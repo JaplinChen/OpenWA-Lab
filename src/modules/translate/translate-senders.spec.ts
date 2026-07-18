@@ -13,10 +13,10 @@ describe('SenderDirectory', () => {
   it('adds and lists an override, normalizing the JID to digits', () => {
     const s = new SenderDirectory(file);
     s.add('200859128434777@c.us', '總經理');
-    expect(s.entries()).toEqual([{ jid: '200859128434777', name: '總經理' }]);
+    expect(s.entries()).toEqual([{ jid: '200859128434777', name: '總經理', count: 0 }]);
     const reloaded = new SenderDirectory(file);
     reloaded.load();
-    expect(reloaded.entries()).toEqual([{ jid: '200859128434777', name: '總經理' }]);
+    expect(reloaded.entries()).toEqual([{ jid: '200859128434777', name: '總經理', count: 0 }]);
   });
 
   it('replaces @<jid> tokens in text with @<name>', () => {
@@ -38,7 +38,7 @@ describe('SenderDirectory', () => {
     expect(s.learn('84912830550@c.us', 'Bạch Nga')).toBe(true);
     expect(s.learn('84912830550', '改過的名')).toBe(false); // already known → keep first
     expect(s.learn('999@c.us', '  ')).toBe(false); // blank → ignored
-    expect(s.entries()).toEqual([{ jid: '84912830550', name: 'Bạch Nga' }]);
+    expect(s.entries()).toEqual([{ jid: '84912830550', name: 'Bạch Nga', count: 0 }]);
   });
 
   it('importEntries adds only new JIDs and never overwrites existing names', () => {
@@ -51,8 +51,23 @@ describe('SenderDirectory', () => {
     ]);
     expect(added).toBe(1);
     expect(s.entries()).toEqual([
-      { jid: '111', name: '手動名' },
-      { jid: '222', name: '阿明' },
+      { jid: '111', name: '手動名', count: 0 },
+      { jid: '222', name: '阿明', count: 0 },
     ]);
+  });
+
+  it('apply counts each jid actually replaced and persists across reload', () => {
+    const s = new SenderDirectory(file);
+    s.add('111', '總經理');
+    s.add('222', '阿明');
+    s.apply('報告給@111');
+    s.apply('報告給@111，cc @999');
+    expect(s.entries()).toEqual([
+      { jid: '111', name: '總經理', count: 2 },
+      { jid: '222', name: '阿明', count: 0 },
+    ]);
+    const reloaded = new SenderDirectory(file);
+    reloaded.load();
+    expect(reloaded.entries().find(e => e.jid === '111')?.count).toBe(2);
   });
 });

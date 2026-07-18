@@ -19,6 +19,7 @@ export function Glossary() {
   const [src, setSrc] = useState('');
   const [tgt, setTgt] = useState('');
   const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState<'alpha' | 'usage'>('alpha');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   // The source term is the record's key, so the row being edited is tracked by its original
@@ -51,9 +52,13 @@ export function Glossary() {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return terms;
-    return terms.filter(g => `${g.source}\n${g.target}`.toLowerCase().includes(q));
-  }, [terms, filter]);
+    const list = q ? terms.filter(g => `${g.source}\n${g.target}`.toLowerCase().includes(q)) : [...terms];
+    return list.sort((a, b) =>
+      sort === 'usage'
+        ? (b.count ?? 0) - (a.count ?? 0) || a.source.localeCompare(b.source)
+        : a.source.localeCompare(b.source),
+    );
+  }, [terms, filter, sort]);
 
   const fail = (err: unknown) =>
     setToast({
@@ -195,6 +200,15 @@ export function Glossary() {
             {t('glossary.terms')}
             <span className="glossary-count">{terms.length}</span>
           </h3>
+          <select
+            className="glossary-sort"
+            aria-label={t('common.sort')}
+            value={sort}
+            onChange={e => setSort(e.target.value as 'alpha' | 'usage')}
+          >
+            <option value="alpha">{t('common.sortAlpha')}</option>
+            <option value="usage">{t('common.sortUsage')}</option>
+          </select>
         </div>
 
         {canWrite && (
@@ -289,6 +303,7 @@ export function Glossary() {
                   <span className="glossary-src">{g.source}</span>
                   <span className="glossary-arrow">→</span>
                   <span className="glossary-tgt">{g.target}</span>
+                  <span className="glossary-usage" title={t('common.usageCount')}>{g.count ?? 0}</span>
                   {canWrite && (
                     <div className="glossary-row-actions">
                       <button

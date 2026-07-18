@@ -20,6 +20,7 @@ export function Senders() {
   const [jid, setJid] = useState('');
   const [name, setName] = useState('');
   const [filter, setFilter] = useState('');
+  const [sort, setSort] = useState<'alpha' | 'usage'>('alpha');
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -57,9 +58,13 @@ export function Senders() {
 
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return entries;
-    return entries.filter(e => `${e.jid}\n${e.name}`.toLowerCase().includes(q));
-  }, [entries, filter]);
+    const list = q ? entries.filter(e => `${e.jid}\n${e.name}`.toLowerCase().includes(q)) : [...entries];
+    return list.sort((a, b) =>
+      sort === 'usage'
+        ? (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name)
+        : a.name.localeCompare(b.name),
+    );
+  }, [entries, filter, sort]);
 
   const fail = (err: unknown) =>
     setToast({
@@ -202,6 +207,15 @@ export function Senders() {
             {t('senders.entries')}
             <span className="glossary-count">{entries.length}</span>
           </h3>
+          <select
+            className="glossary-sort"
+            aria-label={t('common.sort')}
+            value={sort}
+            onChange={e => setSort(e.target.value as 'alpha' | 'usage')}
+          >
+            <option value="alpha">{t('common.sortAlpha')}</option>
+            <option value="usage">{t('common.sortUsage')}</option>
+          </select>
         </div>
 
         {canWrite && (
@@ -292,6 +306,7 @@ export function Senders() {
                   <span className="glossary-src">@{e.jid}</span>
                   <span className="glossary-arrow">→</span>
                   <span className="glossary-tgt">{e.name}</span>
+                  <span className="glossary-usage" title={t('common.usageCount')}>{e.count ?? 0}</span>
                   {canWrite && (
                     <div className="glossary-row-actions">
                       <button
