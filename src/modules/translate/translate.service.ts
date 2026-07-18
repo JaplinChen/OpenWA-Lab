@@ -422,15 +422,16 @@ export class TranslateService implements OnModuleInit {
     if (!target) return;
     const help = [
       '指令一覽：',
-      '/g 詞 = nghĩa   建議詞彙（管理員=直接新增）',
-      '/g              列出詞彙',
-      '/g pending      待審清單（管理員）',
-      '/g ok|no <id>   核准/退回建議（管理員）',
-      '/g del <詞>     刪除詞彙（管理員）',
-      '/s              列出發送者對照',
-      '/s add <JID>=名稱   新增對照（管理員）',
-      '/s del <JID>    刪除對照（管理員）',
-      '/help           顯示本說明',
+      '建議詞彙：/g 詞 = nghĩa（管理員=直接新增）',
+      '列出詞彙：/g',
+      '待審清單：/g pending（管理員）',
+      '核准建議：/g ok 編號（管理員）',
+      '退回建議：/g no 編號（管理員）',
+      '刪除詞彙：/g del 詞（管理員）',
+      '發送者對照：/s',
+      '新增對照：/s add 電話號碼=名稱（管理員）',
+      '刪除對照：/s del 電話號碼（管理員）',
+      '顯示說明：/help',
     ].join('\n');
     await this.messageService.sendText(sessionId, { chatId: target, text: BOT_MARKER + help });
   }
