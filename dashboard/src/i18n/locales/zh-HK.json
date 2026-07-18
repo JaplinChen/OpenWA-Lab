@@ -916,5 +916,26 @@
     "noSessions": "沒有工作階段",
     "jid": "JID 或 @號碼",
     "name": "顯示名稱"
+  },
+  "translate": {
+    "title": "翻譯",
+    "subtitle": "選擇哪些 WhatsApp 群組要自動翻譯。",
+    "save": "儲存",
+    "options": "選項",
+    "enabled": "啟用",
+    "enabledHint": "開啟或關閉自動翻譯。",
+    "includeFromMe": "翻譯我自己的訊息",
+    "includeFromMeHint": "同時翻譯你發送的訊息。",
+    "minInterval": "最小發送間隔（毫秒）",
+    "groups": "群組",
+    "session": "工作階段",
+    "noSessions": "沒有工作階段",
+    "searchGroups": "搜尋群組...",
+    "emptyGroups": "此工作階段找不到群組。",
+    "toasts": {
+      "saved": "設定已儲存",
+      "saveFailed": "儲存失敗：{{message}}",
+      "loadFailed": "載入設定失敗：{{message}}"
+    }
   }
 }

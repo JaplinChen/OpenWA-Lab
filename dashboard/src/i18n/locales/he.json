@@ -907,5 +907,26 @@
     "noSessions": "No sessions",
     "jid": "JID or @number",
     "name": "Display name"
+  },
+  "translate": {
+    "title": "תרגום",
+    "subtitle": "בחר אילו קבוצות WhatsApp יתורגמו אוטומטית.",
+    "save": "שמור",
+    "options": "אפשרויות",
+    "enabled": "מופעל",
+    "enabledHint": "הפעל או כבה תרגום אוטומטי.",
+    "includeFromMe": "תרגם את ההודעות שלי",
+    "includeFromMeHint": "תרגם גם הודעות שאתה שולח.",
+    "minInterval": "מרווח שליחה מינימלי (מ\"ש)",
+    "groups": "קבוצות",
+    "session": "סשן",
+    "noSessions": "אין סשנים",
+    "searchGroups": "חיפוש קבוצות...",
+    "emptyGroups": "לא נמצאו קבוצות עבור סשן זה.",
+    "toasts": {
+      "saved": "ההגדרות נשמרו",
+      "saveFailed": "השמירה נכשלה: {{message}}",
+      "loadFailed": "טעינת התצורה נכשלה: {{message}}"
+    }
   }
 }

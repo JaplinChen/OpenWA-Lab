@@ -916,5 +916,26 @@
     "noSessions": "Không có phiên",
     "jid": "JID hoặc @số",
     "name": "Tên hiển thị"
+  },
+  "translate": {
+    "title": "Dịch thuật",
+    "subtitle": "Chọn nhóm WhatsApp nào được tự động dịch.",
+    "save": "Lưu",
+    "options": "Tùy chọn",
+    "enabled": "Bật",
+    "enabledHint": "Bật hoặc tắt dịch tự động.",
+    "includeFromMe": "Dịch tin nhắn của tôi",
+    "includeFromMeHint": "Cũng dịch các tin nhắn bạn gửi.",
+    "minInterval": "Khoảng cách gửi tối thiểu (ms)",
+    "groups": "Nhóm",
+    "session": "Phiên",
+    "noSessions": "Không có phiên nào",
+    "searchGroups": "Tìm kiếm nhóm...",
+    "emptyGroups": "Không tìm thấy nhóm nào cho phiên này.",
+    "toasts": {
+      "saved": "Đã lưu cài đặt",
+      "saveFailed": "Lưu thất bại: {{message}}",
+      "loadFailed": "Tải cấu hình thất bại: {{message}}"
+    }
   }
 }

@@ -910,5 +910,26 @@
     "noSessions": "No sessions",
     "jid": "JID or @number",
     "name": "Display name"
+  },
+  "translate": {
+    "title": "الترجمة",
+    "subtitle": "اختر مجموعات WhatsApp التي تتم ترجمتها تلقائيًا.",
+    "save": "حفظ",
+    "options": "خيارات",
+    "enabled": "مفعّل",
+    "enabledHint": "تشغيل الترجمة التلقائية أو إيقافها.",
+    "includeFromMe": "ترجمة رسائلي أيضًا",
+    "includeFromMeHint": "ترجمة الرسائل التي ترسلها أيضًا.",
+    "minInterval": "أدنى فاصل زمني للإرسال (مللي ثانية)",
+    "groups": "المجموعات",
+    "session": "الجلسة",
+    "noSessions": "لا توجد جلسات",
+    "searchGroups": "البحث عن المجموعات...",
+    "emptyGroups": "لم يتم العثور على مجموعات لهذه الجلسة.",
+    "toasts": {
+      "saved": "تم حفظ الإعدادات",
+      "saveFailed": "فشل الحفظ: {{message}}",
+      "loadFailed": "فشل تحميل الإعدادات: {{message}}"
+    }
   }
 }

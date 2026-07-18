@@ -906,5 +906,26 @@
     "noSessions": "No sessions",
     "jid": "JID or @number",
     "name": "Display name"
+  },
+  "translate": {
+    "title": "번역",
+    "subtitle": "자동 번역할 WhatsApp 그룹을 선택하세요.",
+    "save": "저장",
+    "options": "옵션",
+    "enabled": "사용",
+    "enabledHint": "자동 번역을 켜거나 끕니다.",
+    "includeFromMe": "내 메시지도 번역",
+    "includeFromMeHint": "내가 보낸 메시지도 번역합니다.",
+    "minInterval": "최소 전송 간격 (ms)",
+    "groups": "그룹",
+    "session": "세션",
+    "noSessions": "세션 없음",
+    "searchGroups": "그룹 검색...",
+    "emptyGroups": "이 세션에서 그룹을 찾을 수 없습니다.",
+    "toasts": {
+      "saved": "설정이 저장되었습니다",
+      "saveFailed": "저장 실패: {{message}}",
+      "loadFailed": "설정을 불러오지 못했습니다: {{message}}"
+    }
   }
 }

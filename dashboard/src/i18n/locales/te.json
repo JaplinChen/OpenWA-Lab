@@ -906,5 +906,26 @@
     "noSessions": "No sessions",
     "jid": "JID or @number",
     "name": "Display name"
+  },
+  "translate": {
+    "title": "అనువాదం",
+    "subtitle": "ఏ WhatsApp గ్రూపులు ఆటో-అనువాదం కావాలో ఎంచుకోండి.",
+    "save": "సేవ్ చేయి",
+    "options": "ఎంపికలు",
+    "enabled": "ప్రారంభించబడింది",
+    "enabledHint": "ఆటో-అనువాదాన్ని ఆన్ లేదా ఆఫ్ చేయండి.",
+    "includeFromMe": "నా సందేశాలను కూడా అనువదించు",
+    "includeFromMeHint": "మీరు పంపే సందేశాలను కూడా అనువదిస్తుంది.",
+    "minInterval": "కనిష్ఠ పంపే వ్యవధి (ms)",
+    "groups": "గ్రూపులు",
+    "session": "సెషన్",
+    "noSessions": "సెషన్లు లేవు",
+    "searchGroups": "గ్రూపులను వెతకండి...",
+    "emptyGroups": "ఈ సెషన్‌కు గ్రూపులు కనబడలేదు.",
+    "toasts": {
+      "saved": "సెట్టింగ్‌లు సేవ్ అయ్యాయి",
+      "saveFailed": "సేవ్ విఫలమైంది: {{message}}",
+      "loadFailed": "కాన్ఫిగ్ లోడ్ విఫలమైంది: {{message}}"
+    }
   }
 }

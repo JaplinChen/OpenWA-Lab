@@ -916,5 +916,26 @@
     "noSessions": "No sessions",
     "jid": "JID or @number",
     "name": "Display name"
+  },
+  "translate": {
+    "title": "Translation",
+    "subtitle": "Choose which WhatsApp groups get auto-translated.",
+    "save": "Save",
+    "options": "Options",
+    "enabled": "Enabled",
+    "enabledHint": "Turn auto-translation on or off.",
+    "includeFromMe": "Translate my own messages",
+    "includeFromMeHint": "Also translate messages you send.",
+    "minInterval": "Min send interval (ms)",
+    "groups": "Groups",
+    "session": "Session",
+    "noSessions": "No sessions",
+    "searchGroups": "Search groups...",
+    "emptyGroups": "No groups found for this session.",
+    "toasts": {
+      "saved": "Settings saved",
+      "saveFailed": "Save failed: {{message}}",
+      "loadFailed": "Failed to load config: {{message}}"
+    }
   }
 }
