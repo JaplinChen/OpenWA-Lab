@@ -254,20 +254,6 @@
   gap: 0.5rem;
 }
 
-.glossary-page .glossary-sort {
-  /* The global stylesheet gives every select width:100%; this one is a small control beside the
-     title, so it keeps its content width. */
-  width: auto;
-  flex: 0 0 auto;
-  height: 32px;
-  padding: 0 0.5rem;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--bg-light);
-  color: var(--text-primary);
-  font-size: 0.8125rem;
-}
-
 /* Header row mirrors the item grid so its labels sit over the columns they sort. */
 .glossary-page .glossary-cols {
   display: grid;
