@@ -147,8 +147,9 @@
 
 .glossary-page .glossary-item {
   display: grid;
-  /* src / arrow / tgt / usage badge / row actions — empty auto columns collapse in edit mode. */
-  grid-template-columns: 1fr auto 1fr auto auto;
+  /* src / arrow / tgt / usage badge / row actions — empty auto columns collapse in edit mode.
+     --col-src is set by useResizableCol when the user drags the header divider. */
+  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.5rem 0.75rem;
@@ -254,6 +255,10 @@
 }
 
 .glossary-page .glossary-sort {
+  /* The global stylesheet gives every select width:100%; this one is a small control beside the
+     title, so it keeps its content width. */
+  width: auto;
+  flex: 0 0 auto;
   height: 32px;
   padding: 0 0.5rem;
   border: 1px solid var(--border);
@@ -261,6 +266,53 @@
   background: var(--bg-light);
   color: var(--text-primary);
   font-size: 0.8125rem;
+}
+
+/* Header row mirrors the item grid so its labels sit over the columns they sort. */
+.glossary-page .glossary-cols {
+  display: grid;
+  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.35rem 0.75rem;
+  margin-top: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Sits where the rows' arrow sits, so it keeps the header's target column aligned; the invisible
+   arrow glyph reserves the same width while the cell doubles as the column-resize handle. */
+.glossary-page .glossary-col-resize {
+  color: transparent;
+  font-size: 1.1rem;
+  cursor: col-resize;
+  user-select: none;
+  padding: 0 0.25rem;
+}
+
+.glossary-page .glossary-col-sort {
+  border: none;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.glossary-page .glossary-col-sort:hover {
+  color: var(--text-primary);
+}
+
+.glossary-page .glossary-col-sort--num {
+  min-width: 2rem;
+  text-align: right;
+}
+
+.glossary-page .glossary-col-label {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
 }
 
 .glossary-page .glossary-usage {

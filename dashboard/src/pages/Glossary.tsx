@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, BookMarked, Pencil } from 'lucide-react';
 import { translateApi, type GlossaryTerm, type PendingGlossaryTerm } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
 import { GlossaryPending } from './GlossaryPending';
@@ -19,7 +20,8 @@ export function Glossary() {
   const [src, setSrc] = useState('');
   const [tgt, setTgt] = useState('');
   const [filter, setFilter] = useState('');
-  const [sort, setSort] = useState<'alpha' | 'usage'>('alpha');
+  const [sortKey, setSortKey] = useState<'source' | 'target' | 'count'>('source');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   // The source term is the record's key, so the row being edited is tracked by its original
@@ -53,12 +55,27 @@ export function Glossary() {
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     const list = q ? terms.filter(g => `${g.source}\n${g.target}`.toLowerCase().includes(q)) : [...terms];
+    const dir = sortDir === 'asc' ? 1 : -1;
     return list.sort((a, b) =>
-      sort === 'usage'
-        ? (b.count ?? 0) - (a.count ?? 0) || a.source.localeCompare(b.source)
-        : a.source.localeCompare(b.source),
+      sortKey === 'count'
+        ? ((a.count ?? 0) - (b.count ?? 0)) * dir || a.source.localeCompare(b.source)
+        : a[sortKey].localeCompare(b[sortKey]) * dir,
     );
-  }, [terms, filter, sort]);
+  }, [terms, filter, sortKey, sortDir]);
+
+  const toggleSort = (key: 'source' | 'target' | 'count') => {
+    if (key === sortKey) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'count' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortMark = (key: 'source' | 'target' | 'count') =>
+    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  const { ref: panelRef, onResizeStart } = useResizableCol('glossary-col-src');
 
   const fail = (err: unknown) =>
     setToast({
@@ -194,21 +211,12 @@ export function Glossary() {
         onReject={reject}
       />
 
-      <section className="glossary-panel">
+      <section className="glossary-panel" ref={panelRef as React.RefObject<HTMLElement>}>
         <div className="glossary-head">
           <h3 className="glossary-panel-title">
             {t('glossary.terms')}
             <span className="glossary-count">{terms.length}</span>
           </h3>
-          <select
-            className="glossary-sort"
-            aria-label={t('common.sort')}
-            value={sort}
-            onChange={e => setSort(e.target.value as 'alpha' | 'usage')}
-          >
-            <option value="alpha">{t('common.sortAlpha')}</option>
-            <option value="usage">{t('common.sortUsage')}</option>
-          </select>
         </div>
 
         {canWrite && (
@@ -252,6 +260,22 @@ export function Glossary() {
           />
         </div>
 
+        {filtered.length > 0 && (
+          <div className="glossary-cols">
+            {/* Column labels name the languages themselves, like the add-row placeholders above. */}
+            <button className="glossary-col-sort" onClick={() => toggleSort('source')}>
+              中文{sortMark('source')}
+            </button>
+            <span className="glossary-col-resize" aria-hidden="true" onMouseDown={onResizeStart}>→</span>
+            <button className="glossary-col-sort" onClick={() => toggleSort('target')}>
+              Tiếng Việt{sortMark('target')}
+            </button>
+            <button className="glossary-col-sort glossary-col-sort--num" onClick={() => toggleSort('count')}>
+              {t('common.usageCount')}{sortMark('count')}
+            </button>
+            {canWrite && <span className="glossary-col-label">{t('common.actions')}</span>}
+          </div>
+        )}
         <div className="glossary-list">
           {filtered.length === 0 ? (
             <div className="glossary-empty">

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, AtSign, Download, Pencil } from 'lucide-react';
 import { translateApi, type SenderEntry } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
@@ -20,7 +21,8 @@ export function Senders() {
   const [jid, setJid] = useState('');
   const [name, setName] = useState('');
   const [filter, setFilter] = useState('');
-  const [sort, setSort] = useState<'alpha' | 'usage'>('alpha');
+  const [sortKey, setSortKey] = useState<'jid' | 'name' | 'count'>('name');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -59,12 +61,27 @@ export function Senders() {
   const filtered = useMemo(() => {
     const q = filter.trim().toLowerCase();
     const list = q ? entries.filter(e => `${e.jid}\n${e.name}`.toLowerCase().includes(q)) : [...entries];
+    const dir = sortDir === 'asc' ? 1 : -1;
     return list.sort((a, b) =>
-      sort === 'usage'
-        ? (b.count ?? 0) - (a.count ?? 0) || a.name.localeCompare(b.name)
-        : a.name.localeCompare(b.name),
+      sortKey === 'count'
+        ? ((a.count ?? 0) - (b.count ?? 0)) * dir || a.name.localeCompare(b.name)
+        : a[sortKey].localeCompare(b[sortKey], undefined, { numeric: true }) * dir,
     );
-  }, [entries, filter, sort]);
+  }, [entries, filter, sortKey, sortDir]);
+
+  const toggleSort = (key: 'jid' | 'name' | 'count') => {
+    if (key === sortKey) {
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDir(key === 'count' ? 'desc' : 'asc');
+    }
+  };
+
+  const sortMark = (key: 'jid' | 'name' | 'count') =>
+    sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
+
+  const { ref: panelRef, onResizeStart } = useResizableCol('senders-col-src');
 
   const fail = (err: unknown) =>
     setToast({
@@ -201,21 +218,12 @@ export function Senders() {
         }
       />
 
-      <section className="glossary-panel">
+      <section className="glossary-panel" ref={panelRef as React.RefObject<HTMLElement>}>
         <div className="glossary-head">
           <h3 className="glossary-panel-title">
             {t('senders.entries')}
             <span className="glossary-count">{entries.length}</span>
           </h3>
-          <select
-            className="glossary-sort"
-            aria-label={t('common.sort')}
-            value={sort}
-            onChange={e => setSort(e.target.value as 'alpha' | 'usage')}
-          >
-            <option value="alpha">{t('common.sortAlpha')}</option>
-            <option value="usage">{t('common.sortUsage')}</option>
-          </select>
         </div>
 
         {canWrite && (
@@ -255,6 +263,21 @@ export function Senders() {
           />
         </div>
 
+        {filtered.length > 0 && (
+          <div className="glossary-cols">
+            <button className="glossary-col-sort" onClick={() => toggleSort('jid')}>
+              {t('senders.jid')}{sortMark('jid')}
+            </button>
+            <span className="glossary-col-resize" aria-hidden="true" onMouseDown={onResizeStart}>→</span>
+            <button className="glossary-col-sort" onClick={() => toggleSort('name')}>
+              {t('senders.name')}{sortMark('name')}
+            </button>
+            <button className="glossary-col-sort glossary-col-sort--num" onClick={() => toggleSort('count')}>
+              {t('common.usageCount')}{sortMark('count')}
+            </button>
+            {canWrite && <span className="glossary-col-label">{t('common.actions')}</span>}
+          </div>
+        )}
         <div className="glossary-list">
           {filtered.length === 0 ? (
             <div className="glossary-empty">
