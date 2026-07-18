@@ -1,4 +1,15 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, Query } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { RequireRole } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
@@ -74,7 +85,7 @@ export class TranslateController {
   @ApiOperation({ summary: 'List zh<->vi glossary terms' })
   @ApiResponse({ status: 200, description: 'Glossary terms (source = 中文, target = 越南文)' })
   getGlossary(): GlossaryEntry[] {
-    return this.translateService.getGlossary();
+    return this.translateService.glossaryStore.entries();
   }
 
   @Post('glossary')
@@ -82,7 +93,11 @@ export class TranslateController {
   @ApiOperation({ summary: 'Add/overwrite a zh<->vi glossary term (both directions)' })
   @ApiResponse({ status: 201, description: 'Updated glossary terms' })
   addGlossary(@Body() dto: GlossaryTermDto): GlossaryEntry[] {
-    return this.translateService.addGlossaryTerm(dto.zh, dto.vi);
+    const source = dto.zh.trim();
+    const target = dto.vi.trim();
+    if (!source || !target) throw new BadRequestException('zh and vi are required');
+    this.translateService.glossaryStore.add(source, target);
+    return this.translateService.glossaryStore.entries();
   }
 
   @Delete('glossary')
@@ -90,7 +105,10 @@ export class TranslateController {
   @ApiOperation({ summary: 'Remove any glossary pairing where the term appears on either side' })
   @ApiResponse({ status: 200, description: 'Updated glossary terms' })
   removeGlossary(@Query('term') term: string): GlossaryEntry[] {
-    return this.translateService.removeGlossaryTerm(term ?? '');
+    const trimmed = (term ?? '').trim();
+    if (!trimmed) throw new BadRequestException('term is required');
+    this.translateService.glossaryStore.remove(trimmed);
+    return this.translateService.glossaryStore.entries();
   }
 
   @Get('glossary/pending')
@@ -98,7 +116,7 @@ export class TranslateController {
   @ApiOperation({ summary: 'List pending glossary suggestions' })
   @ApiResponse({ status: 200, description: 'Pending suggestions' })
   getPendingGlossary(): PendingSuggestion[] {
-    return this.translateService.getPendingGlossary();
+    return this.translateService.glossaryStore.pending();
   }
 
   @Post('glossary/pending/:id/approve')
@@ -106,7 +124,10 @@ export class TranslateController {
   @ApiOperation({ summary: 'Approve a pending glossary suggestion into the glossary' })
   @ApiResponse({ status: 201, description: 'Remaining pending suggestions' })
   approvePendingGlossary(@Param('id', ParseIntPipe) id: number): PendingSuggestion[] {
-    return this.translateService.approvePendingGlossary(id);
+    if (!this.translateService.glossaryStore.approve(id)) {
+      throw new BadRequestException(`unknown pending id: ${id}`);
+    }
+    return this.translateService.glossaryStore.pending();
   }
 
   @Delete('glossary/pending/:id')
@@ -114,7 +135,10 @@ export class TranslateController {
   @ApiOperation({ summary: 'Reject (drop) a pending glossary suggestion' })
   @ApiResponse({ status: 200, description: 'Remaining pending suggestions' })
   rejectPendingGlossary(@Param('id', ParseIntPipe) id: number): PendingSuggestion[] {
-    return this.translateService.rejectPendingGlossary(id);
+    if (!this.translateService.glossaryStore.reject(id)) {
+      throw new BadRequestException(`unknown pending id: ${id}`);
+    }
+    return this.translateService.glossaryStore.pending();
   }
 
   @Get('senders')
@@ -122,7 +146,7 @@ export class TranslateController {
   @ApiOperation({ summary: 'List @mention JID->name overrides' })
   @ApiResponse({ status: 200, description: 'Sender overrides' })
   getSenders(): SenderEntry[] {
-    return this.translateService.getSenders();
+    return this.translateService.senderStore.entries();
   }
 
   @Post('senders')
@@ -130,7 +154,11 @@ export class TranslateController {
   @ApiOperation({ summary: 'Add/overwrite an @mention JID->name override' })
   @ApiResponse({ status: 201, description: 'Updated sender overrides' })
   addSender(@Body() dto: SenderEntryDto): SenderEntry[] {
-    return this.translateService.addSender(dto.jid, dto.name);
+    const jid = dto.jid.trim();
+    const name = dto.name.trim();
+    if (!jid || !name) throw new BadRequestException('jid and name are required');
+    this.translateService.senderStore.add(jid, name);
+    return this.translateService.senderStore.entries();
   }
 
   @Delete('senders')
@@ -138,7 +166,10 @@ export class TranslateController {
   @ApiOperation({ summary: 'Remove an @mention JID override' })
   @ApiResponse({ status: 200, description: 'Updated sender overrides' })
   removeSender(@Query('jid') jid: string): SenderEntry[] {
-    return this.translateService.removeSender(jid ?? '');
+    const trimmed = (jid ?? '').trim();
+    if (!trimmed) throw new BadRequestException('jid is required');
+    this.translateService.senderStore.remove(trimmed);
+    return this.translateService.senderStore.entries();
   }
 
   @Post('senders/import')
@@ -168,6 +199,7 @@ export class TranslateController {
     }
 
     const items = [...nameById].map(([jid, name]) => ({ jid, name }));
-    return this.translateService.importSenders(items);
+    const added = this.translateService.senderStore.importEntries(items);
+    return { added, entries: this.translateService.senderStore.entries() };
   }
 }

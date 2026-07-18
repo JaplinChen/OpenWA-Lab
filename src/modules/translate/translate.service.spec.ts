@@ -31,6 +31,11 @@ describe('TranslateService glossary', () => {
     service.onModuleInit(); // loads (absent) glossary from the temp path
   });
 
+  // Poke private runtime config directly — updateConfig() would persist to the shared data/translate-config.json.
+  const poke = (patch: Record<string, unknown>): void => {
+    Object.assign((service as unknown as { cfg: Record<string, unknown> }).cfg, patch);
+  };
+
   const cmd = (body: string): Promise<void> =>
     (service as unknown as { handleGlossaryCommand: (s: string, m: IncomingMessage, r: string) => Promise<void> })
       .handleGlossaryCommand('sess', makeMsg(body), body);
@@ -74,8 +79,8 @@ describe('TranslateService glossary', () => {
   it('translates an image caption (media with text is not skipped)', async () => {
     const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ message: { content: '報告主管' } }) }) as never);
     (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
-    Object.assign(service as unknown as Record<string, unknown>, {
-      enabled: true, provider: 'ollama', endpoint: 'http://x/api/chat', model: 'qwen3:8b',
+    poke({
+      enabled: true, llmProvider: 'ollama', llmEndpoint: 'http://x/api/chat', llmModel: 'qwen3:8b',
       groupIds: new Set(['g@g.us']), minSendIntervalMs: 0,
     });
     const msg = { ...makeMsg('Báo cáo Sếp'), type: 'image' } as IncomingMessage;
@@ -89,7 +94,7 @@ describe('TranslateService glossary', () => {
   });
 
   it('applies the sender override to the @mention before sending the prompt to Ollama', async () => {
-    service.addSender('200859128434777', '總經理');
+    service.senderStore.add('200859128434777', '總經理');
     let promptSent = '';
     const fetchMock = jest.fn(async (_url: string, init: { body: string }) => {
       promptSent = JSON.parse(init.body).messages[0].content as string;
@@ -108,7 +113,7 @@ describe('TranslateService glossary', () => {
   });
 
   it('strips a reasoning model <think> block so the group gets only the translation', async () => {
-    Object.assign(service as unknown as Record<string, unknown>, { provider: 'ollama', endpoint: 'http://x/api/chat', model: 'qwen3:8b' });
+    poke({ llmProvider: 'ollama', llmEndpoint: 'http://x/api/chat', llmModel: 'qwen3:8b' });
     const fetchMock = jest.fn(async () =>
       ({ ok: true, json: async () => ({ message: { content: '<think>越文翻成中文\n判斷語氣</think>\n\n報告總經理，會議已開始' } }) }) as never,
     );
@@ -137,11 +142,11 @@ describe('TranslateService glossary', () => {
   });
 
   it('falls back to the next model when the primary model call fails', async () => {
-    Object.assign(service as unknown as Record<string, unknown>, {
-      provider: 'ollama',
-      endpoint: 'http://x/api/chat',
-      model: 'primary',
-      fallbackModels: ['backup'],
+    poke({
+      llmProvider: 'ollama',
+      llmEndpoint: 'http://x/api/chat',
+      llmModel: 'primary',
+      llmFallbackModels: ['backup'],
     });
     const tried: string[] = [];
     const fetchMock = jest.fn(async (_url: string, init: { body: string }) => {
@@ -162,11 +167,10 @@ describe('TranslateService glossary', () => {
   });
 
   it('routes to the OpenAI-compatible shape and parses choices when provider=openai', async () => {
-    // Poke private fields directly — updateConfig() would persist to the shared data/translate-config.json.
-    Object.assign(service as unknown as Record<string, unknown>, {
-      provider: 'openai',
-      endpoint: 'https://api.openai.com/v1/chat/completions',
-      apiKey: 'sk-x',
+    poke({
+      llmProvider: 'openai',
+      llmEndpoint: 'https://api.openai.com/v1/chat/completions',
+      llmApiKey: 'sk-x',
     });
     let authHeader = '';
     const fetchMock = jest.fn(async (_url: string, init: { headers: Record<string, string> }) => {
