@@ -6,7 +6,7 @@ import { Readable, PassThrough } from 'stream';
 import { S3Client, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
 import { createLogger } from '../services/logger.service';
 import { isPathWithin, isSafeStorageKey } from '../utils/path-safety';
-import { createExportStream, importFromStream, positiveIntFromEnv } from './storage-archive';
+import { createExportStream, exportArchiveToDataDir, importFromStream, positiveIntFromEnv } from './storage-archive';
 import { listS3Files, getS3File, putS3File, getS3CountAndSize } from './s3-storage';
 
 interface S3Config {
@@ -199,6 +199,11 @@ export class StorageService {
 
   importFromStream(inputStream: Readable): Promise<number> {
     return importFromStream(this, inputStream, this.logger);
+  }
+
+  /** Export the whole store as a tar.gz under data/exports; returns the cwd-relative path. */
+  async exportToDataDir(): Promise<string> {
+    return exportArchiveToDataDir(await this.createExportStream());
   }
 
   // ============================================================================

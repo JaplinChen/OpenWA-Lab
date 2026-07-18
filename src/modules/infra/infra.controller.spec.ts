@@ -28,6 +28,9 @@ jest.mock('fs', () => {
 
 import { DataSource, QueryFailedError } from 'typeorm';
 import { InfraController } from './infra.controller';
+import { InfraStatusService } from './infra-status.service';
+import { InfraRestartService } from './infra-restart.service';
+import { exportArchiveToDataDir } from '../../common/storage/storage-archive';
 import { REQUIRED_ROLE_KEY } from '../auth/decorators/auth.decorators';
 import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { Session, SessionStatus } from '../session/entities/session.entity';
@@ -75,16 +78,7 @@ describe('InfraController access control (Vuln 2)', () => {
 
 describe('InfraController.importStorage filePath validation (Vuln 3)', () => {
   function buildController(storage: Partial<{ importFromStream: jest.Mock; getCurrentStorageType: jest.Mock }>) {
-    return new InfraController(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      storage as never,
-      {} as never,
-    );
+    return new InfraController({} as never, {} as never, {} as never, storage as never, {} as never, {} as never);
   }
 
   it('rejects a filePath that escapes the data directory before touching the filesystem', async () => {
@@ -104,17 +98,16 @@ describe('InfraController.getStatus DB health (active SELECT 1 probe, not just i
     const config = { get: (k: string, def?: unknown) => (k === 'engine.type' ? 'baileys' : def) };
     const ds = { isInitialized: true, query };
     const cache = { isAvailable: jest.fn().mockResolvedValue(false), refreshS3Availability: jest.fn() };
-    return new InfraController(
+    const statusService = new InfraStatusService(
       config as never,
       ds as never,
       ds as never,
-      { create: jest.fn() } as never,
       { isDockerAvailable: () => false, getRunningBuiltinServices: jest.fn() } as never,
       cache as never,
       { refreshS3Availability: jest.fn() } as never,
-      {} as never,
       undefined as never,
     );
+    return new InfraController(config as never, ds as never, {} as never, {} as never, statusService, {} as never);
   };
 
   it('reports connected:true when SELECT 1 succeeds', async () => {
@@ -138,17 +131,22 @@ describe('InfraController.getStatus queue job counts', () => {
     const dockerService = { isDockerAvailable: () => false, getRunningBuiltinServices: jest.fn() };
     const cacheService = { isAvailable: jest.fn().mockResolvedValue(false), refreshS3Availability: jest.fn() };
     const storageService = { refreshS3Availability: jest.fn() };
-    const shutdownService = {};
-    return new InfraController(
+    const statusService = new InfraStatusService(
       configService as never,
       dataSource as never,
       dataSource as never,
-      engineFactory as never,
       dockerService as never,
       cacheService as never,
       storageService as never,
-      shutdownService as never,
       opts.queue as never,
+    );
+    return new InfraController(
+      configService as never,
+      dataSource as never,
+      engineFactory as never,
+      storageService as never,
+      statusService,
+      {} as never,
     );
   }
 
@@ -183,8 +181,6 @@ describe('InfraController.saveConfig SSL reject-unauthorized', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
     );
     controller.saveConfig(config as never);
     const content = spy.mock.calls[0][1] as string;
@@ -212,8 +208,6 @@ describe('InfraController.saveConfig SSL reject-unauthorized', () => {
 describe('InfraController PostgreSQL schema (POSTGRES_SCHEMA)', () => {
   const newController = () =>
     new InfraController(
-      {} as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
@@ -277,8 +271,6 @@ describe('InfraController.saveConfig writes the generated env owner-only', () =>
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
     );
     controller.saveConfig({ database: { type: 'postgres', sslEnabled: true, password: 'pw' } } as never);
     const opts = writeSpy.mock.calls[0][2];
@@ -290,8 +282,6 @@ describe('InfraController.saveConfig writes the generated env owner-only', () =>
 describe('InfraController.saveConfig env-name correctness and merge (#226)', () => {
   const newController = () =>
     new InfraController(
-      {} as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
@@ -390,8 +380,6 @@ describe('InfraController.saveConfig rejects values that would inject extra env 
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
     );
 
   // .env.generated is one KEY=value per line and is loaded on the next boot. A value carrying a
@@ -429,9 +417,7 @@ describe('InfraController.saveConfig engine selection (persist ENGINE_TYPE — I
     new InfraController(
       {} as never,
       {} as never,
-      {} as never,
       engineFactory as never,
-      {} as never,
       {} as never,
       {} as never,
       {} as never,
@@ -474,7 +460,7 @@ describe('InfraController.importData round-trips export-data (no silent message/
   const cfg = { get: (key: string, def?: unknown) => (key === 'dataDatabase.type' ? 'sqlite' : def) };
 
   const newController = () =>
-    new InfraController(cfg as never, {} as never, ds, {} as never, {} as never, {} as never, {} as never, {} as never);
+    new InfraController(cfg as never, ds, {} as never, {} as never, {} as never, {} as never);
 
   beforeEach(async () => {
     ds = new DataSource({
@@ -754,7 +740,7 @@ describe('InfraController.import/export preserves every data-DB table', () => {
   let controller: InfraController;
   const cfg = { get: (key: string, def?: unknown) => (key === 'dataDatabase.type' ? 'sqlite' : def) };
   const newController = () =>
-    new InfraController(cfg as never, {} as never, ds, {} as never, {} as never, {} as never, {} as never, {} as never);
+    new InfraController(cfg as never, ds, {} as never, {} as never, {} as never, {} as never);
 
   beforeEach(async () => {
     ds = new DataSource({
@@ -881,8 +867,6 @@ describe('InfraController.getConfig (#226)', () => {
       {} as never,
       {} as never,
       {} as never,
-      {} as never,
-      {} as never,
     );
 
     const cfg = controller.getConfig();
@@ -921,16 +905,15 @@ describe('InfraController.getStatus engine (reads the real engine.puppeteer.* ke
     const config = { get: (key: string, def?: unknown) => (key in map ? map[key] : def) };
     const cache = { isAvailable: () => Promise.resolve(false) };
     const ds = { isInitialized: true, query: jest.fn().mockResolvedValue([{ '1': 1 }]) };
-    const controller = new InfraController(
+    const statusService = new InfraStatusService(
       config as never,
       ds as never,
       ds as never,
-      {} as never, // engineFactory
       { isDockerAvailable: () => false } as never, // dockerService — no Docker in unit tests
       cache as never,
       { isS3Available: () => false, refreshS3Availability: () => Promise.resolve(false) } as never, // storageService
-      {} as never, // shutdownService
     );
+    const controller = new InfraController(config as never, ds as never, {} as never, {} as never, statusService, {} as never);
 
     const status = await controller.getStatus();
     expect(status.engine.headless).toBe(false);
@@ -952,16 +935,15 @@ describe('InfraController.getStatus storage (reads the real storage.localPath ke
     const config = { get: (key: string, def?: unknown) => (key in map ? map[key] : def) };
     const cache = { isAvailable: () => Promise.resolve(false) };
     const ds = { isInitialized: true, query: jest.fn().mockResolvedValue([{ '1': 1 }]) };
-    return new InfraController(
+    const statusService = new InfraStatusService(
       config as never,
       ds as never,
       ds as never,
-      {} as never, // engineFactory
       { isDockerAvailable: () => false } as never, // dockerService — no Docker in unit tests
       cache as never,
       { isS3Available: () => false, refreshS3Availability: () => Promise.resolve(false) } as never, // storageService
-      {} as never, // shutdownService
     );
+    return new InfraController(config as never, ds as never, {} as never, {} as never, statusService, {} as never);
   };
 
   it('reports the configured storage.localPath, not the ./uploads fallback', async () => {
@@ -991,20 +973,7 @@ describe('InfraController.getStatus storage (reads the real storage.localPath ke
   });
 });
 
-describe('InfraController.exportStorage keeps the export import-able and sweeps it', () => {
-  function buildController(storage: Partial<{ createExportStream: jest.Mock }>) {
-    return new InfraController(
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      {} as never,
-      storage as never,
-      {} as never,
-    );
-  }
-
+describe('exportArchiveToDataDir keeps the export import-able and sweeps it', () => {
   // fs.existsSync is globally mocked in this file, so probe the real filesystem via fs.promises.access.
   const exists = (p: string): Promise<boolean> =>
     fs.promises
@@ -1036,17 +1005,15 @@ describe('InfraController.exportStorage keeps the export import-able and sweeps 
     cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'owa-cwd-'));
     cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(cwd);
     process.env.STORAGE_EXPORT_TTL_MS = '30';
-    const createExportStream = jest.fn().mockResolvedValue(Readable.from([Buffer.from('archive-bytes')]));
-    const controller = buildController({ createExportStream });
 
-    const result = await controller.exportStorage();
+    const download = await exportArchiveToDataDir(Readable.from([Buffer.from('archive-bytes')]));
 
     // download is cwd-relative (no absolute host path leak) and stays under data/exports so the import
     // handler — which only accepts paths inside data/ — can still consume it.
-    expect(path.isAbsolute(result.download)).toBe(false);
-    expect(result.download.startsWith(path.join('data', 'exports'))).toBe(true);
+    expect(path.isAbsolute(download)).toBe(false);
+    expect(download.startsWith(path.join('data', 'exports'))).toBe(true);
     // Resolve against the (mocked) cwd to check on-disk existence; fs itself uses the real cwd.
-    const abs = path.join(cwd, result.download);
+    const abs = path.join(cwd, download);
     expect(await exists(abs)).toBe(true);
 
     await waitForGone(abs);
@@ -1055,17 +1022,10 @@ describe('InfraController.exportStorage keeps the export import-able and sweeps 
 });
 
 describe('InfraController.requestRestart constrains teardown to managed profiles', () => {
-  const buildController = (dockerService: Record<string, unknown>) =>
-    new InfraController(
-      { get: () => undefined } as never,
-      { isInitialized: true } as never,
-      { isInitialized: true } as never,
-      {} as never, // engineFactory
-      dockerService as never,
-      { isAvailable: () => Promise.resolve(false) } as never, // cacheService
-      { isS3Available: () => false, refreshS3Availability: () => Promise.resolve(false) } as never, // storageService
-      { shutdown: jest.fn() } as never, // shutdownService
-    );
+  const buildController = (dockerService: Record<string, unknown>) => {
+    const restartService = new InfraRestartService(dockerService as never, { shutdown: jest.fn() } as never);
+    return new InfraController({} as never, {} as never, {} as never, {} as never, {} as never, restartService);
+  };
 
   it('removes only allowlisted profiles, never an unknown or empty entry', async () => {
     const removeService = jest.fn().mockResolvedValue(true);

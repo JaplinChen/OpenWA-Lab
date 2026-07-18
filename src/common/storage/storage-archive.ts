@@ -2,6 +2,9 @@ import { TarArchive } from 'archiver';
 import * as tar from 'tar-stream';
 import { createGunzip } from 'zlib';
 import { Readable, PassThrough } from 'stream';
+import * as fs from 'fs';
+import * as path from 'path';
+import { randomUUID } from 'crypto';
 
 /** Per-entry buffer cap for an import (200 MiB — 4× the inbound media cap). Bounds a decompression bomb. */
 const DEFAULT_IMPORT_MAX_BYTES = 200 * 1024 * 1024;
@@ -59,6 +62,38 @@ export async function createExportStream(io: StorageArchiveIO, logger: ArchiveLo
   // never surfaces as an unhandled rejection.
   archive.finalize().catch(() => undefined);
   return output;
+}
+
+/**
+ * Persist an export stream to a collision-proof file under data/exports and TTL-sweep it.
+ * Keep the export INSIDE data/ (under data/exports/): the import handler only accepts paths under
+ * data/, and the documented backend-migration flow re-imports this file AFTER a container restart,
+ * so it must live on the persistent volume — the OS temp dir is wiped on restart. The original
+ * unbounded-accumulation leak is addressed by the TTL sweep + a collision-proof filename
+ * (a per-call UUID), not by relocating off the volume. Returns the cwd-relative path: doesn't leak
+ * the filesystem layout, and the import round-trip still works because importStorage's
+ * existsSync/createReadStream resolve a relative filePath against the same cwd.
+ */
+export async function exportArchiveToDataDir(stream: Readable): Promise<string> {
+  const exportDir = path.join(process.cwd(), 'data', 'exports');
+  await fs.promises.mkdir(exportDir, { recursive: true });
+  const exportPath = path.join(exportDir, `storage-export-${Date.now()}-${randomUUID()}.tar.gz`);
+
+  const writeStream = fs.createWriteStream(exportPath);
+  stream.pipe(writeStream);
+
+  await new Promise<void>((resolve, reject) => {
+    writeStream.on('finish', resolve);
+    writeStream.on('error', reject);
+  });
+
+  // Sweep the throwaway archive so repeated exports don't accumulate on the data volume.
+  const ttlMs = positiveIntFromEnv('STORAGE_EXPORT_TTL_MS', 60 * 60 * 1000); // default 1h
+  setTimeout(() => {
+    fs.promises.unlink(exportPath).catch(() => undefined);
+  }, ttlMs).unref();
+
+  return path.relative(process.cwd(), exportPath);
 }
 
 /**

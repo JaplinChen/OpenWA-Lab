@@ -1,5 +1,7 @@
 import { Module, DynamicModule, Type } from '@nestjs/common';
 import { InfraController } from './infra.controller';
+import { InfraStatusService } from './infra-status.service';
+import { InfraRestartService } from './infra-restart.service';
 import { EngineModule } from '../../engine/engine.module';
 import { DockerModule } from '../docker';
 
@@ -15,5 +17,6 @@ if (process.env.QUEUE_ENABLED === 'true') {
 @Module({
   imports: [EngineModule, DockerModule, ...queueModules],
   controllers: [InfraController],
+  providers: [InfraStatusService, InfraRestartService],
 })
 export class InfraModule {}
