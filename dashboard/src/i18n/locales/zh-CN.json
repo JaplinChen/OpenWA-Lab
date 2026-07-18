@@ -56,7 +56,8 @@
     "errorGeneric": "发生错误",
     "unknownError": "未知错误",
     "retry": "重试",
-    "failed": "失败：{{message}}"
+    "failed": "失败：{{message}}",
+    "saved": "已保存"
   },
   "theme": {
     "light": "浅色",

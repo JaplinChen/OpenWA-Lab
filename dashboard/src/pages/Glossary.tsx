@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, BookMarked } from 'lucide-react';
+import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, BookMarked, Pencil } from 'lucide-react';
 import { translateApi, type GlossaryTerm } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
@@ -19,6 +19,11 @@ export function Glossary() {
   const [filter, setFilter] = useState('');
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // The source term is the record's key, so the row being edited is tracked by its original
+  // source; renaming one has to drop the old key, which `editing` still holds.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editSrc, setEditSrc] = useState('');
+  const [editTgt, setEditTgt] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -71,6 +76,38 @@ export function Glossary() {
     setBusy(true);
     try {
       setTerms(await translateApi.removeGlossaryTerm(term));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = (term: GlossaryTerm) => {
+    setEditing(term.source);
+    setEditSrc(term.source);
+    setEditTgt(term.target);
+  };
+
+  const cancelEdit = () => setEditing(null);
+
+  const saveEdit = async (original: string) => {
+    const zh = editSrc.trim();
+    const vi = editTgt.trim();
+    if (!zh || !vi) return;
+    if (zh === original && vi === terms.find(term => term.source === original)?.target) {
+      setEditing(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      // POST upserts on the source key, so an unchanged source is a plain overwrite. A changed
+      // one writes a new record, which leaves the old key behind until it is removed.
+      let list = await translateApi.addGlossaryTerm(zh, vi);
+      if (zh !== original) list = await translateApi.removeGlossaryTerm(original);
+      setTerms(list);
+      setEditing(null);
+      setToast({ type: 'success', message: t('common.saved') });
     } catch (err) {
       fail(err);
     } finally {
@@ -159,23 +196,73 @@ export function Glossary() {
               <p>{t('glossary.empty')}</p>
             </div>
           ) : (
-            filtered.map(g => (
-              <div key={g.source} className="glossary-item">
-                <span className="glossary-src">{g.source}</span>
-                <span className="glossary-arrow">→</span>
-                <span className="glossary-tgt">{g.target}</span>
-                {canWrite && (
-                  <button
-                    className="glossary-del"
-                    onClick={() => remove(g.source)}
-                    disabled={busy}
-                    title={t('common.delete')}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ))
+            filtered.map(g =>
+              editing === g.source ? (
+                <div key={g.source} className="glossary-item glossary-item--editing">
+                  <input
+                    className="glossary-edit"
+                    value={editSrc}
+                    aria-label="中文"
+                    autoFocus
+                    onChange={e => setEditSrc(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') void saveEdit(g.source);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                  />
+                  <span className="glossary-arrow">→</span>
+                  <input
+                    className="glossary-edit"
+                    value={editTgt}
+                    aria-label="Tiếng Việt"
+                    onChange={e => setEditTgt(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') void saveEdit(g.source);
+                      if (e.key === 'Escape') cancelEdit();
+                    }}
+                  />
+                  <div className="glossary-row-actions">
+                    <button
+                      className="glossary-del"
+                      onClick={() => void saveEdit(g.source)}
+                      disabled={busy || !editSrc.trim() || !editTgt.trim()}
+                      title={t('common.save')}
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button className="glossary-del" onClick={cancelEdit} disabled={busy} title={t('common.cancel')}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div key={g.source} className="glossary-item">
+                  <span className="glossary-src">{g.source}</span>
+                  <span className="glossary-arrow">→</span>
+                  <span className="glossary-tgt">{g.target}</span>
+                  {canWrite && (
+                    <div className="glossary-row-actions">
+                      <button
+                        className="glossary-del"
+                        onClick={() => startEdit(g)}
+                        disabled={busy}
+                        title={t('common.edit')}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        className="glossary-del"
+                        onClick={() => remove(g.source)}
+                        disabled={busy}
+                        title={t('common.delete')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ),
+            )
           )}
         </div>
       </section>

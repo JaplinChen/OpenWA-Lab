@@ -56,7 +56,8 @@
     "errorGeneric": "An error occurred",
     "unknownError": "Unknown error",
     "retry": "Retry",
-    "failed": "Failed: {{message}}"
+    "failed": "Failed: {{message}}",
+    "saved": "Saved"
   },
   "theme": {
     "light": "Light",

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, AtSign, Download } from 'lucide-react';
+import { Loader2, Check, AlertTriangle, X, Search, Plus, Trash2, AtSign, Download, Pencil } from 'lucide-react';
 import { translateApi, type SenderEntry } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
@@ -23,6 +23,11 @@ export function Senders() {
   const [busy, setBusy] = useState(false);
   const [sessionId, setSessionId] = useState('');
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  // The jid is the record's key, so the row being edited is tracked by its original jid; renaming
+  // one has to drop the old key, which `editing` still holds.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editJid, setEditJid] = useState('');
+  const [editName, setEditName] = useState('');
 
   const { data: sessions = [] } = useSessionsQuery();
 
@@ -100,6 +105,41 @@ export function Senders() {
     setBusy(true);
     try {
       setEntries(await translateApi.removeSender(target));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEdit = (entry: SenderEntry) => {
+    setEditing(entry.jid);
+    setEditJid(entry.jid);
+    setEditName(entry.name);
+  };
+
+  const cancelEdit = () => setEditing(null);
+
+  const saveEdit = async (original: string) => {
+    const j = editJid.trim();
+    const n = editName.trim();
+    if (!j || !n) return;
+    if (j === original && n === entries.find(entry => entry.jid === original)?.name) {
+      setEditing(null);
+      return;
+    }
+    setBusy(true);
+    try {
+      // POST upserts on the jid, so an unchanged jid is a plain overwrite. A changed one writes a
+      // new record, which leaves the old key behind until it is removed. The backend normalizes a
+      // jid down to its digits (@200.../200...@c.us all collapse), so compare on digits: retyping
+      // the same number in a different form must not delete the row that was just written.
+      const digits = (v: string) => v.replace(/\D/g, '');
+      let list = await translateApi.addSender(j, n);
+      if (digits(j) !== digits(original)) list = await translateApi.removeSender(original);
+      setEntries(list);
+      setEditing(null);
+      setToast({ type: 'success', message: t('common.saved') });
     } catch (err) {
       fail(err);
     } finally {
@@ -208,23 +248,73 @@ export function Senders() {
               <p>{t('senders.empty')}</p>
             </div>
           ) : (
-            filtered.map(e => (
-              <div key={e.jid} className="glossary-item">
-                <span className="glossary-src">@{e.jid}</span>
-                <span className="glossary-arrow">→</span>
-                <span className="glossary-tgt">{e.name}</span>
-                {canWrite && (
-                  <button
-                    className="glossary-del"
-                    onClick={() => remove(e.jid)}
-                    disabled={busy}
-                    title={t('common.delete')}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
-              </div>
-            ))
+            filtered.map(e =>
+              editing === e.jid ? (
+                <div key={e.jid} className="glossary-item glossary-item--editing">
+                  <input
+                    className="glossary-edit"
+                    value={editJid}
+                    aria-label={t('senders.jid')}
+                    autoFocus
+                    onChange={ev => setEditJid(ev.target.value)}
+                    onKeyDown={ev => {
+                      if (ev.key === 'Enter') void saveEdit(e.jid);
+                      if (ev.key === 'Escape') cancelEdit();
+                    }}
+                  />
+                  <span className="glossary-arrow">→</span>
+                  <input
+                    className="glossary-edit"
+                    value={editName}
+                    aria-label={t('senders.name')}
+                    onChange={ev => setEditName(ev.target.value)}
+                    onKeyDown={ev => {
+                      if (ev.key === 'Enter') void saveEdit(e.jid);
+                      if (ev.key === 'Escape') cancelEdit();
+                    }}
+                  />
+                  <div className="glossary-row-actions">
+                    <button
+                      className="glossary-del"
+                      onClick={() => void saveEdit(e.jid)}
+                      disabled={busy || !editJid.trim() || !editName.trim()}
+                      title={t('common.save')}
+                    >
+                      <Check size={16} />
+                    </button>
+                    <button className="glossary-del" onClick={cancelEdit} disabled={busy} title={t('common.cancel')}>
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div key={e.jid} className="glossary-item">
+                  <span className="glossary-src">@{e.jid}</span>
+                  <span className="glossary-arrow">→</span>
+                  <span className="glossary-tgt">{e.name}</span>
+                  {canWrite && (
+                    <div className="glossary-row-actions">
+                      <button
+                        className="glossary-del"
+                        onClick={() => startEdit(e)}
+                        disabled={busy}
+                        title={t('common.edit')}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        className="glossary-del"
+                        onClick={() => remove(e.jid)}
+                        disabled={busy}
+                        title={t('common.delete')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ),
+            )
           )}
         </div>
       </section>

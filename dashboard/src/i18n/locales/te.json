@@ -56,7 +56,8 @@
     "errorGeneric": "ఒక లోపం సంభవించింది",
     "unknownError": "తెలియని లోపం",
     "retry": "మళ్లీ ప్రయత్నించండి",
-    "failed": "Failed: {{message}}"
+    "failed": "Failed: {{message}}",
+    "saved": "Saved"
   },
   "theme": {
     "light": "లైట్",

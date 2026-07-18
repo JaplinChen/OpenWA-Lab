@@ -56,7 +56,8 @@
     "errorGeneric": "Đã xảy ra lỗi",
     "unknownError": "Lỗi không xác định",
     "retry": "Thử lại",
-    "failed": "Thất bại: {{message}}"
+    "failed": "Thất bại: {{message}}",
+    "saved": "Đã lưu"
   },
   "theme": {
     "light": "Sáng",
