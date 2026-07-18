@@ -7,7 +7,10 @@ import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
 import { GlossaryPending } from './GlossaryPending';
+import { pageWindow } from '../utils/pageWindow';
 import './Glossary.css';
+
+const PAGE_SIZE = 50;
 
 export function Glossary() {
   const { t } = useTranslation();
@@ -76,6 +79,13 @@ export function Glossary() {
     sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   const { ref: panelRef, onResizeStart } = useResizableCol('glossary-col-src');
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  // Clamp instead of resetting via effect: a filter change that shrinks the list lands on the
+  // nearest valid page without an extra render.
+  const current = Math.min(page, totalPages);
+  const paged = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   const fail = (err: unknown) =>
     setToast({
@@ -283,7 +293,7 @@ export function Glossary() {
               <p>{t('glossary.empty')}</p>
             </div>
           ) : (
-            filtered.map(g =>
+            paged.map(g =>
               editing === g.source ? (
                 <div key={g.source} className="glossary-item glossary-item--editing">
                   <input
@@ -353,6 +363,24 @@ export function Glossary() {
             )
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button disabled={current === 1} onClick={() => setPage(current - 1)}>
+              {t('common.previous')}
+            </button>
+            <span className="page-numbers">
+              {pageWindow(current, totalPages).map(p => (
+                <button key={p} className={p === current ? 'active' : ''} onClick={() => setPage(p)}>
+                  {p}
+                </button>
+              ))}
+            </span>
+            <button disabled={current >= totalPages} onClick={() => setPage(current + 1)}>
+              {t('common.next')}
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );

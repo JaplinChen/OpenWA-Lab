@@ -315,6 +315,51 @@
   white-space: nowrap;
 }
 
+/* Pagination (scoped copy of the logs-page pattern) */
+.glossary-page .pagination{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.glossary-page .pagination button{
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.glossary-page .pagination button:hover:not(:disabled){
+  background: var(--bg-light);
+}
+
+.glossary-page .pagination button:disabled{
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.glossary-page .page-numbers{
+  display: flex;
+  gap: 0.25rem;
+}
+
+.glossary-page .page-numbers button{
+  min-width: 36px;
+  padding: 0.5rem;
+}
+
+.glossary-page .page-numbers button.active{
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-ink);
+}
+
 /* Toast (scoped copy) */
 .glossary-page .toast{
   position: fixed;

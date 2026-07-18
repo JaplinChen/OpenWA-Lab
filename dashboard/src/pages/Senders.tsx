@@ -7,7 +7,10 @@ import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
+import { pageWindow } from '../utils/pageWindow';
 import './Glossary.css';
+
+const PAGE_SIZE = 50;
 
 const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
 
@@ -82,6 +85,11 @@ export function Senders() {
     sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : '';
 
   const { ref: panelRef, onResizeStart } = useResizableCol('senders-col-src');
+
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const current = Math.min(page, totalPages);
+  const paged = filtered.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   const fail = (err: unknown) =>
     setToast({
@@ -285,7 +293,7 @@ export function Senders() {
               <p>{t('senders.empty')}</p>
             </div>
           ) : (
-            filtered.map(e =>
+            paged.map(e =>
               editing === e.jid ? (
                 <div key={e.jid} className="glossary-item glossary-item--editing">
                   <input
@@ -355,6 +363,24 @@ export function Senders() {
             )
           )}
         </div>
+
+        {totalPages > 1 && (
+          <div className="pagination">
+            <button disabled={current === 1} onClick={() => setPage(current - 1)}>
+              {t('common.previous')}
+            </button>
+            <span className="page-numbers">
+              {pageWindow(current, totalPages).map(p => (
+                <button key={p} className={p === current ? 'active' : ''} onClick={() => setPage(p)}>
+                  {p}
+                </button>
+              ))}
+            </span>
+            <button disabled={current >= totalPages} onClick={() => setPage(current + 1)}>
+              {t('common.next')}
+            </button>
+          </div>
+        )}
       </section>
     </div>
   );
