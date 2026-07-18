@@ -1,20 +1,14 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Send, Loader2 } from 'lucide-react';
 import { messageApi, contactApi } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import { PageLoader } from '../components/PageLoader';
+import { ResponsePanel, type ApiResponse } from '../components/message-tester/ResponsePanel';
 import './MessageTester.css';
-
-interface ApiResponse {
-  success: boolean;
-  messageId?: string;
-  timestamp: string;
-  error?: string;
-}
 
 const messageTypes = ['text', 'image', 'video', 'audio', 'document'] as const;
 
@@ -258,56 +252,7 @@ export function MessageTester() {
           </button>
         </div>
 
-        <div className="response-panel">
-          <h2>{t('messageTester.responseTitle')}</h2>
-
-          {response ? (
-            <>
-              <div className={`response-status ${response.success ? 'success' : 'error'}`}>
-                {response.success ? (
-                  <>
-                    <CheckCircle size={20} />
-                    <span>{t('messageTester.successLabel')}</span>
-                  </>
-                ) : (
-                  <>
-                    <XCircle size={20} />
-                    <span>{t('messageTester.failedLabel')}</span>
-                  </>
-                )}
-              </div>
-
-              <div className="response-details">
-                <div className="detail-row">
-                  <span className="detail-label">{t('messageTester.response.timestamp')}</span>
-                  <span className="detail-value">{response.timestamp}</span>
-                </div>
-                {response.messageId && (
-                  <div className="detail-row">
-                    <span className="detail-label">{t('messageTester.response.messageId')}</span>
-                    <span className="detail-value mono">{response.messageId}</span>
-                  </div>
-                )}
-                {response.error && (
-                  <div className="detail-row">
-                    <span className="detail-label">{t('messageTester.response.error')}</span>
-                    <span className="detail-value" style={{ color: 'var(--error)' }}>
-                      {response.error}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="response-json">
-                <pre>{JSON.stringify(response, null, 2)}</pre>
-              </div>
-            </>
-          ) : (
-            <div className="response-empty">
-              <p>{t('messageTester.responseEmpty')}</p>
-            </div>
-          )}
-        </div>
+        <ResponsePanel response={response} />
       </div>
     </div>
   );

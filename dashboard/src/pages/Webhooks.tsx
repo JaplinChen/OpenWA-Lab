@@ -1,19 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Play,
-  ExternalLink,
-  Loader2,
-  X,
-  Webhook as WebhookIcon,
-  Check,
-  AlertCircle,
-  Filter,
-} from 'lucide-react';
-import { webhookApi, type Webhook, type WebhookFilters, type WebhookFilterCondition } from '../services/api';
+import { Plus, Webhook as WebhookIcon, AlertCircle } from 'lucide-react';
+import { webhookApi, type Webhook } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import {
@@ -27,84 +15,15 @@ import {
 import { PageHeader } from '../components/PageHeader';
 import { PageLoader } from '../components/PageLoader';
 import { useToast } from '../components/Toast';
-import { FilterBuilder } from '../components/FilterBuilder';
+import { availableEventNames, supportsFilters } from '../components/webhooks/webhook-events';
+import {
+  CreateWebhookModal,
+  EditWebhookModal,
+  DeleteWebhookModal,
+  type NewWebhookState,
+} from '../components/webhooks/WebhookModals';
+import { WebhookCard } from '../components/webhooks/WebhookCard';
 import './Webhooks.css';
-
-// Filters only apply to message.* events (the wildcard subscribes to them too).
-const supportsFilters = (events: string[]) => events.some(e => e === '*' || e.startsWith('message.'));
-
-type TFn = ReturnType<typeof useTranslation>['t'];
-
-// One-line, human-readable summary of a condition for the badge popover, reusing the FilterBuilder labels.
-function conditionSummary(c: WebhookFilterCondition, t: TFn): string {
-  const field = t(`webhooks.filters.fields.${c.field}`, { defaultValue: c.field });
-  const operator = t(`webhooks.filters.operators.${c.operator}`, { defaultValue: c.operator });
-  let value: string;
-  if (typeof c.value === 'boolean') {
-    value = c.value ? t('webhooks.filters.yes') : t('webhooks.filters.no');
-  } else if (Array.isArray(c.value)) {
-    value = c.value.join(', ');
-  } else {
-    value = `"${c.value}"`;
-  }
-  const caseNote = c.caseSensitive ? ` · ${t('webhooks.filters.caseSensitive')}` : '';
-  return `${field} ${operator} ${value}${caseNote}`;
-}
-
-// Filters badge with a hover/focus popover listing the configured conditions. The popover is
-// fixed-positioned from the badge's rect so the card's `overflow: hidden` doesn't clip it.
-function FilterBadge({ filters }: { filters: WebhookFilters }) {
-  const { t } = useTranslation();
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
-  const openAt = (el: HTMLElement) => {
-    const r = el.getBoundingClientRect();
-    setCoords({ top: r.bottom + 6, left: r.left });
-  };
-  const close = () => setCoords(null);
-
-  return (
-    <span
-      className="filter-badge filter-badge-interactive"
-      tabIndex={0}
-      onMouseEnter={e => openAt(e.currentTarget)}
-      onMouseLeave={close}
-      onFocus={e => openAt(e.currentTarget)}
-      onBlur={close}
-    >
-      <Filter size={12} />
-      {t('webhooks.filters.badge', { count: filters.conditions.length })}
-      {coords && (
-        <div className="filter-popover" style={{ top: coords.top, left: coords.left }} role="tooltip">
-          <div className="filter-popover-title">{t('webhooks.filters.title')}</div>
-          {filters.conditions.map((condition, i) => (
-            <div key={i} className="filter-popover-row">
-              {conditionSummary(condition, t)}
-            </div>
-          ))}
-        </div>
-      )}
-    </span>
-  );
-}
-
-// Must stay aligned with the backend WEBHOOK_EVENTS: the API now rejects unknown
-// event names, so offering e.g. the never-emitted 'session.connected' would 400 on save.
-const availableEventNames = [
-  'message.received',
-  'message.sent',
-  'message.ack',
-  'message.failed',
-  'message.revoked',
-  'message.reaction',
-  'session.status',
-  'session.qr',
-  'session.authenticated',
-  'session.disconnected',
-  'group.join',
-  'group.leave',
-  'group.update',
-  '*',
-] as const;
 
 export function Webhooks() {
   const { t } = useTranslation();
@@ -121,12 +40,12 @@ export function Webhooks() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ sessionId: string; id: string; url: string } | null>(null);
   const [editWebhook, setEditWebhook] = useState<Webhook | null>(null);
-  const [newWebhook, setNewWebhook] = useState<{
-    url: string;
-    events: string[];
-    sessionId: string;
-    filters: WebhookFilters | null;
-  }>({ url: '', events: ['message.received'], sessionId: '', filters: null });
+  const [newWebhook, setNewWebhook] = useState<NewWebhookState>({
+    url: '',
+    events: ['message.received'],
+    sessionId: '',
+    filters: null,
+  });
   const [testingId, setTestingId] = useState<string | null>(null);
   const toast = useToast();
 
@@ -279,173 +198,34 @@ export function Webhooks() {
       )}
 
       {showCreateModal && (
-        <div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{t('webhooks.createTitle')}</h2>
-              <button className="btn-icon" onClick={() => setShowCreateModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <label>{t('webhooks.session')}</label>
-              <select
-                value={newWebhook.sessionId}
-                onChange={e => setNewWebhook({ ...newWebhook, sessionId: e.target.value })}
-              >
-                <option value="">{t('webhooks.selectSession')}</option>
-                {sessions.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-              <label>{t('common.url')}</label>
-              <input
-                type="url"
-                placeholder="https://..."
-                value={newWebhook.url}
-                onChange={e => setNewWebhook({ ...newWebhook, url: e.target.value })}
-              />
-              <label>{t('webhooks.events')}</label>
-              <div className="event-tags">
-                {availableEventNames.map(name => {
-                  const isSelected = newWebhook.events.includes(name);
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      className={`event-tag ${isSelected ? 'selected' : ''}`}
-                      onClick={() => toggleNewEvent(name)}
-                    >
-                      {isSelected && <Check size={12} className="tag-check-icon" />}
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
-              {supportsFilters(newWebhook.events) && (
-                <FilterBuilder
-                  filters={newWebhook.filters}
-                  onChange={filters => setNewWebhook(prev => ({ ...prev, filters }))}
-                  chats={chats}
-                />
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowCreateModal(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn-primary" onClick={handleCreate}>
-                {t('common.create')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CreateWebhookModal
+          newWebhook={newWebhook}
+          setNewWebhook={setNewWebhook}
+          sessions={sessions}
+          chats={chats}
+          onClose={() => setShowCreateModal(false)}
+          onCreate={handleCreate}
+          onToggleEvent={toggleNewEvent}
+        />
       )}
 
       {showEditModal && editWebhook && (
-        <div className="modal-overlay" onClick={() => setShowEditModal(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{t('webhooks.editTitle')}</h2>
-              <button className="btn-icon" onClick={() => setShowEditModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <label>{t('common.url')}</label>
-              <input
-                type="url"
-                value={editWebhook.url}
-                onChange={e => setEditWebhook({ ...editWebhook, url: e.target.value })}
-              />
-              <label>{t('webhooks.events')}</label>
-              <div className="event-tags">
-                {availableEventNames.map(name => {
-                  const isSelected = editWebhook.events.includes(name);
-                  return (
-                    <button
-                      key={name}
-                      type="button"
-                      className={`event-tag ${isSelected ? 'selected' : ''}`}
-                      onClick={() => toggleEditEvent(name)}
-                    >
-                      {isSelected && <Check size={12} className="tag-check-icon" />}
-                      {name}
-                    </button>
-                  );
-                })}
-              </div>
-              {supportsFilters(editWebhook.events) && (
-                <FilterBuilder
-                  filters={editWebhook.filters}
-                  onChange={filters => setEditWebhook(prev => (prev ? { ...prev, filters } : prev))}
-                  chats={chats}
-                />
-              )}
-              <div className="toggle-group">
-                <span className="toggle-label">{t('common.status')}</span>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={editWebhook.active}
-                    onChange={e => setEditWebhook({ ...editWebhook, active: e.target.checked })}
-                  />
-                  <span className="toggle-slider"></span>
-                </label>
-                <span className={`toggle-status ${editWebhook.active ? 'active' : 'inactive'}`}>
-                  {editWebhook.active ? t('common.active') : t('common.inactive')}
-                </span>
-              </div>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowEditModal(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn-primary" onClick={handleEdit}>
-                {t('webhooks.saveChanges')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <EditWebhookModal
+          editWebhook={editWebhook}
+          setEditWebhook={setEditWebhook}
+          chats={chats}
+          onClose={() => setShowEditModal(false)}
+          onSave={handleEdit}
+          onToggleEvent={toggleEditEvent}
+        />
       )}
 
       {showDeleteModal && deleteTarget && (
-        <div className="modal-overlay" onClick={() => setShowDeleteModal(false)}>
-          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{t('webhooks.deleteTitle')}</h2>
-              <button className="btn-icon" onClick={() => setShowDeleteModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>{t('webhooks.deleteConfirm')}</p>
-              <code
-                style={{
-                  display: 'block',
-                  marginTop: '0.5rem',
-                  padding: '0.5rem',
-                  background: 'var(--color-bg-secondary)',
-                  borderRadius: '4px',
-                  fontSize: '0.85rem',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {deleteTarget.url}
-              </code>
-            </div>
-            <div className="modal-footer">
-              <button className="btn-secondary" onClick={() => setShowDeleteModal(false)}>
-                {t('common.cancel')}
-              </button>
-              <button className="btn-danger" onClick={handleDelete}>
-                {t('common.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <DeleteWebhookModal
+          url={deleteTarget.url}
+          onClose={() => setShowDeleteModal(false)}
+          onDelete={handleDelete}
+        />
       )}
 
       <div className="webhooks-content">
@@ -458,68 +238,20 @@ export function Webhooks() {
             </div>
           ) : (
             <div className="webhooks-card-list">
-              {webhooks.map(webhook => {
-                const sessionName = sessions.find(s => s.id === webhook.sessionId)?.name || webhook.sessionId.substring(0, 12);
-                return (
-                  <div key={webhook.id} className="webhook-card">
-                    <div className="webhook-card-header">
-                      <div className="webhook-url-row">
-                        <ExternalLink size={16} className="webhook-url-icon" />
-                        <code className="webhook-url">{webhook.url}</code>
-                      </div>
-                      <div className="webhook-card-actions">
-                        <button
-                          className="icon-btn"
-                          title={t('webhooks.actions.test')}
-                          onClick={() => handleTest(webhook.sessionId, webhook.id)}
-                          disabled={testingId === webhook.id}
-                        >
-                          {testingId === webhook.id ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-                        </button>
-                        {canWrite && (
-                          <>
-                            <button className="icon-btn" title={t('webhooks.actions.edit')} onClick={() => openEdit(webhook)}>
-                              <Edit size={16} />
-                            </button>
-                            <button
-                              className="icon-btn danger"
-                              title={t('webhooks.actions.delete')}
-                              onClick={() => confirmDelete(webhook.sessionId, webhook.id, webhook.url)}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="webhook-card-body">
-                      <div className="webhook-meta">
-                        <div className="webhook-meta-item">
-                          <span className="webhook-meta-label">{t('webhooks.columns.session')}</span>
-                          <span className="webhook-meta-value">{sessionName}</span>
-                        </div>
-                        <div className="webhook-meta-item">
-                          <span className="webhook-meta-label">{t('webhooks.columns.status')}</span>
-                          <span className={`status-badge ${webhook.active ? 'active' : 'inactive'}`}>
-                            {webhook.active ? t('common.active') : t('common.inactive')}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="webhook-events">
-                        <span className="webhook-meta-label">{t('webhooks.columns.events')}</span>
-                        <div className="events-cell">
-                          {webhook.events.map((event: string) => (
-                            <span key={event} className="event-tag">
-                              {event}
-                            </span>
-                          ))}
-                          {webhook.filters?.conditions?.length ? <FilterBadge filters={webhook.filters} /> : null}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+              {webhooks.map(webhook => (
+                <WebhookCard
+                  key={webhook.id}
+                  webhook={webhook}
+                  sessionName={
+                    sessions.find(s => s.id === webhook.sessionId)?.name || webhook.sessionId.substring(0, 12)
+                  }
+                  canWrite={canWrite}
+                  testing={testingId === webhook.id}
+                  onTest={() => handleTest(webhook.sessionId, webhook.id)}
+                  onEdit={() => openEdit(webhook)}
+                  onDelete={() => confirmDelete(webhook.sessionId, webhook.id, webhook.url)}
+                />
+              ))}
             </div>
           )}
         </div>

@@ -253,3 +253,7 @@
     padding: 0.625rem 0.75rem;
   }
 }
+
+.message-tester .detail-value--error {
+  color: var(--error);
+}

@@ -1,30 +1,16 @@
 import { useState, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, Plug, ListRestart, Plus, Trash2, Eye, EyeOff, ExternalLink } from 'lucide-react';
+import { Loader2, Save, Check, AlertTriangle, Plug } from 'lucide-react';
 import { translateApi, type TranslateConfig, type LlmProvider, type LlmProviderSaved } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
 import { useToast } from '../components/Toast';
+import { PROVIDERS, metaOf } from '../components/llm/providerMeta';
+import { LlmFallbackField } from '../components/llm/LlmFallbackField';
+import { LlmModelField } from '../components/llm/LlmModelField';
+import { LlmApiKeyField } from '../components/llm/LlmApiKeyField';
 import './Translate.css';
-
-interface ProviderMeta {
-  label: string;
-  endpoint: string;
-  showEndpoint: boolean; // Ollama/OpenAI/Azure expose a server URL; Groq/Gemini have a fixed one.
-  needsKey: boolean;
-  apiKeyUrl?: string;
-}
-
-const PROVIDERS: { value: LlmProvider; meta: ProviderMeta }[] = [
-  { value: 'ollama', meta: { label: 'Ollama', endpoint: 'http://127.0.0.1:11434/api/chat', showEndpoint: true, needsKey: false } },
-  { value: 'groq', meta: { label: 'Groq', endpoint: 'https://api.groq.com/openai/v1/chat/completions', showEndpoint: false, needsKey: true, apiKeyUrl: 'https://console.groq.com/keys' } },
-  { value: 'openai', meta: { label: 'OpenAI', endpoint: 'https://api.openai.com/v1/chat/completions', showEndpoint: true, needsKey: true, apiKeyUrl: 'https://platform.openai.com/api-keys' } },
-  { value: 'azure', meta: { label: 'Azure OpenAI', endpoint: 'https://<resource>.openai.azure.com/openai/deployments/<deployment>/chat/completions?api-version=2024-02-15-preview', showEndpoint: true, needsKey: true, apiKeyUrl: 'https://portal.azure.com' } },
-  { value: 'gemini', meta: { label: 'Gemini', endpoint: 'https://generativelanguage.googleapis.com/v1beta', showEndpoint: false, needsKey: true, apiKeyUrl: 'https://aistudio.google.com/apikey' } },
-];
-
-const metaOf = (p: LlmProvider): ProviderMeta => PROVIDERS.find(x => x.value === p)!.meta;
 
 type LlmFields = Pick<
   TranslateConfig,
@@ -36,9 +22,6 @@ export function LlmSettings() {
   // accessible name and clicking the label did not focus it.
   const providerFieldId = useId();
   const endpointFieldId = useId();
-  const modelFieldId = useId();
-  const fallbackFieldId = useId();
-  const apiKeyFieldId = useId();
   const styleFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('nav.llm', { defaultValue: 'LLM Settings' }));
@@ -231,9 +214,7 @@ export function LlmSettings() {
             <label htmlFor={providerFieldId}>{t('llm.provider')}</label>
             <select id={providerFieldId} value={cfg.llmProvider} disabled={!canWrite} onChange={e => onProvider(e.target.value as LlmProvider)}>
               {PROVIDERS.map(p => (
-                <option key={p.value} value={p.value}>
-                  {p.meta.label}
-                </option>
+                <option key={p.value} value={p.value}>{p.meta.label}</option>
               ))}
             </select>
           </div>
@@ -248,8 +229,7 @@ export function LlmSettings() {
                   value={cfg.llmEndpoint}
                   disabled={!canWrite}
                   placeholder={meta.endpoint}
-                  onChange={e => setCfg({ ...cfg, llmEndpoint: e.target.value })}
-                />
+                  onChange={e => setCfg({ ...cfg, llmEndpoint: e.target.value })} />
                 <button className="btn-secondary" onClick={handleTest} disabled={testing || !cfg.llmEndpoint}>
                   {testing ? <Loader2 size={16} className="animate-spin" /> : <Plug size={16} />}
                   {t('llm.test')}
@@ -259,117 +239,39 @@ export function LlmSettings() {
             </div>
           )}
 
-          <div className="form-group">
-            <label htmlFor={modelFieldId}>{t('llm.model')}</label>
-            <div className="llm-row">
-              {/* A native datalist filters options by the input's current value, hiding most fetched
-                  models — render a select once the list is loaded so all of them show. */}
-              {models.length > 0 ? (
-                <select
-                  id={modelFieldId}
-                  value={cfg.llmModel}
-                  disabled={!canWrite}
-                  onChange={e => setCfg({ ...cfg, llmModel: e.target.value })}
-                >
-                  {!models.includes(cfg.llmModel) && <option value={cfg.llmModel}>{cfg.llmModel}</option>}
-                  {models.map(m => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  id={modelFieldId}
-                  type="text"
-                  value={cfg.llmModel}
-                  disabled={!canWrite}
-                  onChange={e => setCfg({ ...cfg, llmModel: e.target.value })}
-                />
-              )}
-              <button className="btn-secondary" onClick={handleFetchModels} disabled={fetchingModels || (!cfg.llmEndpoint && !meta.endpoint)}>
-                {fetchingModels ? <Loader2 size={16} className="animate-spin" /> : <ListRestart size={16} />}
-                {t('llm.fetchModels')}
-              </button>
-            </div>
-          </div>
+          <LlmModelField
+            model={cfg.llmModel}
+            models={models}
+            canWrite={canWrite}
+            onChange={v => setCfg({ ...cfg, llmModel: v })}
+            fetchingModels={fetchingModels}
+            fetchDisabled={!cfg.llmEndpoint && !meta.endpoint}
+            onFetchModels={() => void handleFetchModels()}
+          />
 
-          <div className="form-group">
-            <label htmlFor={fallbackFieldId}>{t('llm.fallbackModels')}</label>
-            <span className="llm-hint">{t('llm.fallbackHint')}</span>
-            {canWrite && (
-              <div className="llm-row">
-                {models.length > 0 ? (
-                  <select id={fallbackFieldId} value={fallbackInput} onChange={e => setFallbackInput(e.target.value)}>
-                    <option value="">{t('llm.fallbackPlaceholder')}</option>
-                    {models.map(m => (
-                      <option key={m} value={m}>
-                        {m}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    id={fallbackFieldId}
-                    type="text"
-                    value={fallbackInput}
-                    placeholder={t('llm.fallbackPlaceholder')}
-                    onChange={e => setFallbackInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFallback())}
-                  />
-                )}
-                <button className="btn-secondary" onClick={addFallback} disabled={!fallbackInput.trim()}>
-                  <Plus size={16} />
-                  {t('llm.add')}
-                </button>
-              </div>
-            )}
-            <ul className="llm-fallback-list">
-              {cfg.llmFallbackModels.map(m => (
-                <li key={m}>
-                  <span>{m}</span>
-                  {canWrite && (
-                    <button className="llm-fallback-del" onClick={() => removeFallback(m)} title={t('llm.add')}>
-                      <Trash2 size={14} />
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+
+          <LlmFallbackField
+            canWrite={canWrite}
+            models={models}
+            fallbackModels={cfg.llmFallbackModels}
+            fallbackInput={fallbackInput}
+            setFallbackInput={setFallbackInput}
+            addFallback={addFallback}
+            removeFallback={removeFallback}
+          />
 
           {meta.needsKey && (
-            <div className="form-group">
-              <div className="llm-label-row">
-                <label htmlFor={apiKeyFieldId}>{t('llm.apiKey')}</label>
-                {meta.apiKeyUrl && (
-                  <a className="llm-apply-link" href={meta.apiKeyUrl} target="_blank" rel="noreferrer">
-                    <ExternalLink size={14} />
-                    {t('llm.apiKeyApply')}
-                  </a>
-                )}
-              </div>
-              <div className="llm-row">
-                <div className="llm-key-input">
-                  <input
-                    id={apiKeyFieldId}
-                    type={showKey ? 'text' : 'password'}
-                    value={cfg.llmApiKey}
-                    disabled={!canWrite}
-                    autoComplete="off"
-                    onChange={e => setCfg({ ...cfg, llmApiKey: e.target.value })}
-                  />
-                  <button className="llm-eye" onClick={() => setShowKey(v => !v)} type="button" tabIndex={-1}>
-                    {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                <button className="btn-secondary" onClick={handleTest} disabled={testing}>
-                  {testing ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
-                  {t('llm.verify')}
-                </button>
-              </div>
-              {!meta.showEndpoint && statusBadge}
-            </div>
+            <LlmApiKeyField
+              meta={meta}
+              apiKey={cfg.llmApiKey}
+              canWrite={canWrite}
+              showKey={showKey}
+              toggleShowKey={() => setShowKey(v => !v)}
+              onChange={v => setCfg({ ...cfg, llmApiKey: v })}
+              testing={testing}
+              onTest={handleTest}
+              statusBadge={statusBadge}
+            />
           )}
 
           <div className="form-group">
@@ -384,8 +286,7 @@ export function LlmSettings() {
                 step={0.1}
                 value={cfg.llmTemperature}
                 disabled={!canWrite}
-                onChange={e => setCfg({ ...cfg, llmTemperature: Number(e.target.value) })}
-              />
+                onChange={e => setCfg({ ...cfg, llmTemperature: Number(e.target.value) })} />
               <span>{t('llm.styleFluent')}</span>
               <span className="llm-slider-val">{cfg.llmTemperature.toFixed(1)}</span>
             </div>

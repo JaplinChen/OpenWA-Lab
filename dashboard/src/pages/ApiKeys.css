@@ -1,2 +1,21 @@
 @import './apikeys/01-part.css';
 @import './apikeys/02-part.css';
+
+.api-keys-page .created-key-hint {
+  margin-bottom: 1rem;
+  color: var(--text-muted);
+}
+
+.api-keys-page .created-key-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.api-keys-page .created-key-value {
+  flex: 1;
+  padding: 0.75rem;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  word-break: break-all;
+}
