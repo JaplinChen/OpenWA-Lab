@@ -124,6 +124,10 @@ services:
       # line the var in .env never reaches the container, so the flag defaults false and a restarted
       # session stays DISCONNECTED until manually reconnected.
       - AUTO_START_SESSIONS=${AUTO_START_SESSIONS:-false}
+      # Translate own-account (fromMe) messages too. Forwarded like AUTO_START_SESSIONS — without
+      # this line the .env value never reaches the container. Dashboard-saved translate-config.json
+      # still overrides at runtime.
+      - TRANSLATE_INCLUDE_FROM_ME=${TRANSLATE_INCLUDE_FROM_ME:-}
       # Engine launch options (session data path, headless, browser args). Forwarded EMPTY by default
       # so the dashboard (Infrastructure > Engine) selections saved to data/.env.generated apply — like
       # ENGINE_TYPE above. main.ts treats a blank value as unset (.env.generated wins), and the app
