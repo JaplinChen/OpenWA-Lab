@@ -134,7 +134,10 @@ export function Translate() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const saved = await translateApi.updateConfig(config);
+      // This page doesn't edit provider configs — never send them, so a stale snapshot can't wipe
+      // groq/ollama endpoints/keys the backend has (see normalizeConfigPatch merge).
+      const { llmProviderConfigs: _ownedElsewhere, ...rest } = config;
+      const saved = await translateApi.updateConfig(rest);
       setConfig(saved);
       toast.success(t('translate.toasts.saved', { defaultValue: 'Settings saved' }));
     } catch (err) {

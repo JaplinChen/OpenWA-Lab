@@ -180,7 +180,10 @@ export function normalizeConfigPatch(
   }
   if (partial.llmPromptTemplate !== undefined) out.llmPromptTemplate = partial.llmPromptTemplate;
   if (partial.llmProviderConfigs !== undefined && partial.llmProviderConfigs !== null) {
-    const merged: Record<string, Record<string, unknown>> = {};
+    // MERGE over stored, don't replace: a payload that omits a provider (empty/subset — e.g. a stale
+    // page save) must NOT wipe the others' saved endpoint/key. Only providers present get updated.
+    // (No flow deletes a provider config, so merge-only is safe; deletion would need its own path.)
+    const merged: Record<string, Record<string, unknown>> = { ...storedProviderConfigs };
     for (const [prov, cfg] of Object.entries(partial.llmProviderConfigs)) {
       const { apiKeySet: _set, ...rest } = cfg;
       const stored = storedProviderConfigs[prov]?.apiKey;
