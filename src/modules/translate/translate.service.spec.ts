@@ -234,6 +234,27 @@ describe('TranslateService glossary', () => {
     expect(out).toBe('dịch xong');
   });
 
+  it('updateConfig merges llmProviderConfigs — a partial/empty payload never wipes other providers', () => {
+    poke({
+      llmProviderConfigs: {
+        gemini: { endpoint: 'g', model: 'gemini-2.5-flash', apiKey: 'gk' },
+        groq: { endpoint: 'q', model: 'qwen', apiKey: 'qk' },
+        ollama: { endpoint: 'o', model: 'qwen3:8b' },
+      },
+    });
+    const keys = () => Object.keys((service as unknown as { cfg: { llmProviderConfigs: object } }).cfg.llmProviderConfigs).sort();
+    // Empty payload (e.g. a stale Translate-page snapshot) must not drop anything.
+    service.updateConfig({ llmProviderConfigs: {} });
+    expect(keys()).toEqual(['gemini', 'groq', 'ollama']);
+    // Subset payload updates only that provider, preserves the rest and their stored keys.
+    service.updateConfig({ llmProviderConfigs: { gemini: { endpoint: 'g2', model: 'm2', apiKey: '' } } });
+    const pc = (service as unknown as { cfg: { llmProviderConfigs: Record<string, { endpoint?: string; apiKey?: string }> } }).cfg.llmProviderConfigs;
+    expect(keys()).toEqual(['gemini', 'groq', 'ollama']);
+    expect(pc.gemini.endpoint).toBe('g2'); // updated
+    expect(pc.gemini.apiKey).toBe('gk'); // blank kept the stored key
+    expect(pc.groq.apiKey).toBe('qk'); // untouched provider preserved
+  });
+
   it('preview(text, provider) runs the requested configured provider, not the active one', async () => {
     poke({
       llmProvider: 'gemini',
