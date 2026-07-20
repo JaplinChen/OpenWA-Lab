@@ -1,9 +1,14 @@
-import { stripThinking } from './translate-lang';
+import { sleep, stripThinking } from './translate-lang';
 
 // A hung LLM connection (no timeout on fetch) would block the whole translate queue forever, silently
 // dropping every group's messages. Abort so translate()'s fallback loop moves on. Tunable per deploy
 // (local Ollama is slow to load a cold model; cloud is fast).
 const LLM_TIMEOUT_MS = Number(process.env.TRANSLATE_LLM_TIMEOUT_MS) || 30_000;
+// Groq (and other cloud providers) return 429 with a Retry-After when the tier RPM/TPM is exhausted.
+// Wait it out instead of dropping the message. Capped so a far-off reset (e.g. daily quota) fails fast
+// to the fallback model rather than stalling the queue.
+const LLM_MAX_RETRIES = Number(process.env.TRANSLATE_LLM_MAX_RETRIES) || 2;
+const LLM_MAX_BACKOFF_MS = Number(process.env.TRANSLATE_LLM_MAX_BACKOFF_MS) || 10_000;
 
 async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
   const ac = new AbortController();
@@ -12,6 +17,31 @@ async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Respon
     return await fetch(url, { ...init, signal: ac.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+// Retry-After is seconds (Groq) or an HTTP-date; fall back to exponential backoff (1s, 2s, ...) when absent.
+function retryAfterMs(res: Response, attempt: number): number {
+  const h = res.headers.get('retry-after');
+  if (h) {
+    const secs = Number(h);
+    if (Number.isFinite(secs)) return secs * 1000;
+    const date = Date.parse(h);
+    if (!Number.isNaN(date)) return date - Date.now();
+  }
+  return Math.min(1000 * 2 ** attempt, LLM_MAX_BACKOFF_MS);
+}
+
+// Retry ONLY on 429 (rate limit): the request was rejected unprocessed, so a retry can't double-charge
+// tokens or duplicate work (unlike a timeout, which fetchWithTimeout throws — never retried here).
+// Honors Retry-After; if the wait exceeds the cap, returns the 429 so translate() falls back instead of stalling.
+async function fetchWithRetry(url: string, init?: RequestInit): Promise<Response> {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetchWithTimeout(url, init);
+    if (res.status !== 429 || attempt >= LLM_MAX_RETRIES) return res;
+    const waitMs = retryAfterMs(res, attempt);
+    if (waitMs > LLM_MAX_BACKOFF_MS) return res; // reset too far off — fail to the fallback model now
+    if (waitMs > 0) await sleep(waitMs);
   }
 }
 
@@ -45,7 +75,7 @@ export async function callLlm(p: LlmParams, prompt: string): Promise<string> {
 }
 
 async function callOllama(p: LlmParams, prompt: string): Promise<string> {
-  const res = await fetchWithTimeout(p.endpoint, {
+  const res = await fetchWithRetry(p.endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -72,7 +102,7 @@ async function callOpenAiCompatible(p: LlmParams, prompt: string): Promise<strin
     if (p.provider === 'azure') auth['api-key'] = p.apiKey;
     else auth.authorization = `Bearer ${p.apiKey}`;
   }
-  const res = await fetchWithTimeout(p.endpoint, {
+  const res = await fetchWithRetry(p.endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...auth },
     body: JSON.stringify({
@@ -95,7 +125,7 @@ async function callOpenAiCompatible(p: LlmParams, prompt: string): Promise<strin
 async function callGemini(p: LlmParams, prompt: string): Promise<string> {
   const base = p.endpoint.replace(/\/+$/, '');
   const url = `${base}/models/${p.model}:generateContent?key=${encodeURIComponent(p.apiKey)}`;
-  const res = await fetchWithTimeout(url, {
+  const res = await fetchWithRetry(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -164,7 +194,7 @@ function modelsUrl(endpoint: string, fallback: string): string {
 /** List model names for the endpoint (Ollama /api/tags, OpenAI/Groq /models, Gemini /v1beta/models). */
 export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
   if (p.provider === 'ollama') {
-    const res = await fetchWithTimeout(replacePath(p.endpoint, '/api/tags'));
+    const res = await fetchWithRetry(replacePath(p.endpoint, '/api/tags'));
     if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
     const data = (await res.json()) as { models?: { name?: string }[] };
     return (data.models ?? []).map(m => m.name ?? '').filter(Boolean);
@@ -174,7 +204,7 @@ export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'a
       p.provider === 'groq'
         ? 'https://api.groq.com/openai/v1/models'
         : 'https://api.openai.com/v1/models';
-    const res = await fetchWithTimeout(modelsUrl(p.endpoint, fallback), {
+    const res = await fetchWithRetry(modelsUrl(p.endpoint, fallback), {
       headers: p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {},
     });
     if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);
@@ -183,7 +213,7 @@ export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'a
   }
   if (p.provider === 'gemini') {
     const base = (p.endpoint || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
-    const res = await fetchWithTimeout(`${base}/models`, {
+    const res = await fetchWithRetry(`${base}/models`, {
       headers: p.apiKey ? { 'x-goog-api-key': p.apiKey } : {},
     });
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);
