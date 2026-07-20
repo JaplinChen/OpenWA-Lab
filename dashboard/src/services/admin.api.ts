@@ -153,6 +153,8 @@ export interface TranslateConfig {
   includeFromMe: boolean;
   minSendIntervalMs: number;
   notifyOnFailure: boolean;
+  maxMessageLength: number;
+  maxTranslationsPerMinute: number;
   llmProvider: LlmProvider;
   llmEndpoint: string;
   llmModel: string;
@@ -311,6 +313,11 @@ export const translateApi = {
     request<{ models: string[] }>('/translate/llm/models', {
       method: 'POST',
       body: JSON.stringify(probe),
+    }),
+  preview: (text: string) =>
+    request<{ pair: string; translated: string }>('/translate/preview', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
     }),
   getGlossary: () => request<GlossaryTerm[]>('/translate/glossary'),
   addGlossaryTerm: (zh: string, vi: string) =>

@@ -931,6 +931,8 @@
     "notifyOnFailure": "Thông báo cho nhóm khi lỗi",
     "notifyOnFailureHint": "Gửi một thông báo ngắn vào nhóm khi dịch thất bại.",
     "minInterval": "Khoảng cách gửi tối thiểu (ms)",
+    "maxMessageLength": "Độ dài tin nhắn tối đa (0 = không giới hạn)",
+    "maxPerMinute": "Số bản dịch tối đa mỗi nhóm/phút (0 = không giới hạn)",
     "groups": "Nhóm",
     "session": "Phiên",
     "noSessions": "Không có phiên nào",

@@ -931,6 +931,8 @@
     "notifyOnFailure": "Notify group on failure",
     "notifyOnFailureHint": "Post a short notice to the group when translation fails.",
     "minInterval": "Min send interval (ms)",
+    "maxMessageLength": "Max message length (0 = no limit)",
+    "maxPerMinute": "Max translations per group/min (0 = unlimited)",
     "groups": "Groups",
     "session": "Session",
     "noSessions": "No sessions",
