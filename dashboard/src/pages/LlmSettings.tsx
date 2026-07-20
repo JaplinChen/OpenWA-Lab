@@ -264,6 +264,7 @@ export function LlmSettings() {
             <LlmApiKeyField
               meta={meta}
               apiKey={cfg.llmApiKey}
+              keySet={Boolean(pcfgs[cfg.llmProvider]?.apiKeySet)}
               canWrite={canWrite}
               showKey={showKey}
               toggleShowKey={() => setShowKey(v => !v)}

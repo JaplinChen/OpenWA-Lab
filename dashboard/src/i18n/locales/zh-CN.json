@@ -78,6 +78,7 @@
     "model": "模型名称",
     "apiKey": "API 密钥",
     "apiKeyApply": "申请 API Key",
+    "apiKeyStored": "已保存密钥——留空表示沿用",
     "verify": "验证",
     "test": "测试连接",
     "testOk": "正常",

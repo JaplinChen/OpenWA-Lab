@@ -78,6 +78,7 @@
     "model": "Model",
     "apiKey": "API Key",
     "apiKeyApply": "Get API Key",
+    "apiKeyStored": "Key saved — leave blank to keep it",
     "verify": "Verify",
     "test": "Test",
     "testOk": "OK",

@@ -6,6 +6,7 @@ import type { ProviderMeta } from './providerMeta';
 interface Props {
   meta: ProviderMeta;
   apiKey: string;
+  keySet?: boolean;
   canWrite: boolean;
   showKey: boolean;
   toggleShowKey: () => void;
@@ -18,6 +19,7 @@ interface Props {
 export function LlmApiKeyField({
   meta,
   apiKey,
+  keySet,
   canWrite,
   showKey,
   toggleShowKey,
@@ -46,6 +48,7 @@ export function LlmApiKeyField({
             id={apiKeyFieldId}
             type={showKey ? 'text' : 'password'}
             value={apiKey}
+            placeholder={keySet && !apiKey ? t('llm.apiKeyStored') : undefined}
             disabled={!canWrite}
             autoComplete="off"
             onChange={e => onChange(e.target.value)}

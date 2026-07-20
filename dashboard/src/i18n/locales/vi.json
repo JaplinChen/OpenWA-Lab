@@ -78,6 +78,7 @@
     "model": "Mô hình",
     "apiKey": "API Key",
     "apiKeyApply": "Lấy API Key",
+    "apiKeyStored": "Đã lưu key — để trống để giữ nguyên",
     "verify": "Xác minh",
     "test": "Kiểm tra",
     "testOk": "OK",
