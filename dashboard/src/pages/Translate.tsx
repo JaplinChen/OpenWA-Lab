@@ -1,12 +1,13 @@
 import { useState, useEffect, useMemo, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Save, Search, Languages } from 'lucide-react';
-import { translateApi, type TranslateConfig } from '../services/api';
+import { translateApi, type TranslateConfig, type LlmProvider } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useSessionsQuery, useSessionGroupsQuery } from '../hooks/queries';
 import { PageHeader } from '../components/PageHeader';
 import { useToast } from '../components/Toast';
+import { metaOf, parseFallbackEntry } from '../components/llm/providerMeta';
 import './Translate.css';
 
 const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
@@ -49,7 +50,14 @@ export function Translate() {
   const [previewText, setPreviewText] = useState('');
   const [previewResult, setPreviewResult] = useState('');
   const [previewing, setPreviewing] = useState(false);
+  const [previewProvider, setPreviewProvider] = useState<LlmProvider | ''>('');
   const toast = useToast();
+
+  // Providers available to preview: the primary plus any configured fallback providers.
+  const previewProviders = useMemo(() => {
+    const list = [config.llmProvider, ...config.llmFallbackModels.map(e => parseFallbackEntry(e, config.llmProvider).provider)];
+    return [...new Set(list)];
+  }, [config.llmProvider, config.llmFallbackModels]);
 
   const { data: groups = [], isLoading: loadingGroups } = useSessionGroupsQuery(sessionId, !!sessionId);
 
@@ -109,7 +117,7 @@ export function Translate() {
     setPreviewing(true);
     setPreviewResult('');
     try {
-      const { translated } = await translateApi.preview(text);
+      const { translated } = await translateApi.preview(text, previewProvider || undefined);
       setPreviewResult(translated);
     } catch (err) {
       toast.error(
@@ -288,14 +296,28 @@ export function Translate() {
               placeholder={t('translate.previewPlaceholder', { defaultValue: 'Type Chinese or Vietnamese…' })}
               onChange={e => setPreviewText(e.target.value)}
             />
-            <button
-              className="btn-primary"
-              onClick={handlePreview}
-              disabled={previewing || !previewText.trim()}
-            >
-              {previewing ? <Loader2 size={16} className="animate-spin" /> : <Languages size={16} />}
-              {t('translate.previewRun', { defaultValue: 'Translate' })}
-            </button>
+            <div className="translate-preview-actions">
+              {previewProviders.length > 1 && (
+                <select
+                  aria-label={t('translate.previewProvider', { defaultValue: 'Provider' })}
+                  value={previewProvider}
+                  onChange={e => setPreviewProvider(e.target.value as LlmProvider | '')}
+                >
+                  <option value="">{t('translate.previewPrimary', { defaultValue: 'Primary' })} ({metaOf(config.llmProvider).label})</option>
+                  {previewProviders.map(p => (
+                    <option key={p} value={p}>{metaOf(p).label}</option>
+                  ))}
+                </select>
+              )}
+              <button
+                className="btn-primary"
+                onClick={handlePreview}
+                disabled={previewing || !previewText.trim()}
+              >
+                {previewing ? <Loader2 size={16} className="animate-spin" /> : <Languages size={16} />}
+                {t('translate.previewRun', { defaultValue: 'Translate' })}
+              </button>
+            </div>
             {previewResult && <div className="translate-preview-result">{previewResult}</div>}
           </div>
         </section>

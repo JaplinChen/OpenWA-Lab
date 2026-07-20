@@ -224,6 +224,35 @@ describe('TranslateService glossary', () => {
     expect(out).toBe('dịch xong');
   });
 
+  it('preview(text, provider) runs the requested configured provider, not the active one', async () => {
+    poke({
+      llmProvider: 'gemini',
+      llmEndpoint: 'https://gen.example/v1beta',
+      llmModel: 'gemini-2.5-flash',
+      llmApiKey: 'gkey',
+      llmProviderConfigs: {
+        groq: { endpoint: 'https://api.groq.com/openai/v1/chat/completions', apiKey: 'qkey', model: 'qwen/qwen3.6-27b' },
+      },
+    });
+    let calledUrl = '';
+    let calledModel = '';
+    const fetchMock = jest.fn(async (url: string, init?: { body?: string }) => {
+      calledUrl = String(url);
+      calledModel = JSON.parse(init?.body ?? '{}').model;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'xin chào' } }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const res = await service.preview('你好', 'groq');
+    expect(calledUrl).toContain('groq'); // hit Groq, not Gemini
+    expect(calledModel).toBe('qwen/qwen3.6-27b');
+    expect(res).toEqual({ pair: 'zh-tw:vi', translated: 'Xin chào' });
+  });
+
+  it('preview throws when the requested provider is not configured', async () => {
+    poke({ llmProvider: 'gemini', llmEndpoint: 'https://gen.example/v1beta', llmModel: 'gemini-2.5-flash', llmProviderConfigs: {} });
+    await expect(service.preview('你好', 'groq')).rejects.toThrow(/not configured/);
+  });
+
   it('cross-provider fallback: gemini fails, groq:model resolves from providerConfigs and succeeds', async () => {
     poke({
       llmProvider: 'gemini',

@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, BadRequestException } from '@nestjs/common';
 import { HookManager, HookContext, HookResult } from '../../core/hooks';
 import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
@@ -349,11 +349,34 @@ export class TranslateService implements OnModuleInit {
 
   // Dashboard preview: run the real pipeline (sender/glossary substitution + fixViCasing) on ad-hoc text so
   // an operator can verify translation quality after changing prompt/model without posting to a group.
-  // pair='' when the text isn't detectable zh/vi — the controller maps that to a 400.
-  async preview(text: string): Promise<{ pair: string; translated: string }> {
+  // pair='' when the text isn't detectable zh/vi — the controller maps that to a 400. An optional
+  // provider runs that configured engine instead of the active one, so providers can be A/B compared.
+  async preview(text: string, provider?: LlmProvider): Promise<{ pair: string; translated: string }> {
     const pair = this.detectPair(text);
     if (!pair) return { pair: '', translated: '' };
-    return { pair: pair.key, translated: await this.translate(text, pair) };
+    const params = this.previewParams(provider);
+    return { pair: pair.key, translated: await this.translateWith(text, pair, params) };
+  }
+
+  // Resolve the LlmParams for a preview: the active engine by default, or a configured provider's saved
+  // settings (from llmProviderConfigs) when comparing. Throws if the requested provider isn't set up.
+  private previewParams(provider?: LlmProvider): LlmParams {
+    if (!provider || provider === this.cfg.llmProvider) return this.llmParams();
+    const pc = this.cfg.llmProviderConfigs[provider];
+    const endpoint = typeof pc?.endpoint === 'string' ? pc.endpoint : '';
+    const model = typeof pc?.model === 'string' ? pc.model : '';
+    if (!endpoint || !model) throw new BadRequestException(`Provider "${provider}" is not configured`);
+    const apiKey = typeof pc?.apiKey === 'string' ? pc.apiKey : '';
+    const temperature = typeof pc?.temperature === 'number' ? pc.temperature : this.cfg.llmTemperature;
+    return { provider, endpoint, model, apiKey, temperature };
+  }
+
+  // Single-engine translate (no fallback loop) — used by preview to test one provider deterministically.
+  private async translateWith(text: string, pair: Pair, params: LlmParams): Promise<string> {
+    const applied = this.senders.apply(text);
+    const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied), this.cfg.llmPromptTemplate);
+    const out = await llm.callLlm(params, prompt);
+    return pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
   }
 
   private llmParams(): LlmParams {

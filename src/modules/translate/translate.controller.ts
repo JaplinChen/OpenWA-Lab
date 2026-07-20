@@ -86,7 +86,7 @@ export class TranslateController {
   @ApiOperation({ summary: 'Translate ad-hoc text through the live pipeline (glossary/senders/casing)' })
   @ApiResponse({ status: 201, description: '{ pair, translated }' })
   async preview(@Body() dto: PreviewTranslateDto): Promise<{ pair: string; translated: string }> {
-    const result = await this.translateService.preview(dto.text);
+    const result = await this.translateService.preview(dto.text, dto.provider);
     if (!result.pair) throw new BadRequestException('Text is not detectable Chinese or Vietnamese');
     return result;
   }
