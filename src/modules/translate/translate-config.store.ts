@@ -12,6 +12,10 @@ export interface TranslateConfig {
   minSendIntervalMs: number;
   // Reply a short notice to the group when every model fails, so a silently-broken bot is visible.
   notifyOnFailure: boolean;
+  // Skip messages longer than this many chars (0 = no cap) — bounds per-message cloud LLM cost.
+  maxMessageLength: number;
+  // Max translations per group per rolling minute (0 = unlimited) — throttles cost/flooding.
+  maxTranslationsPerMinute: number;
   llmProvider: LlmProvider;
   llmEndpoint: string;
   llmModel: string;
@@ -39,6 +43,8 @@ export function defaultRuntimeConfig(): RuntimeConfig {
     // Anti-ban: minimum gap between outbound translation sends (ms). 0 = no extra pacing.
     minSendIntervalMs: 0,
     notifyOnFailure: false,
+    maxMessageLength: 0,
+    maxTranslationsPerMinute: 0,
     llmProvider: 'ollama',
     llmEndpoint: 'http://127.0.0.1:11434/api/chat',
     llmModel: 'translategemma-12b-cline-32768:latest',
@@ -118,6 +124,10 @@ export function sanitizeConfig(raw: Partial<TranslateConfig>): Partial<Translate
     out.minSendIntervalMs = raw.minSendIntervalMs;
   }
   if (typeof raw.notifyOnFailure === 'boolean') out.notifyOnFailure = raw.notifyOnFailure;
+  if (typeof raw.maxMessageLength === 'number' && raw.maxMessageLength >= 0) out.maxMessageLength = raw.maxMessageLength;
+  if (typeof raw.maxTranslationsPerMinute === 'number' && raw.maxTranslationsPerMinute >= 0) {
+    out.maxTranslationsPerMinute = raw.maxTranslationsPerMinute;
+  }
   if (LLM_PROVIDERS.includes(raw.llmProvider as LlmProvider)) out.llmProvider = raw.llmProvider as LlmProvider;
   if (typeof raw.llmEndpoint === 'string' && raw.llmEndpoint) out.llmEndpoint = raw.llmEndpoint;
   if (typeof raw.llmModel === 'string' && raw.llmModel) out.llmModel = raw.llmModel;
@@ -149,6 +159,12 @@ export function normalizeConfigPatch(
     out.minSendIntervalMs = partial.minSendIntervalMs;
   }
   if (partial.notifyOnFailure !== undefined) out.notifyOnFailure = partial.notifyOnFailure;
+  if (partial.maxMessageLength !== undefined && partial.maxMessageLength >= 0) {
+    out.maxMessageLength = partial.maxMessageLength;
+  }
+  if (partial.maxTranslationsPerMinute !== undefined && partial.maxTranslationsPerMinute >= 0) {
+    out.maxTranslationsPerMinute = partial.maxTranslationsPerMinute;
+  }
   if (partial.llmProvider !== undefined && LLM_PROVIDERS.includes(partial.llmProvider)) {
     out.llmProvider = partial.llmProvider;
   }

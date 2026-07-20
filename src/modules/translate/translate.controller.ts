@@ -21,6 +21,7 @@ import { GroupService } from '../group/group.service';
 import type { Contact, Group } from '../../engine/interfaces/whatsapp-engine.types';
 import { UpdateTranslateConfigDto } from './dto/update-translate-config.dto';
 import { LlmProbeDto } from './dto/llm-probe.dto';
+import { PreviewTranslateDto } from './dto/preview-translate.dto';
 import { GlossaryTermDto } from './dto/glossary-term.dto';
 import { SenderEntryDto } from './dto/sender-entry.dto';
 import { ImportSendersDto } from './dto/import-senders.dto';
@@ -78,6 +79,16 @@ export class TranslateController {
       apiKey: dto.apiKey ?? '',
     });
     return { models };
+  }
+
+  @Post('preview')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Translate ad-hoc text through the live pipeline (glossary/senders/casing)' })
+  @ApiResponse({ status: 201, description: '{ pair, translated }' })
+  async preview(@Body() dto: PreviewTranslateDto): Promise<{ pair: string; translated: string }> {
+    const result = await this.translateService.preview(dto.text);
+    if (!result.pair) throw new BadRequestException('Text is not detectable Chinese or Vietnamese');
+    return result;
   }
 
   @Get('glossary')

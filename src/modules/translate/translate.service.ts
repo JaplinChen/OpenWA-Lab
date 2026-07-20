@@ -47,6 +47,8 @@ export class TranslateService implements OnModuleInit {
   private nextSendAt = 0;
   // Running count of translations where every model failed — surfaced in logs for observability.
   private failureCount = 0;
+  // Per-chat send timestamps (ms) for the rolling-minute rate limit; pruned on each check.
+  private rateHits = new Map<string, number[]>();
   // hookId for the dynamically (un)registered message:sent hook — null when not registered.
   private sentHookId: string | null = null;
   // Serialize translations behind one chain — a local Ollama model handles one request at a time.
@@ -205,6 +207,17 @@ export class TranslateService implements OnModuleInit {
       const pair = this.detectPair(body);
       if (!pair) return pass; // not zh/vi — leave it alone
 
+      // Cost guards: skip over-long messages and throttle per group so a flood can't run up the
+      // cloud LLM bill. Both default to off (0). Checked before the LLM call, after cheap filters.
+      if (this.cfg.maxMessageLength > 0 && body.length > this.cfg.maxMessageLength) {
+        this.logger.warn(`Skipped (too long: ${body.length} > ${this.cfg.maxMessageLength}) chat=${msg.chatId}`);
+        return pass;
+      }
+      if (!this.allowByRate(msg.chatId)) {
+        this.logger.warn(`Skipped (rate limit ${this.cfg.maxTranslationsPerMinute}/min) chat=${msg.chatId}`);
+        return pass;
+      }
+
       // markUsed(mentionedIds) is the sole usage counter: the adapter already replaced the raw
       // @<digits> token with a name before this hook runs, so apply() can't see mentions reliably.
       // Unresolved mentions get queued as empty-name entries for an admin to name (notePending).
@@ -236,6 +249,21 @@ export class TranslateService implements OnModuleInit {
       this.logger.error('Translate hook error', String(err));
     }
     return pass;
+  }
+
+  // Rolling 60s window per chat. Records a hit when allowed; returns false once the group hits the cap.
+  private allowByRate(chatId: string): boolean {
+    const limit = this.cfg.maxTranslationsPerMinute;
+    if (limit <= 0) return true;
+    const now = Date.now();
+    const recent = (this.rateHits.get(chatId) ?? []).filter(t => now - t < 60_000);
+    if (recent.length >= limit) {
+      this.rateHits.set(chatId, recent);
+      return false;
+    }
+    recent.push(now);
+    this.rateHits.set(chatId, recent);
+    return true;
   }
 
   // Every model failed: log with a running total (so a broken bot is visible in logs), and optionally
@@ -286,6 +314,15 @@ export class TranslateService implements OnModuleInit {
       }
     }
     throw lastErr instanceof Error ? lastErr : new Error('All models failed');
+  }
+
+  // Dashboard preview: run the real pipeline (sender/glossary substitution + fixViCasing) on ad-hoc text so
+  // an operator can verify translation quality after changing prompt/model without posting to a group.
+  // pair='' when the text isn't detectable zh/vi — the controller maps that to a 400.
+  async preview(text: string): Promise<{ pair: string; translated: string }> {
+    const pair = this.detectPair(text);
+    if (!pair) return { pair: '', translated: '' };
+    return { pair: pair.key, translated: await this.translate(text, pair) };
   }
 
   private llmParams(): LlmParams {

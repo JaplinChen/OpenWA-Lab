@@ -25,6 +25,16 @@ export class UpdateTranslateConfigDto {
   notifyOnFailure?: boolean;
 
   @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxMessageLength?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  maxTranslationsPerMinute?: number;
+
+  @IsOptional()
   @IsIn(['ollama', 'openai', 'groq', 'azure', 'gemini'])
   llmProvider?: LlmProvider;
 
