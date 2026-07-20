@@ -183,7 +183,7 @@ describe('TranslateService glossary', () => {
     const out = await translate('你好', { key: 'zh-tw:vi' } as never);
 
     expect(tried).toEqual(['primary', 'backup']);
-    expect(out).toBe('dịch xong');
+    expect(out).toBe('Dịch xong');
   });
 
   it('routes to the OpenAI-compatible shape and parses choices when provider=openai', async () => {
@@ -204,7 +204,7 @@ describe('TranslateService glossary', () => {
     }).translate.bind(service);
     const out = await translate('你好', { key: 'zh-tw:vi' } as never);
 
-    expect(out).toBe('xin chào');
+    expect(out).toBe('Xin chào');
     expect(authHeader).toBe('Bearer sk-x');
   });
 });

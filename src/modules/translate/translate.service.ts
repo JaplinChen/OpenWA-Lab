@@ -5,7 +5,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
-import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, detectPair, buildPrompt, sleep } from './translate-lang';
+import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, ZH_TO_VI, detectPair, buildPrompt, fixViCasing, sleep } from './translate-lang';
 import * as llm from './translate-llm-client';
 import { LlmProvider, LlmParams } from './translate-llm-client';
 import {
@@ -278,7 +278,8 @@ export class TranslateService implements OnModuleInit {
     let lastErr: unknown;
     for (const model of models) {
       try {
-        return await llm.callLlm({ ...this.llmParams(), model }, prompt);
+        const out = await llm.callLlm({ ...this.llmParams(), model }, prompt);
+        return pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
       } catch (err) {
         lastErr = err;
         this.logger.warn(`Model "${model}" failed, trying next fallback: ${String(err)}`);

@@ -66,6 +66,7 @@ export const DEFAULT_PROMPT_TEMPLATE = [
   '6) 標點符號轉換為目標語言慣用寫法。',
   '7) 保留原文換行與段落結構。',
   '8) 若原文主要不是可翻譯的自然語言，原樣回傳。',
+  '9) 越南文輸出遵循標準大小寫：句首字母大寫，人名/地名等專有名詞首字母大寫，其餘小寫；除非原文即為全大寫，否則不要輸出全大寫單詞。',
   '{glossary}',
   '{text}',
 ].join('\n');
@@ -77,6 +78,16 @@ export function buildPrompt(text: string, pair: Pair, glossarySection: string, t
     .replaceAll('{target}', pair.targetLabel)
     .replaceAll('{glossary}', glossarySection)
     .replaceAll('{text}', text);
+}
+
+/**
+ * Deterministic Vietnamese casing fix: capitalize the first letter of each sentence (text start,
+ * newline, or after sentence-ending punctuation). Glossary terms are stored lowercase ("sếp") and the
+ * model copies them verbatim, so replies often start lowercase. Never lowercases anything — acronyms
+ * and intentional ALL-CAPS pass through untouched.
+ */
+export function fixViCasing(s: string): string {
+  return s.replace(/(^|[.!?…]\s+|\n\s*)(\p{Ll})/gu, (_, p: string, c: string) => p + c.toUpperCase());
 }
 
 export function sleep(ms: number): Promise<void> {
