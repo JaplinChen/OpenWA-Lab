@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { atomicWriteJson } from './translate-fs';
 
 /**
  * zh<->vi term overrides, persisted as JSON keyed by pair (e.g. "zh-tw:vi") -> { source: target }.
@@ -74,20 +75,18 @@ export class Glossary {
   }
 
   private save(): void {
-    fs.mkdirSync(this.filePath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
-    fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8');
+    atomicWriteJson(this.filePath, this.data);
   }
 
   private savePending(): void {
-    fs.mkdirSync(this.pendingPath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
-    fs.writeFileSync(this.pendingPath, JSON.stringify(this.pendingData, null, 2), 'utf8');
+    atomicWriteJson(this.pendingPath, this.pendingData);
   }
 
   /** Usage counters keyed by the zh term, persisted beside the glossary so its format stays WA-Translate compatible. */
   private bump(zh: string): void {
     this.usage[zh] = (this.usage[zh] ?? 0) + 1;
     try {
-      fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+      atomicWriteJson(this.usagePath, this.usage);
     } catch {
       // Best-effort sidecar: a write failure must never break a translation in flight.
     }
