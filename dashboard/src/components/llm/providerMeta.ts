@@ -18,6 +18,17 @@ export const PROVIDERS: { value: LlmProvider; meta: ProviderMeta }[] = [
 
 export const metaOf = (p: LlmProvider): ProviderMeta => PROVIDERS.find(x => x.value === p)!.meta;
 
+// One tab's provider config. provider '' means the (fallback) tab is unset — skipped on save.
+export interface ProviderConfig {
+  provider: LlmProvider | '';
+  endpoint: string;
+  model: string;
+  apiKey: string;
+  temperature: number;
+}
+
+export const emptyProviderConfig = (): ProviderConfig => ({ provider: '', endpoint: '', model: '', apiKey: '', temperature: 0 });
+
 const PROVIDER_VALUES = PROVIDERS.map(p => p.value);
 
 /**

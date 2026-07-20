@@ -1,175 +1,123 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Save, Check, AlertTriangle, Plug } from 'lucide-react';
-import { translateApi, type TranslateConfig, type LlmProvider, type LlmProviderSaved } from '../services/api';
+import { Loader2, Save } from 'lucide-react';
+import { translateApi, type LlmProvider, type LlmProviderSaved } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
 import { useToast } from '../components/Toast';
-import { PROVIDERS, metaOf, parseFallbackEntry } from '../components/llm/providerMeta';
-import { LlmFallbackField } from '../components/llm/LlmFallbackField';
-import { LlmModelField } from '../components/llm/LlmModelField';
-import { LlmApiKeyField } from '../components/llm/LlmApiKeyField';
+import { metaOf, parseFallbackEntry, emptyProviderConfig, type ProviderConfig } from '../components/llm/providerMeta';
+import { ProviderConfigForm } from '../components/llm/ProviderConfigForm';
 import './Translate.css';
 
-type LlmFields = Pick<
-  TranslateConfig,
-  'llmProvider' | 'llmEndpoint' | 'llmModel' | 'llmApiKey' | 'llmTemperature' | 'llmFallbackModels' | 'llmPromptTemplate'
->;
+const TAB_KEYS = ['tabPrimary', 'tabFallback1', 'tabFallback2'] as const;
 
 export function LlmSettings() {
-  // These labels were visible but wired to nothing: no htmlFor, no id. The field had no
-  // accessible name and clicking the label did not focus it.
-  const providerFieldId = useId();
-  const endpointFieldId = useId();
-  const styleFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('nav.llm', { defaultValue: 'LLM Settings' }));
   const { canWrite } = useRole();
+  const toast = useToast();
 
-  const [cfg, setCfg] = useState<LlmFields>({
-    llmProvider: 'ollama',
-    llmEndpoint: '',
-    llmModel: '',
-    llmApiKey: '',
-    llmTemperature: 0,
-    llmFallbackModels: [],
-    llmPromptTemplate: '',
-  });
+  // Index 0 = primary, 1 = fallback 1, 2 = fallback 2. Each holds a full provider config.
+  const [tabs, setTabs] = useState<ProviderConfig[]>([emptyProviderConfig(), emptyProviderConfig(), emptyProviderConfig()]);
+  const [pcfgs, setPcfgs] = useState<Record<string, LlmProviderSaved>>({});
+  const [active, setActive] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [fetchingModels, setFetchingModels] = useState(false);
-  const [models, setModels] = useState<string[]>([]);
-  const [showKey, setShowKey] = useState(false);
-  // Per-provider saved settings — restored when switching engines so each keeps its own endpoint/key.
-  const [pcfgs, setPcfgs] = useState<Record<string, LlmProviderSaved>>({});
-  const [fallbackInput, setFallbackInput] = useState('');
-  const toast = useToast();
+
+  const keySet = (p: LlmProvider | ''): boolean => (p ? Boolean(pcfgs[p]?.apiKeySet) : false);
+
+  const mapFromConfig = (c: Awaited<ReturnType<typeof translateApi.getConfig>>): void => {
+    // Fold the active provider's apiKeySet into pcfgs so keySet() is uniform across tabs.
+    const merged = { ...c.llmProviderConfigs, [c.llmProvider]: { ...c.llmProviderConfigs?.[c.llmProvider], apiKeySet: c.apiKeySet } };
+    setPcfgs(merged);
+    const primary: ProviderConfig = {
+      provider: c.llmProvider,
+      endpoint: c.llmEndpoint,
+      model: c.llmModel,
+      apiKey: '', // masked; blank means "keep stored key"
+      temperature: c.llmTemperature,
+    };
+    const fbTabs = [0, 1].map(i => {
+      const entry = (c.llmFallbackModels ?? [])[i];
+      if (!entry) return emptyProviderConfig();
+      const { provider, model } = parseFallbackEntry(entry, c.llmProvider);
+      const saved = merged[provider];
+      return { provider, endpoint: saved?.endpoint ?? metaOf(provider).endpoint, model, apiKey: '', temperature: saved?.temperature ?? 0 };
+    });
+    setTabs([primary, fbTabs[0], fbTabs[1]]);
+  };
 
   useEffect(() => {
-    let active = true;
+    let alive = true;
     translateApi
       .getConfig()
       .then(c => {
-        if (!active) return;
-        setCfg({
-          llmProvider: c.llmProvider,
-          llmEndpoint: c.llmEndpoint,
-          llmModel: c.llmModel,
-          llmApiKey: c.llmApiKey,
-          llmTemperature: c.llmTemperature,
-          llmFallbackModels: c.llmFallbackModels ?? [],
-          llmPromptTemplate: c.llmPromptTemplate ?? '',
-        });
-        setPcfgs(c.llmProviderConfigs ?? {});
+        if (!alive) return;
+        mapFromConfig(c);
         setLoaded(true);
       })
-      .catch(err =>
-        active &&
-        toast.error(t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' })),
-      )
-      .finally(() => active && setLoading(false));
+      .catch(err => alive && toast.error(t('llm.loadFailed', { message: err instanceof Error ? err.message : 'unknown' })))
+      .finally(() => alive && setLoading(false));
     return () => {
-      active = false;
+      alive = false;
     };
   }, [t]);
 
-  const meta = metaOf(cfg.llmProvider);
+  const patchTab = (idx: number, patch: Partial<ProviderConfig>) =>
+    setTabs(prev => prev.map((tab, i) => (i === idx ? { ...tab, ...patch } : tab)));
 
-  // Groq/Gemini have a fixed endpoint (field hidden); shown-endpoint providers use the user's value.
-  const effectiveEndpoint = meta.showEndpoint ? cfg.llmEndpoint || meta.endpoint : meta.endpoint;
-
-  const probe = () => ({
-    provider: cfg.llmProvider,
-    endpoint: effectiveEndpoint,
-    model: cfg.llmModel,
-    apiKey: cfg.llmApiKey,
-  });
-
-  const snapshot = (): LlmProviderSaved => ({
-    endpoint: cfg.llmEndpoint,
-    model: cfg.llmModel,
-    apiKey: cfg.llmApiKey,
-    temperature: cfg.llmTemperature,
-    fallbackModels: cfg.llmFallbackModels,
-  });
-
-  const onProvider = (llmProvider: LlmProvider) => {
-    if (llmProvider === cfg.llmProvider) return;
-    // Save the current engine's settings, then restore the target engine's saved settings (or its
-    // defaults on first use) — like TypeTwo's providerConfigs, so switching never loses a config.
-    const savedCurrent = { ...pcfgs, [cfg.llmProvider]: snapshot() };
-    setPcfgs(savedCurrent);
-    const prev = savedCurrent[llmProvider];
-    const next = metaOf(llmProvider);
-    setCfg({
-      ...cfg,
-      llmProvider,
-      llmEndpoint: prev?.endpoint ?? next.endpoint,
-      llmModel: prev?.model ?? '',
-      llmApiKey: prev?.apiKey ?? '',
-      llmTemperature: prev?.temperature ?? 0,
-      llmFallbackModels: prev?.fallbackModels ?? [],
+  // Switching a tab's provider restores that provider's saved settings (or its defaults on first use).
+  const changeProvider = (idx: number, p: LlmProvider | '') => {
+    if (!p) return setTabs(prev => prev.map((tab, i) => (i === idx ? emptyProviderConfig() : tab)));
+    const saved = pcfgs[p];
+    patchTab(idx, {
+      provider: p,
+      endpoint: saved?.endpoint ?? metaOf(p).endpoint,
+      model: saved?.model ?? '',
+      apiKey: '',
+      temperature: saved?.temperature ?? 0,
     });
-    setModels([]);
-    setTestResult(null);
   };
 
-  const handleTest = async () => {
-    setTesting(true);
-    setTestResult(null);
-    try {
-      setTestResult(await translateApi.testLlm(probe()));
-    } catch (err) {
-      setTestResult({ ok: false, message: err instanceof Error ? err.message : 'unknown' });
-    } finally {
-      setTesting(false);
-    }
-  };
+  // Providers chosen in the OTHER tabs — not re-selectable here (one provider per tab).
+  const excludeFor = (idx: number): LlmProvider[] =>
+    tabs.filter((_, i) => i !== idx).map(tab => tab.provider).filter((p): p is LlmProvider => p !== '');
 
-  const handleFetchModels = async () => {
-    setFetchingModels(true);
-    try {
-      const { models: list } = await translateApi.listLlmModels(probe());
-      setModels(list);
-      if (list.length === 0) toast.error(t('llm.noModels'));
-    } catch (err) {
-      toast.error(t('llm.modelsFailed', { message: err instanceof Error ? err.message : 'unknown' }));
-    } finally {
-      setFetchingModels(false);
-    }
+  const effectiveEndpoint = (tab: ProviderConfig): string => {
+    const meta = metaOf(tab.provider as LlmProvider);
+    return meta.showEndpoint ? tab.endpoint || meta.endpoint : meta.endpoint;
   };
-
-  const addFallback = () => {
-    const m = fallbackInput.trim();
-    if (!m || cfg.llmFallbackModels.includes(m)) return;
-    setCfg({ ...cfg, llmFallbackModels: [...cfg.llmFallbackModels, m] });
-    setFallbackInput('');
-  };
-
-  const removeFallback = (m: string) =>
-    setCfg({ ...cfg, llmFallbackModels: cfg.llmFallbackModels.filter(x => x !== m) });
 
   const handleSave = async () => {
+    const primary = tabs[0];
+    if (!primary.provider || !primary.model.trim()) {
+      return toast.error(t('llm.primaryRequired', { defaultValue: 'The primary tab needs a provider and model.' }));
+    }
     setSaving(true);
     try {
-      // Persist the effective endpoint (fixed URL for Groq/Gemini) + the active engine's snapshot
-      // folded into providerConfigs so every engine's settings survive a reload.
-      const llmProviderConfigs = { ...pcfgs, [cfg.llmProvider]: { ...snapshot(), endpoint: effectiveEndpoint } };
-      const saved = await translateApi.updateConfig({ ...cfg, llmEndpoint: effectiveEndpoint, llmProviderConfigs });
-      setPcfgs(saved.llmProviderConfigs ?? llmProviderConfigs);
-      setCfg({
-        llmProvider: saved.llmProvider,
-        llmEndpoint: saved.llmEndpoint,
-        llmModel: saved.llmModel,
-        llmApiKey: saved.llmApiKey,
-        llmTemperature: saved.llmTemperature,
-        llmFallbackModels: saved.llmFallbackModels ?? [],
-        llmPromptTemplate: saved.llmPromptTemplate ?? cfg.llmPromptTemplate,
+      const fbs = [tabs[1], tabs[2]].filter(tab => tab.provider && tab.model.trim());
+      // Fold every set tab's config into providerConfigs so cross-provider fallback can resolve each key.
+      const llmProviderConfigs: Record<string, LlmProviderSaved> = { ...pcfgs };
+      for (const tab of [primary, ...fbs]) {
+        llmProviderConfigs[tab.provider] = {
+          endpoint: effectiveEndpoint(tab),
+          model: tab.model,
+          apiKey: tab.apiKey, // '' round-trips as "keep stored key"
+          temperature: tab.temperature,
+        };
+      }
+      const saved = await translateApi.updateConfig({
+        llmProvider: primary.provider,
+        llmEndpoint: effectiveEndpoint(primary),
+        llmModel: primary.model,
+        llmApiKey: primary.apiKey,
+        llmTemperature: primary.temperature,
+        llmFallbackModels: fbs.map(tab => `${tab.provider}:${tab.model}`),
+        llmProviderConfigs,
       });
+      mapFromConfig(saved);
       toast.success(t('llm.saved'));
     } catch (err) {
       toast.error(t('llm.saveFailed', { message: err instanceof Error ? err.message : 'unknown' }));
@@ -185,13 +133,6 @@ export function LlmSettings() {
       </div>
     );
   }
-
-  const statusBadge = testResult && (
-    <span className={`llm-status ${testResult.ok ? 'ok' : 'err'}`}>
-      {testResult.ok ? <Check size={14} /> : <AlertTriangle size={14} />}
-      {testResult.ok ? t('llm.testOk') : testResult.message}
-    </span>
-  );
 
   return (
     <div className="translate-page">
@@ -210,109 +151,31 @@ export function LlmSettings() {
 
       <div className="translate-content translate-content--single">
         <section className="translate-panel">
-          <div className="llm-order-summary">
-            <span className="llm-order-title">{t('llm.order', { defaultValue: 'Translation order' })}</span>
-            <ol className="llm-order-list">
-              <li>
-                <span className="llm-provider-badge">{metaOf(cfg.llmProvider).label}</span>
-                <span>{cfg.llmModel || '—'}</span>
-                <span className="llm-order-primary">{t('llm.primaryTag', { defaultValue: 'primary' })}</span>
-              </li>
-              {cfg.llmFallbackModels.map(m => {
-                const { provider, model } = parseFallbackEntry(m, cfg.llmProvider);
-                return (
-                  <li key={m}>
-                    <span className="llm-provider-badge">{metaOf(provider).label}</span>
-                    <span>{model}</span>
-                  </li>
-                );
-              })}
-            </ol>
+          <div className="llm-tabs" role="tablist">
+            {tabs.map((tab, i) => (
+              <button
+                key={TAB_KEYS[i]}
+                role="tab"
+                aria-selected={active === i}
+                className={`llm-tab ${active === i ? 'active' : ''}`}
+                onClick={() => setActive(i)}
+              >
+                <span className="llm-tab-name">{t(`llm.${TAB_KEYS[i]}`, { defaultValue: TAB_KEYS[i] })}</span>
+                <span className="llm-tab-sub">{tab.provider ? metaOf(tab.provider).label : t('llm.fallbackNone', { defaultValue: '—' })}</span>
+              </button>
+            ))}
           </div>
 
-          <div className="form-group">
-            <label htmlFor={providerFieldId}>{t('llm.provider')}</label>
-            <select id={providerFieldId} value={cfg.llmProvider} disabled={!canWrite} onChange={e => onProvider(e.target.value as LlmProvider)}>
-              {PROVIDERS.map(p => (
-                <option key={p.value} value={p.value}>{p.meta.label}</option>
-              ))}
-            </select>
-          </div>
-
-          {meta.showEndpoint && (
-            <div className="form-group">
-              <label htmlFor={endpointFieldId}>{t('llm.endpoint')}</label>
-              <div className="llm-row">
-                <input
-                  id={endpointFieldId}
-                  type="text"
-                  value={cfg.llmEndpoint}
-                  disabled={!canWrite}
-                  placeholder={meta.endpoint}
-                  onChange={e => setCfg({ ...cfg, llmEndpoint: e.target.value })} />
-                <button className="btn-secondary" onClick={handleTest} disabled={testing || !cfg.llmEndpoint}>
-                  {testing ? <Loader2 size={16} className="animate-spin" /> : <Plug size={16} />}
-                  {t('llm.test')}
-                </button>
-              </div>
-              {statusBadge}
-            </div>
-          )}
-
-          <LlmModelField
-            model={cfg.llmModel}
-            models={models}
+          <ProviderConfigForm
+            key={`${active}-${tabs[active].provider}`}
+            value={tabs[active]}
+            keySet={keySet(tabs[active].provider)}
             canWrite={canWrite}
-            onChange={v => setCfg({ ...cfg, llmModel: v })}
-            fetchingModels={fetchingModels}
-            fetchDisabled={!cfg.llmEndpoint && !meta.endpoint}
-            onFetchModels={() => void handleFetchModels()}
+            allowNone={active > 0}
+            excludeProviders={excludeFor(active)}
+            onProviderChange={p => changeProvider(active, p)}
+            onField={patch => patchTab(active, patch)}
           />
-
-
-          <LlmFallbackField
-            canWrite={canWrite}
-            models={models}
-            activeProvider={cfg.llmProvider}
-            fallbackModels={cfg.llmFallbackModels}
-            fallbackInput={fallbackInput}
-            setFallbackInput={setFallbackInput}
-            addFallback={addFallback}
-            removeFallback={removeFallback}
-          />
-
-          {meta.needsKey && (
-            <LlmApiKeyField
-              meta={meta}
-              apiKey={cfg.llmApiKey}
-              keySet={Boolean(pcfgs[cfg.llmProvider]?.apiKeySet)}
-              canWrite={canWrite}
-              showKey={showKey}
-              toggleShowKey={() => setShowKey(v => !v)}
-              onChange={v => setCfg({ ...cfg, llmApiKey: v })}
-              testing={testing}
-              onTest={handleTest}
-              statusBadge={statusBadge}
-            />
-          )}
-
-          <div className="form-group">
-            <label htmlFor={styleFieldId}>{t('llm.style')}</label>
-            <div className="llm-slider-row">
-              <span>{t('llm.stylePrecise')}</span>
-              <input
-                id={styleFieldId}
-                type="range"
-                min={0}
-                max={1}
-                step={0.1}
-                value={cfg.llmTemperature}
-                disabled={!canWrite}
-                onChange={e => setCfg({ ...cfg, llmTemperature: Number(e.target.value) })} />
-              <span>{t('llm.styleFluent')}</span>
-              <span className="llm-slider-val">{cfg.llmTemperature.toFixed(1)}</span>
-            </div>
-          </div>
         </section>
       </div>
     </div>
