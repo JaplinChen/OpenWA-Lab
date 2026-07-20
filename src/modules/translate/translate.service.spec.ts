@@ -62,6 +62,16 @@ describe('TranslateService glossary', () => {
     expect(saved['zh-tw:vi']['出貨']).toBe('giao hàng');
   });
 
+  it('multi-line /g batch adds every line and replies once', async () => {
+    await cmd('/g\n/g 資安 = ATTT\n/g 稽核 = Đánh giá\n/g 漏洞 = Lỗ hổng');
+    const saved = JSON.parse(fs.readFileSync(glossaryPath, 'utf8'));
+    expect(saved['zh-tw:vi']['資安']).toBe('ATTT');
+    expect(saved['zh-tw:vi']['稽核']).toBe('Đánh giá');
+    expect(saved['zh-tw:vi']['漏洞']).toBe('Lỗ hổng');
+    expect(sent.length).toBe(1);
+    expect(sent[0].text).toContain('已新增術語：資安 ⇄ ATTT');
+  });
+
   it('detects zh and vi source directions', () => {
     const detect = (service as unknown as { detectPair: (t: string) => { key: string } | null }).detectPair.bind(service);
     expect(detect('今天出貨')?.key).toBe('zh-tw:vi');
@@ -222,6 +232,27 @@ describe('TranslateService glossary', () => {
     const out = await translate('你好', { key: 'vi:zh-tw' } as never);
     expect(calls).toBe(2);
     expect(out).toBe('dịch xong');
+  });
+
+  it('updateConfig merges llmProviderConfigs — a partial/empty payload never wipes other providers', () => {
+    poke({
+      llmProviderConfigs: {
+        gemini: { endpoint: 'g', model: 'gemini-2.5-flash', apiKey: 'gk' },
+        groq: { endpoint: 'q', model: 'qwen', apiKey: 'qk' },
+        ollama: { endpoint: 'o', model: 'qwen3:8b' },
+      },
+    });
+    const keys = () => Object.keys((service as unknown as { cfg: { llmProviderConfigs: object } }).cfg.llmProviderConfigs).sort();
+    // Empty payload (e.g. a stale Translate-page snapshot) must not drop anything.
+    service.updateConfig({ llmProviderConfigs: {} });
+    expect(keys()).toEqual(['gemini', 'groq', 'ollama']);
+    // Subset payload updates only that provider, preserves the rest and their stored keys.
+    service.updateConfig({ llmProviderConfigs: { gemini: { endpoint: 'g2', model: 'm2', apiKey: '' } } });
+    const pc = (service as unknown as { cfg: { llmProviderConfigs: Record<string, { endpoint?: string; apiKey?: string }> } }).cfg.llmProviderConfigs;
+    expect(keys()).toEqual(['gemini', 'groq', 'ollama']);
+    expect(pc.gemini.endpoint).toBe('g2'); // updated
+    expect(pc.gemini.apiKey).toBe('gk'); // blank kept the stored key
+    expect(pc.groq.apiKey).toBe('qk'); // untouched provider preserved
   });
 
   it('preview(text, provider) runs the requested configured provider, not the active one', async () => {
