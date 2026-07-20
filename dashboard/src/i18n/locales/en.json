@@ -84,6 +84,7 @@
     "testOk": "OK",
     "fetchModels": "Fetch models",
     "fallbackModels": "Fallback models",
+    "perProviderFallbackHint": "Extra models of this provider, tried in order after the model above.",
     "fallbackHint": "Used automatically when the primary model runs out of quota or fails. Prefix with a provider for cross-provider fallback, e.g. groq:llama-3.3-70b-versatile (that provider must be saved first).",
     "tabPrimary": "Primary",
     "tabFallback1": "Fallback 1",

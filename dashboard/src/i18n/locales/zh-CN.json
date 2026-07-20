@@ -84,6 +84,7 @@
     "testOk": "正常",
     "fetchModels": "获取模型",
     "fallbackModels": "备用模型",
+    "perProviderFallbackHint": "此 provider 的额外模型，依序在上面主模型之后尝试。",
     "fallbackHint": "主模型配额用尽或暂时失败时会自动改用。加 provider 前缀可跨 provider 备援，例如 groq:llama-3.3-70b-versatile（该 provider 需先保存过设置）。",
     "tabPrimary": "主要",
     "tabFallback1": "备援一",
