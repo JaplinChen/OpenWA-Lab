@@ -224,6 +224,33 @@ describe('TranslateService glossary', () => {
     expect(out).toBe('dịch xong');
   });
 
+  it('cross-provider fallback: gemini fails, groq:model resolves from providerConfigs and succeeds', async () => {
+    poke({
+      llmProvider: 'gemini',
+      llmEndpoint: 'https://gen.example/v1beta',
+      llmModel: 'gemini-2.5-flash',
+      llmApiKey: 'gkey',
+      llmFallbackModels: ['groq:llama-3.3-70b-versatile'],
+      llmProviderConfigs: {
+        groq: { endpoint: 'https://api.groq.com/openai/v1/chat/completions', apiKey: 'qkey', model: 'x' },
+      },
+    });
+    let groqAuth = '';
+    let groqModel = '';
+    const fetchMock = jest.fn(async (url: string, init?: { headers?: Record<string, string>; body?: string }) => {
+      if (String(url).includes('gen.example')) return { ok: false, status: 500 } as never;
+      groqAuth = init?.headers?.authorization ?? '';
+      groqModel = JSON.parse(init?.body ?? '{}').model;
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'xin chào' } }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const translate = (service as unknown as { translate: (t: string, p: { key: string }) => Promise<string> }).translate.bind(service);
+    const out = await translate('你好', { key: 'zh-tw:vi' } as never);
+    expect(groqAuth).toBe('Bearer qkey'); // used the saved groq key, not the active gemini key
+    expect(groqModel).toBe('llama-3.3-70b-versatile');
+    expect(out).toBe('Xin chào'); // fixViCasing still applied on the cross-provider output
+  });
+
   it('routes to the OpenAI-compatible shape and parses choices when provider=openai', async () => {
     poke({
       llmProvider: 'openai',

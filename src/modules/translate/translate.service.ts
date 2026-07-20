@@ -7,7 +7,7 @@ import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
 import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, ZH_TO_VI, detectPair, buildPrompt, fixViCasing, sleep } from './translate-lang';
 import * as llm from './translate-llm-client';
-import { LlmProvider, LlmParams } from './translate-llm-client';
+import { LlmProvider, LlmParams, LLM_PROVIDERS } from './translate-llm-client';
 import {
   configPath,
   TranslateConfig,
@@ -301,19 +301,50 @@ export class TranslateService implements OnModuleInit {
     const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied), this.cfg.llmPromptTemplate);
 
     // Try the primary model, then each fallback in order — covers "model not loaded"/timeout on a
-    // local Ollama or a rate-limited cloud model without dropping the translation.
-    const models = [this.cfg.llmModel, ...this.cfg.llmFallbackModels].filter(Boolean);
+    // local Ollama or a rate-limited cloud model without dropping the translation. A fallback entry
+    // may cross providers via a "provider:model" prefix (e.g. groq:llama-3.3-70b-versatile).
+    const entries = [this.cfg.llmModel, ...this.cfg.llmFallbackModels].filter(Boolean);
     let lastErr: unknown;
-    for (const model of models) {
+    for (const entry of entries) {
+      const params = this.resolveModel(entry);
+      if (!params) {
+        lastErr = new Error(`No saved config for cross-provider fallback "${entry}"`);
+        this.logger.warn(`Skipping fallback "${entry}": ${String(lastErr)}`);
+        continue;
+      }
       try {
-        const out = await llm.callLlm({ ...this.llmParams(), model }, prompt);
+        const out = await llm.callLlm(params, prompt);
         return pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
       } catch (err) {
         lastErr = err;
-        this.logger.warn(`Model "${model}" failed, trying next fallback: ${String(err)}`);
+        this.logger.warn(`Model "${entry}" failed, trying next fallback: ${String(err)}`);
       }
     }
     throw lastErr instanceof Error ? lastErr : new Error('All models failed');
+  }
+
+  /**
+   * Resolve a fallback entry to call params. Bare "model" uses the active provider/endpoint/key.
+   * A "provider:model" prefix (provider ∈ LLM_PROVIDERS) crosses providers, pulling that provider's
+   * saved endpoint/key from llmProviderConfigs — returns null when it has no saved config yet.
+   * Guard: an Ollama tag colon (qwen3:8b) isn't a provider prefix, so it stays a bare model name.
+   */
+  private resolveModel(entry: string): LlmParams | null {
+    const colon = entry.indexOf(':');
+    const maybeProvider = colon > 0 ? entry.slice(0, colon) : '';
+    if (!LLM_PROVIDERS.includes(maybeProvider as LlmProvider)) {
+      return { ...this.llmParams(), model: entry };
+    }
+    const provider = maybeProvider as LlmProvider;
+    const model = entry.slice(colon + 1);
+    if (!model) return { ...this.llmParams(), model: entry };
+    if (provider === this.cfg.llmProvider) return { ...this.llmParams(), model };
+    const pc = this.cfg.llmProviderConfigs[provider];
+    const endpoint = typeof pc?.endpoint === 'string' ? pc.endpoint : '';
+    if (!endpoint) return null; // no saved config for this provider — can't call it
+    const apiKey = typeof pc?.apiKey === 'string' ? pc.apiKey : '';
+    const temperature = typeof pc?.temperature === 'number' ? pc.temperature : this.cfg.llmTemperature;
+    return { provider, endpoint, model, apiKey, temperature };
   }
 
   // Dashboard preview: run the real pipeline (sender/glossary substitution + fixViCasing) on ad-hoc text so

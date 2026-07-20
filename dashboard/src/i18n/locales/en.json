@@ -84,7 +84,7 @@
     "testOk": "OK",
     "fetchModels": "Fetch models",
     "fallbackModels": "Fallback models",
-    "fallbackHint": "One per line or comma-separated. Used automatically when the primary model runs out of quota or fails.",
+    "fallbackHint": "Used automatically when the primary model runs out of quota or fails. Prefix with a provider for cross-provider fallback, e.g. groq:llama-3.3-70b-versatile (that provider must be saved first).",
     "fallbackPlaceholder": "Model name",
     "add": "Add",
     "save": "Save",
