@@ -6,7 +6,7 @@ import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { PageHeader } from '../components/PageHeader';
 import { useToast } from '../components/Toast';
-import { PROVIDERS, metaOf } from '../components/llm/providerMeta';
+import { PROVIDERS, metaOf, parseFallbackEntry } from '../components/llm/providerMeta';
 import { LlmFallbackField } from '../components/llm/LlmFallbackField';
 import { LlmModelField } from '../components/llm/LlmModelField';
 import { LlmApiKeyField } from '../components/llm/LlmApiKeyField';
@@ -210,6 +210,26 @@ export function LlmSettings() {
 
       <div className="translate-content translate-content--single">
         <section className="translate-panel">
+          <div className="llm-order-summary">
+            <span className="llm-order-title">{t('llm.order', { defaultValue: 'Translation order' })}</span>
+            <ol className="llm-order-list">
+              <li>
+                <span className="llm-provider-badge">{metaOf(cfg.llmProvider).label}</span>
+                <span>{cfg.llmModel || '—'}</span>
+                <span className="llm-order-primary">{t('llm.primaryTag', { defaultValue: 'primary' })}</span>
+              </li>
+              {cfg.llmFallbackModels.map(m => {
+                const { provider, model } = parseFallbackEntry(m, cfg.llmProvider);
+                return (
+                  <li key={m}>
+                    <span className="llm-provider-badge">{metaOf(provider).label}</span>
+                    <span>{model}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
           <div className="form-group">
             <label htmlFor={providerFieldId}>{t('llm.provider')}</label>
             <select id={providerFieldId} value={cfg.llmProvider} disabled={!canWrite} onChange={e => onProvider(e.target.value as LlmProvider)}>
@@ -253,6 +273,7 @@ export function LlmSettings() {
           <LlmFallbackField
             canWrite={canWrite}
             models={models}
+            activeProvider={cfg.llmProvider}
             fallbackModels={cfg.llmFallbackModels}
             fallbackInput={fallbackInput}
             setFallbackInput={setFallbackInput}

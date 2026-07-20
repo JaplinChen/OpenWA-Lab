@@ -85,6 +85,8 @@
     "fetchModels": "取得模型",
     "fallbackModels": "備援模型",
     "fallbackHint": "主模型 quota 用盡或暫時失敗時會自動改用。加 provider 前綴可跨 provider 備援，例如 groq:llama-3.3-70b-versatile（該 provider 需先儲存過設定）。",
+    "order": "翻譯順序",
+    "primaryTag": "主",
     "fallbackPlaceholder": "模型名稱",
     "add": "新增",
     "save": "儲存",

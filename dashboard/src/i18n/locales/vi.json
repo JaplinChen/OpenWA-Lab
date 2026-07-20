@@ -85,6 +85,8 @@
     "fetchModels": "Lấy mô hình",
     "fallbackModels": "Mô hình dự phòng",
     "fallbackHint": "Tự động dùng khi mô hình chính hết hạn mức hoặc lỗi. Thêm tiền tố provider để dự phòng chéo provider, ví dụ groq:llama-3.3-70b-versatile (provider đó phải được lưu trước).",
+    "order": "Thứ tự dịch",
+    "primaryTag": "chính",
     "fallbackPlaceholder": "Tên mô hình",
     "add": "Thêm",
     "save": "Lưu",
