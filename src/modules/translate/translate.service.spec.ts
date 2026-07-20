@@ -207,6 +207,23 @@ describe('TranslateService glossary', () => {
     expect(out).toBe('Dịch xong');
   });
 
+  it('retries once on Groq 429 honoring Retry-After, then succeeds', async () => {
+    poke({ llmProvider: 'groq', llmEndpoint: 'https://api.groq.com/openai/v1/chat/completions', llmModel: 'qwen', llmApiKey: 'k' });
+    let calls = 0;
+    const fetchMock = jest.fn(async () => {
+      calls++;
+      if (calls === 1) {
+        return { ok: false, status: 429, headers: { get: (h: string) => (h === 'retry-after' ? '0' : null) } } as never;
+      }
+      return { ok: true, status: 200, json: async () => ({ choices: [{ message: { content: 'dịch xong' } }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const translate = (service as unknown as { translate: (t: string, p: { key: string }) => Promise<string> }).translate.bind(service);
+    const out = await translate('你好', { key: 'vi:zh-tw' } as never);
+    expect(calls).toBe(2);
+    expect(out).toBe('dịch xong');
+  });
+
   it('routes to the OpenAI-compatible shape and parses choices when provider=openai', async () => {
     poke({
       llmProvider: 'openai',
