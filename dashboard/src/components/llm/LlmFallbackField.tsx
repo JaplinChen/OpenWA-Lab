@@ -1,10 +1,13 @@
 import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2 } from 'lucide-react';
+import type { LlmProvider } from '../../services/api';
+import { metaOf, parseFallbackEntry } from './providerMeta';
 
 interface Props {
   canWrite: boolean;
   models: string[];
+  activeProvider: LlmProvider;
   fallbackModels: string[];
   fallbackInput: string;
   setFallbackInput: (v: string) => void;
@@ -15,6 +18,7 @@ interface Props {
 export function LlmFallbackField({
   canWrite,
   models,
+  activeProvider,
   fallbackModels,
   fallbackInput,
   setFallbackInput,
@@ -56,16 +60,20 @@ export function LlmFallbackField({
         </div>
       )}
       <ul className="llm-fallback-list">
-        {fallbackModels.map(m => (
-          <li key={m}>
-            <span>{m}</span>
-            {canWrite && (
-              <button className="llm-fallback-del" onClick={() => removeFallback(m)} title={t('llm.add')}>
-                <Trash2 size={14} />
-              </button>
-            )}
-          </li>
-        ))}
+        {fallbackModels.map(m => {
+          const { provider, model } = parseFallbackEntry(m, activeProvider);
+          return (
+            <li key={m}>
+              <span className="llm-provider-badge">{metaOf(provider).label}</span>
+              <span>{model}</span>
+              {canWrite && (
+                <button className="llm-fallback-del" onClick={() => removeFallback(m)} title={t('llm.add')}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

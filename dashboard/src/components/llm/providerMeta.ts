@@ -17,3 +17,23 @@ export const PROVIDERS: { value: LlmProvider; meta: ProviderMeta }[] = [
 ];
 
 export const metaOf = (p: LlmProvider): ProviderMeta => PROVIDERS.find(x => x.value === p)!.meta;
+
+const PROVIDER_VALUES = PROVIDERS.map(p => p.value);
+
+/**
+ * Parse a fallback entry into its resolved provider + model, mirroring the backend's resolveModel:
+ * a "provider:model" prefix (provider ∈ known providers) crosses providers; anything else (incl. an
+ * Ollama tag like "qwen3:8b") is a bare model on the active provider.
+ */
+export function parseFallbackEntry(
+  entry: string,
+  activeProvider: LlmProvider,
+): { provider: LlmProvider; model: string } {
+  const colon = entry.indexOf(':');
+  const prefix = colon > 0 ? entry.slice(0, colon) : '';
+  if (PROVIDER_VALUES.includes(prefix as LlmProvider)) {
+    const model = entry.slice(colon + 1);
+    if (model) return { provider: prefix as LlmProvider, model };
+  }
+  return { provider: activeProvider, model: entry };
+}
