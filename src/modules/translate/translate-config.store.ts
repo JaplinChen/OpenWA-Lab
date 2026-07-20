@@ -2,7 +2,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { LlmProvider, LLM_PROVIDERS } from './translate-llm-client';
 
-export const CONFIG_PATH = 'data/translate-config.json';
+// Overridable so tests point at an isolated tmp path instead of the real data dir.
+export const configPath = (): string => process.env.TRANSLATE_CONFIG_PATH || 'data/translate-config.json';
 
 export interface TranslateConfig {
   enabled: boolean;
@@ -58,7 +59,7 @@ export type ConfigRead =
 export class TranslateConfigStore {
   read(): ConfigRead {
     try {
-      return { status: 'ok', raw: JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')) as Partial<TranslateConfig> };
+      return { status: 'ok', raw: JSON.parse(fs.readFileSync(configPath(), 'utf8')) as Partial<TranslateConfig> };
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return { status: 'missing' };
       return { status: 'unreadable', error: err };
@@ -67,10 +68,11 @@ export class TranslateConfigStore {
 
   // Atomic tmp+rename so a crash mid-write never leaves a truncated config.
   write(cfg: TranslateConfig): void {
-    fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
-    const tmp = CONFIG_PATH + '.tmp';
+    const file = configPath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    const tmp = file + '.tmp';
     fs.writeFileSync(tmp, JSON.stringify(cfg, null, 2), 'utf8');
-    fs.renameSync(tmp, CONFIG_PATH);
+    fs.renameSync(tmp, file);
   }
 }
 

@@ -20,6 +20,7 @@ describe('TranslateService glossary', () => {
     process.env.TRANSLATE_GLOSSARY_PATH = glossaryPath;
     sendersPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'send-')), 'senders.json');
     process.env.TRANSLATE_SENDERS_PATH = sendersPath;
+    process.env.TRANSLATE_CONFIG_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tcfg-')), 'translate-config.json');
     sent = [];
     const messageService = {
       sendText: (_s: string, dto: { chatId: string; text: string }) => {
@@ -31,7 +32,7 @@ describe('TranslateService glossary', () => {
     service.onModuleInit(); // loads (absent) glossary from the temp path
   });
 
-  // Poke private runtime config directly — updateConfig() would persist to the shared data/translate-config.json.
+  // Poke private runtime config directly — cheaper than updateConfig() persisting to the temp path.
   const poke = (patch: Record<string, unknown>): void => {
     Object.assign((service as unknown as { cfg: Record<string, unknown> }).cfg, patch);
   };

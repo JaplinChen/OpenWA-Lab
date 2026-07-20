@@ -9,7 +9,7 @@ import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, detectPair, buildPrompt, sle
 import * as llm from './translate-llm-client';
 import { LlmProvider, LlmParams } from './translate-llm-client';
 import {
-  CONFIG_PATH,
+  configPath,
   TranslateConfig,
   TranslateConfigStore,
   defaultRuntimeConfig,
@@ -145,7 +145,7 @@ export class TranslateService implements OnModuleInit {
     // Missing = first run: seed from .env values. Unreadable/corrupt: keep the file, don't clobber it.
     if (read.status === 'missing') return this.saveConfig();
     if (read.status === 'unreadable') {
-      this.logger.warn(`Config unreadable, keeping ${CONFIG_PATH} untouched: ${String(read.error)}`);
+      this.logger.warn(`Config unreadable, keeping ${configPath()} untouched: ${String(read.error)}`);
       return;
     }
     this.applyConfig(sanitizeConfig(read.raw));
