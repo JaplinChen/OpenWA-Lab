@@ -1,5 +1,20 @@
 import { stripThinking } from './translate-lang';
 
+// A hung LLM connection (no timeout on fetch) would block the whole translate queue forever, silently
+// dropping every group's messages. Abort so translate()'s fallback loop moves on. Tunable per deploy
+// (local Ollama is slow to load a cold model; cloud is fast).
+const LLM_TIMEOUT_MS = Number(process.env.TRANSLATE_LLM_TIMEOUT_MS) || 30_000;
+
+async function fetchWithTimeout(url: string, init?: RequestInit): Promise<Response> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), LLM_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export type LlmProvider = 'ollama' | 'openai' | 'groq' | 'azure' | 'gemini';
 export const LLM_PROVIDERS: LlmProvider[] = ['ollama', 'openai', 'groq', 'azure', 'gemini'];
 
@@ -30,7 +45,7 @@ export async function callLlm(p: LlmParams, prompt: string): Promise<string> {
 }
 
 async function callOllama(p: LlmParams, prompt: string): Promise<string> {
-  const res = await fetch(p.endpoint, {
+  const res = await fetchWithTimeout(p.endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -57,7 +72,7 @@ async function callOpenAiCompatible(p: LlmParams, prompt: string): Promise<strin
     if (p.provider === 'azure') auth['api-key'] = p.apiKey;
     else auth.authorization = `Bearer ${p.apiKey}`;
   }
-  const res = await fetch(p.endpoint, {
+  const res = await fetchWithTimeout(p.endpoint, {
     method: 'POST',
     headers: { 'content-type': 'application/json', ...auth },
     body: JSON.stringify({
@@ -80,7 +95,7 @@ async function callOpenAiCompatible(p: LlmParams, prompt: string): Promise<strin
 async function callGemini(p: LlmParams, prompt: string): Promise<string> {
   const base = p.endpoint.replace(/\/+$/, '');
   const url = `${base}/models/${p.model}:generateContent?key=${encodeURIComponent(p.apiKey)}`;
-  const res = await fetch(url, {
+  const res = await fetchWithTimeout(url, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
@@ -149,7 +164,7 @@ function modelsUrl(endpoint: string, fallback: string): string {
 /** List model names for the endpoint (Ollama /api/tags, OpenAI/Groq /models, Gemini /v1beta/models). */
 export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
   if (p.provider === 'ollama') {
-    const res = await fetch(replacePath(p.endpoint, '/api/tags'));
+    const res = await fetchWithTimeout(replacePath(p.endpoint, '/api/tags'));
     if (!res.ok) throw new Error(`Ollama HTTP ${res.status}`);
     const data = (await res.json()) as { models?: { name?: string }[] };
     return (data.models ?? []).map(m => m.name ?? '').filter(Boolean);
@@ -159,7 +174,7 @@ export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'a
       p.provider === 'groq'
         ? 'https://api.groq.com/openai/v1/models'
         : 'https://api.openai.com/v1/models';
-    const res = await fetch(modelsUrl(p.endpoint, fallback), {
+    const res = await fetchWithTimeout(modelsUrl(p.endpoint, fallback), {
       headers: p.apiKey ? { authorization: `Bearer ${p.apiKey}` } : {},
     });
     if (!res.ok) throw new Error(`${p.provider} HTTP ${res.status}`);
@@ -168,7 +183,7 @@ export async function listModels(p: Pick<LlmParams, 'provider' | 'endpoint' | 'a
   }
   if (p.provider === 'gemini') {
     const base = (p.endpoint || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '');
-    const res = await fetch(`${base}/models`, {
+    const res = await fetchWithTimeout(`${base}/models`, {
       headers: p.apiKey ? { 'x-goog-api-key': p.apiKey } : {},
     });
     if (!res.ok) throw new Error(`Gemini HTTP ${res.status}`);

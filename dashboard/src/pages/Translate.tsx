@@ -26,6 +26,7 @@ export function Translate() {
     groupIds: [],
     includeFromMe: false,
     minSendIntervalMs: 1000,
+    notifyOnFailure: false,
     llmProvider: 'ollama',
     llmEndpoint: '',
     llmModel: '',
@@ -177,6 +178,28 @@ export function Translate() {
                 checked={config.includeFromMe}
                 disabled={!canWrite}
                 onChange={e => setConfig({ ...config, includeFromMe: e.target.checked })}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
+
+          <div className="translate-toggle-row">
+            <div className="translate-toggle-text">
+              <span className="translate-toggle-label">
+                {t('translate.notifyOnFailure', { defaultValue: 'Notify group on failure' })}
+              </span>
+              <span className="translate-toggle-hint">
+                {t('translate.notifyOnFailureHint', {
+                  defaultValue: 'Post a short notice to the group when translation fails.',
+                })}
+              </span>
+            </div>
+            <label className="toggle-switch">
+              <input
+                type="checkbox"
+                checked={config.notifyOnFailure}
+                disabled={!canWrite}
+                onChange={e => setConfig({ ...config, notifyOnFailure: e.target.checked })}
               />
               <span className="toggle-slider"></span>
             </label>

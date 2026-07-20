@@ -928,6 +928,8 @@
     "enabledHint": "Turn auto-translation on or off.",
     "includeFromMe": "Translate my own messages",
     "includeFromMeHint": "Also translate messages you send.",
+    "notifyOnFailure": "Notify group on failure",
+    "notifyOnFailureHint": "Post a short notice to the group when translation fails.",
     "minInterval": "Min send interval (ms)",
     "groups": "Groups",
     "session": "Session",

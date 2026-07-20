@@ -152,6 +152,7 @@ export interface TranslateConfig {
   groupIds: string[];
   includeFromMe: boolean;
   minSendIntervalMs: number;
+  notifyOnFailure: boolean;
   llmProvider: LlmProvider;
   llmEndpoint: string;
   llmModel: string;

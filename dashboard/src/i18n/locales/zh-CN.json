@@ -928,6 +928,8 @@
     "enabledHint": "开启或关闭自动翻译。",
     "includeFromMe": "翻译我自己的消息",
     "includeFromMeHint": "同时翻译你发送的消息。",
+    "notifyOnFailure": "失败时通知群组",
+    "notifyOnFailureHint": "翻译失败时在群组回复一则简短提示。",
     "minInterval": "最小发送间隔（毫秒）",
     "groups": "群组",
     "session": "会话",

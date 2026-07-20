@@ -142,6 +142,25 @@ describe('TranslateService glossary', () => {
     expect(urls[2]).toBe('https://api.openai.com/v1/models');
   });
 
+  it('backfills the stored key only when the probe targets the saved endpoint (no key exfil on a changed endpoint)', async () => {
+    poke({ llmProvider: 'groq', llmEndpoint: 'https://api.groq.com/openai/v1/chat/completions', llmApiKey: 'secret' });
+    const auth: (string | undefined)[] = [];
+    const fetchMock = jest.fn(async (_url: string, init?: { headers?: Record<string, string> }) => {
+      auth.push(init?.headers?.authorization);
+      return { ok: true, json: async () => ({ data: [{ id: 'm' }] }) } as never;
+    });
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    const svc = service as unknown as {
+      listModels: (p: { provider: string; endpoint: string; apiKey: string }) => Promise<string[]>;
+    };
+    // Same endpoint, blank key → stored key is backfilled.
+    await svc.listModels({ provider: 'groq', endpoint: 'https://api.groq.com/openai/v1/chat/completions', apiKey: '' });
+    // Attacker-controlled endpoint, blank key → key must NOT be sent.
+    await svc.listModels({ provider: 'groq', endpoint: 'https://evil.example/v1/chat/completions', apiKey: '' });
+    expect(auth[0]).toBe('Bearer secret');
+    expect(auth[1]).toBeUndefined();
+  });
+
   it('falls back to the next model when the primary model call fails', async () => {
     poke({
       llmProvider: 'ollama',
