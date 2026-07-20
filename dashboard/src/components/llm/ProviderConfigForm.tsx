@@ -1,6 +1,6 @@
 import { useState, useId } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Check, AlertTriangle, Plug } from 'lucide-react';
+import { Loader2, Check, AlertTriangle, Plug, Plus, Trash2 } from 'lucide-react';
 import { translateApi, type LlmProvider } from '../../services/api';
 import { useToast } from '../Toast';
 import { PROVIDERS, metaOf, type ProviderConfig } from './providerMeta';
@@ -29,6 +29,15 @@ export function ProviderConfigForm({ value, keySet, canWrite, allowNone, exclude
   const [testing, setTesting] = useState(false);
   const [fetchingModels, setFetchingModels] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+  const [fbInput, setFbInput] = useState('');
+
+  const addFallback = () => {
+    const m = fbInput.trim();
+    if (!m || value.model === m || value.fallbackModels.includes(m)) return;
+    onField({ fallbackModels: [...value.fallbackModels, m] });
+    setFbInput('');
+  };
+  const removeFallback = (m: string) => onField({ fallbackModels: value.fallbackModels.filter(x => x !== m) });
 
   const options = PROVIDERS.filter(p => p.value === value.provider || !excludeProviders.includes(p.value));
 
@@ -124,6 +133,40 @@ export function ProviderConfigForm({ value, keySet, canWrite, allowNone, exclude
         fetchDisabled={!value.endpoint && !meta.endpoint}
         onFetchModels={() => void handleFetchModels()}
       />
+
+      <div className="form-group">
+        <label>{t('llm.fallbackModels', { defaultValue: 'Fallback models' })}</label>
+        <span className="llm-hint">
+          {t('llm.perProviderFallbackHint', { defaultValue: 'Extra models of this provider, tried in order after the model above.' })}
+        </span>
+        {canWrite && (
+          <div className="llm-row">
+            <input
+              type="text"
+              value={fbInput}
+              placeholder={t('llm.fallbackPlaceholder', { defaultValue: 'Model name' })}
+              onChange={e => setFbInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addFallback())}
+            />
+            <button className="btn-secondary" onClick={addFallback} disabled={!fbInput.trim()}>
+              <Plus size={16} />
+              {t('llm.add', { defaultValue: 'Add' })}
+            </button>
+          </div>
+        )}
+        <ul className="llm-fallback-list">
+          {value.fallbackModels.map(m => (
+            <li key={m}>
+              <span>{m}</span>
+              {canWrite && (
+                <button className="llm-fallback-del" onClick={() => removeFallback(m)}>
+                  <Trash2 size={14} />
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
 
       {meta.needsKey && (
         <LlmApiKeyField

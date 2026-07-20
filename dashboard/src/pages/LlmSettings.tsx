@@ -32,21 +32,38 @@ export function LlmSettings() {
     // Fold the active provider's apiKeySet into pcfgs so keySet() is uniform across tabs.
     const merged = { ...c.llmProviderConfigs, [c.llmProvider]: { ...c.llmProviderConfigs?.[c.llmProvider], apiKeySet: c.apiKeySet } };
     setPcfgs(merged);
+    // Group the flat "provider:model" chain by provider: the primary provider's entries become the
+    // primary tab's fallbackModels; each other provider (in first-seen order) becomes a fallback tab.
+    const parsed = (c.llmFallbackModels ?? []).map(e => parseFallbackEntry(e, c.llmProvider));
+    const order: LlmProvider[] = [];
+    const byProvider: Record<string, string[]> = {};
+    for (const p of parsed) {
+      if (p.provider === c.llmProvider) continue;
+      if (!byProvider[p.provider]) { byProvider[p.provider] = []; order.push(p.provider); }
+      byProvider[p.provider].push(p.model);
+    }
     const primary: ProviderConfig = {
       provider: c.llmProvider,
       endpoint: c.llmEndpoint,
       model: c.llmModel,
       apiKey: '', // masked; blank means "keep stored key"
       temperature: c.llmTemperature,
+      fallbackModels: parsed.filter(p => p.provider === c.llmProvider).map(p => p.model),
     };
-    const fbTabs = [0, 1].map(i => {
-      const entry = (c.llmFallbackModels ?? [])[i];
-      if (!entry) return emptyProviderConfig();
-      const { provider, model } = parseFallbackEntry(entry, c.llmProvider);
-      const saved = merged[provider];
-      return { provider, endpoint: saved?.endpoint ?? metaOf(provider).endpoint, model, apiKey: '', temperature: saved?.temperature ?? 0 };
-    });
-    setTabs([primary, fbTabs[0], fbTabs[1]]);
+    const fbTab = (prov?: LlmProvider): ProviderConfig => {
+      if (!prov) return emptyProviderConfig();
+      const ms = byProvider[prov];
+      const saved = merged[prov];
+      return {
+        provider: prov,
+        endpoint: saved?.endpoint ?? metaOf(prov).endpoint,
+        model: ms[0],
+        apiKey: '',
+        temperature: saved?.temperature ?? 0,
+        fallbackModels: ms.slice(1),
+      };
+    };
+    setTabs([primary, fbTab(order[0]), fbTab(order[1])]);
   };
 
   useEffect(() => {
@@ -78,6 +95,7 @@ export function LlmSettings() {
       model: saved?.model ?? '',
       apiKey: '',
       temperature: saved?.temperature ?? 0,
+      fallbackModels: [],
     });
   };
 
@@ -108,13 +126,20 @@ export function LlmSettings() {
           temperature: tab.temperature,
         };
       }
+      // Flatten to an ordered "provider:model" chain: primary's extra models, then each fallback tab's
+      // model followed by its own extra models. The primary tab's own `model` is the active llmModel.
+      const clean = (arr: string[]) => arr.map(s => s.trim()).filter(Boolean);
+      const chain = [
+        ...clean(primary.fallbackModels).map(m => `${primary.provider}:${m}`),
+        ...fbs.flatMap(tab => [`${tab.provider}:${tab.model.trim()}`, ...clean(tab.fallbackModels).map(m => `${tab.provider}:${m}`)]),
+      ];
       const saved = await translateApi.updateConfig({
         llmProvider: primary.provider,
         llmEndpoint: effectiveEndpoint(primary),
         llmModel: primary.model,
         llmApiKey: primary.apiKey,
         llmTemperature: primary.temperature,
-        llmFallbackModels: fbs.map(tab => `${tab.provider}:${tab.model}`),
+        llmFallbackModels: chain,
         llmProviderConfigs,
       });
       mapFromConfig(saved);
