@@ -14,6 +14,8 @@ const READY_STATUSES = ['ready', 'connecting', 'qr_ready', 'idle'];
 export function Translate() {
   // Visible labels that pointed at nothing: no htmlFor, no id.
   const intervalFieldId = useId();
+  const maxLenFieldId = useId();
+  const rateFieldId = useId();
   const sessionFieldId = useId();
   const { t } = useTranslation();
   useDocumentTitle(t('translate.title', { defaultValue: 'Translation' }));
@@ -27,6 +29,8 @@ export function Translate() {
     includeFromMe: false,
     minSendIntervalMs: 1000,
     notifyOnFailure: false,
+    maxMessageLength: 0,
+    maxTranslationsPerMinute: 0,
     llmProvider: 'ollama',
     llmEndpoint: '',
     llmModel: '',
@@ -42,6 +46,9 @@ export function Translate() {
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [filter, setFilter] = useState('');
+  const [previewText, setPreviewText] = useState('');
+  const [previewResult, setPreviewResult] = useState('');
+  const [previewing, setPreviewing] = useState(false);
   const toast = useToast();
 
   const { data: groups = [], isLoading: loadingGroups } = useSessionGroupsQuery(sessionId, !!sessionId);
@@ -94,6 +101,26 @@ export function Translate() {
         ? prev.groupIds.filter(g => g !== id)
         : [...prev.groupIds, id],
     }));
+  };
+
+  const handlePreview = async () => {
+    const text = previewText.trim();
+    if (!text) return;
+    setPreviewing(true);
+    setPreviewResult('');
+    try {
+      const { translated } = await translateApi.preview(text);
+      setPreviewResult(translated);
+    } catch (err) {
+      toast.error(
+        t('translate.toasts.previewFailed', {
+          defaultValue: 'Preview failed: {{message}}',
+          message: err instanceof Error ? err.message : 'unknown',
+        }),
+      );
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   const handleSave = async () => {
@@ -216,6 +243,60 @@ export function Translate() {
               disabled={!canWrite}
               onChange={e => setConfig({ ...config, minSendIntervalMs: Number(e.target.value) || 0 })}
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor={maxLenFieldId}>
+              {t('translate.maxMessageLength', { defaultValue: 'Max message length (0 = no limit)' })}
+            </label>
+            <input
+              id={maxLenFieldId}
+              type="number"
+              min={0}
+              step={50}
+              value={config.maxMessageLength}
+              disabled={!canWrite}
+              onChange={e => setConfig({ ...config, maxMessageLength: Number(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor={rateFieldId}>
+              {t('translate.maxPerMinute', { defaultValue: 'Max translations per group/min (0 = unlimited)' })}
+            </label>
+            <input
+              id={rateFieldId}
+              type="number"
+              min={0}
+              step={1}
+              value={config.maxTranslationsPerMinute}
+              disabled={!canWrite}
+              onChange={e => setConfig({ ...config, maxTranslationsPerMinute: Number(e.target.value) || 0 })}
+            />
+          </div>
+
+          <div className="form-group">
+            <label>{t('translate.preview', { defaultValue: 'Test translation' })}</label>
+            <span className="translate-toggle-hint">
+              {t('translate.previewHint', {
+                defaultValue: 'Run text through the live pipeline (glossary, senders, casing).',
+              })}
+            </span>
+            <textarea
+              rows={2}
+              value={previewText}
+              placeholder={t('translate.previewPlaceholder', { defaultValue: 'Type Chinese or Vietnamese…' })}
+              onChange={e => setPreviewText(e.target.value)}
+            />
+            <button
+              className="btn-primary"
+              onClick={handlePreview}
+              disabled={previewing || !previewText.trim()}
+            >
+              {previewing ? <Loader2 size={16} className="animate-spin" /> : <Languages size={16} />}
+              {t('translate.previewRun', { defaultValue: 'Translate' })}
+            </button>
+            {previewResult && <div className="translate-preview-result">{previewResult}</div>}
           </div>
         </section>
 

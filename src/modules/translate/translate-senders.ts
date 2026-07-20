@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { atomicWriteJson } from './translate-fs';
 
 /**
  * Manual `@mention` overrides: JID user-part (digits) -> display name, persisted as flat JSON.
@@ -31,8 +32,7 @@ export class SenderDirectory {
   }
 
   private save(): void {
-    fs.mkdirSync(this.filePath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
-    fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2), 'utf8');
+    atomicWriteJson(this.filePath, this.data);
   }
 
   /** Accept "200859...@c.us", "@200859...", or bare digits — store just the digits. */
@@ -116,8 +116,7 @@ export class SenderDirectory {
   // Best-effort: a sidecar write failure must never break a translation in flight.
   private saveUsage(): void {
     try {
-      fs.mkdirSync(this.filePath.replace(/[/\\][^/\\]*$/, '') || '.', { recursive: true });
-      fs.writeFileSync(this.usagePath, JSON.stringify(this.usage, null, 2), 'utf8');
+      atomicWriteJson(this.usagePath, this.usage);
     } catch {
       // ignore
     }

@@ -94,6 +94,27 @@ describe('TranslateService glossary', () => {
     expect(sent[0].text).toContain('報告主管');
   });
 
+  it('cost guards: skips over-long messages and throttles per group per minute', async () => {
+    const fetchMock = jest.fn(async () => ({ ok: true, json: async () => ({ message: { content: '報告主管' } }) }) as never);
+    (global as unknown as { fetch: typeof fetchMock }).fetch = fetchMock;
+    poke({
+      enabled: true, llmProvider: 'ollama', llmEndpoint: 'http://x/api/chat', llmModel: 'qwen3:8b',
+      groupIds: new Set(['g@g.us']), minSendIntervalMs: 0,
+      maxMessageLength: 10, maxTranslationsPerMinute: 2,
+    });
+    const fire = async (body: string) => {
+      await (service as unknown as { onMessage: (c: unknown, s: boolean) => Promise<unknown> })
+        .onMessage({ data: makeMsg(body), sessionId: 'sess' }, false);
+      await (service as unknown as { queue: Promise<unknown> }).queue;
+    };
+    await fire('今天出貨了嗎現在幾點鐘'); // 11 chars > cap → skipped
+    expect(sent).toHaveLength(0);
+    await fire('今天出貨');
+    await fire('今天出貨');
+    await fire('今天出貨'); // 3rd within the minute → throttled
+    expect(sent).toHaveLength(2);
+  });
+
   it('applies the sender override to the @mention before sending the prompt to Ollama', async () => {
     service.senderStore.add('200859128434777', '總經理');
     let promptSent = '';

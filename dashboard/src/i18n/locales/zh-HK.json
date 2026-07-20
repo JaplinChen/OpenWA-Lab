@@ -931,6 +931,8 @@
     "notifyOnFailure": "失敗時通知群組",
     "notifyOnFailureHint": "翻譯失敗時在群組回覆一則簡短提示。",
     "minInterval": "最小發送間隔（毫秒）",
+    "maxMessageLength": "訊息長度上限（0 = 不限）",
+    "maxPerMinute": "每群組每分鐘翻譯上限（0 = 不限）",
     "groups": "群組",
     "session": "工作階段",
     "noSessions": "沒有工作階段",
