@@ -21,6 +21,10 @@ export class UpdateTranslateConfigDto {
   minSendIntervalMs?: number;
 
   @IsOptional()
+  @IsBoolean()
+  notifyOnFailure?: boolean;
+
+  @IsOptional()
   @IsIn(['ollama', 'openai', 'groq', 'azure', 'gemini'])
   llmProvider?: LlmProvider;
 

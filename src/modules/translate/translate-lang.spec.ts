@@ -1,4 +1,4 @@
-import { stripThinking, detectPair, buildPrompt, VI_TO_ZH, ZH_TO_VI } from './translate-lang';
+import { stripThinking, detectPair, buildPrompt, fixViCasing, VI_TO_ZH, ZH_TO_VI } from './translate-lang';
 
 describe('buildPrompt', () => {
   it('renders the built-in default when no template is given', () => {
@@ -16,6 +16,7 @@ describe('buildPrompt', () => {
         '6) 標點符號轉換為目標語言慣用寫法。',
         '7) 保留原文換行與段落結構。',
         '8) 若原文主要不是可翻譯的自然語言，原樣回傳。',
+        '9) 越南文輸出遵循標準大小寫：句首字母大寫，人名/地名等專有名詞首字母大寫，其餘小寫；除非原文即為全大寫，否則不要輸出全大寫單詞。',
         'GLOSSARY',
         'xin chào',
       ].join('\n'),
@@ -58,6 +59,26 @@ describe('detectPair', () => {
 
   it('returns null for text that is neither', () => {
     expect(detectPair('12345 :)')).toBeNull();
+  });
+});
+
+describe('fixViCasing', () => {
+  it('capitalizes the sentence start (glossary lowercase leak)', () => {
+    expect(fixViCasing('sếp ơi, em gửi báo cáo rồi ạ')).toBe('Sếp ơi, em gửi báo cáo rồi ạ');
+  });
+
+  it('capitalizes after sentence punctuation and newlines', () => {
+    expect(fixViCasing('sếp đã xem. nên không cần giải thích.\nem cảm ơn ạ')).toBe(
+      'Sếp đã xem. Nên không cần giải thích.\nEm cảm ơn ạ',
+    );
+  });
+
+  it('handles Vietnamese diacritic initials', () => {
+    expect(fixViCasing('đơn đã ký')).toBe('Đơn đã ký');
+  });
+
+  it('never lowercases acronyms or ALL-CAPS', () => {
+    expect(fixViCasing('SỢI HÀN QUANG đã về kho. LED ổn')).toBe('SỢI HÀN QUANG đã về kho. LED ổn');
   });
 });
 

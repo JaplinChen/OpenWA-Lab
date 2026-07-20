@@ -5,7 +5,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
-import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, detectPair, buildPrompt, sleep } from './translate-lang';
+import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, ZH_TO_VI, detectPair, buildPrompt, fixViCasing, sleep } from './translate-lang';
 import * as llm from './translate-llm-client';
 import { LlmProvider, LlmParams } from './translate-llm-client';
 import {
@@ -45,6 +45,8 @@ export class TranslateService implements OnModuleInit {
   private adminIds = new Set<string>();
 
   private nextSendAt = 0;
+  // Running count of translations where every model failed — surfaced in logs for observability.
+  private failureCount = 0;
   // hookId for the dynamically (un)registered message:sent hook — null when not registered.
   private sentHookId: string | null = null;
   // Serialize translations behind one chain — a local Ollama model handles one request at a time.
@@ -229,11 +231,23 @@ export class TranslateService implements OnModuleInit {
           text: BOT_MARKER + translated,
         });
         this.nextSendAt = Date.now() + this.cfg.minSendIntervalMs;
-      }).catch(err => this.logger.error('Translate task failed', String(err)));
+      }).catch(err => this.onTranslateFailure(sessionId, msg.chatId, err));
     } catch (err) {
       this.logger.error('Translate hook error', String(err));
     }
     return pass;
+  }
+
+  // Every model failed: log with a running total (so a broken bot is visible in logs), and optionally
+  // tell the group so users aren't left wondering why translation silently stopped.
+  private onTranslateFailure(sessionId: string, chatId: string, err: unknown): void {
+    this.failureCount += 1;
+    this.logger.error(`Translate task failed (total failures=${this.failureCount})`, String(err));
+    if (this.cfg.notifyOnFailure) {
+      void this.messageService
+        .sendText(sessionId, { chatId, text: BOT_MARKER + '⚠️ 翻譯暫時失敗，請稍後再試' })
+        .catch(e => this.logger.error('Failure-notice send failed', String(e)));
+    }
   }
 
   private handleGlossaryCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
@@ -264,7 +278,8 @@ export class TranslateService implements OnModuleInit {
     let lastErr: unknown;
     for (const model of models) {
       try {
-        return await llm.callLlm({ ...this.llmParams(), model }, prompt);
+        const out = await llm.callLlm({ ...this.llmParams(), model }, prompt);
+        return pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
       } catch (err) {
         lastErr = err;
         this.logger.warn(`Model "${model}" failed, trying next fallback: ${String(err)}`);
@@ -279,21 +294,24 @@ export class TranslateService implements OnModuleInit {
   }
 
   // Dashboard probes send apiKey:'' (getConfig masks it) — fall back to the stored key so
-  // Test Connection / Fetch Models keep working without re-entering the secret.
-  private storedKey(provider: LlmProvider): string {
+  // Test Connection / Fetch Models keep working without re-entering the secret. Endpoint-bound: only
+  // backfill when the probe targets the SAME endpoint the key was saved against, so an admin can't
+  // point the endpoint at their own server and exfiltrate the stored key (it also blocks SSRF-with-key).
+  private storedKey(provider: LlmProvider, endpoint: string): string {
+    if (endpoint.trim() !== this.cfg.llmEndpoint) return '';
     if (provider === this.cfg.llmProvider && this.cfg.llmApiKey) return this.cfg.llmApiKey;
     const k = this.cfg.llmProviderConfigs[provider]?.apiKey;
     return typeof k === 'string' ? k : '';
   }
 
   async testConnection(raw: LlmParams): Promise<{ ok: boolean; message: string }> {
-    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider) };
+    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider, raw.endpoint) };
     return llm.testConnection(p);
   }
 
   /** List model names for the endpoint (Ollama /api/tags, OpenAI/Groq /models, Gemini /v1beta/models). */
   async listModels(raw: Pick<LlmParams, 'provider' | 'endpoint' | 'apiKey'>): Promise<string[]> {
-    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider) };
+    const p = raw.apiKey ? raw : { ...raw, apiKey: this.storedKey(raw.provider, raw.endpoint) };
     return llm.listModels(p);
   }
 }

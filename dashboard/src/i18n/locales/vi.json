@@ -928,6 +928,8 @@
     "enabledHint": "Bật hoặc tắt dịch tự động.",
     "includeFromMe": "Dịch tin nhắn của tôi",
     "includeFromMeHint": "Cũng dịch các tin nhắn bạn gửi.",
+    "notifyOnFailure": "Thông báo cho nhóm khi lỗi",
+    "notifyOnFailureHint": "Gửi một thông báo ngắn vào nhóm khi dịch thất bại.",
     "minInterval": "Khoảng cách gửi tối thiểu (ms)",
     "groups": "Nhóm",
     "session": "Phiên",
