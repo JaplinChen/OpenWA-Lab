@@ -62,6 +62,16 @@ describe('TranslateService glossary', () => {
     expect(saved['zh-tw:vi']['出貨']).toBe('giao hàng');
   });
 
+  it('multi-line /g batch adds every line and replies once', async () => {
+    await cmd('/g\n/g 資安 = ATTT\n/g 稽核 = Đánh giá\n/g 漏洞 = Lỗ hổng');
+    const saved = JSON.parse(fs.readFileSync(glossaryPath, 'utf8'));
+    expect(saved['zh-tw:vi']['資安']).toBe('ATTT');
+    expect(saved['zh-tw:vi']['稽核']).toBe('Đánh giá');
+    expect(saved['zh-tw:vi']['漏洞']).toBe('Lỗ hổng');
+    expect(sent.length).toBe(1);
+    expect(sent[0].text).toContain('已新增術語：資安 ⇄ ATTT');
+  });
+
   it('detects zh and vi source directions', () => {
     const detect = (service as unknown as { detectPair: (t: string) => { key: string } | null }).detectPair.bind(service);
     expect(detect('今天出貨')?.key).toBe('zh-tw:vi');
