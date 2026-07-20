@@ -36,6 +36,11 @@ export class UpdateTranslateConfigDto {
   @IsString()
   llmApiKey?: string;
 
+  // Read-only masking flag echoed back by dashboard PUTs; stripped server-side.
+  @IsOptional()
+  @IsBoolean()
+  apiKeySet?: boolean;
+
   @IsOptional()
   @IsNumber()
   @Min(0)

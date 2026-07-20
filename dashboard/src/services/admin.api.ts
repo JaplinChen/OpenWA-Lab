@@ -160,6 +160,7 @@ export interface TranslateConfig {
   llmFallbackModels: string[];
   llmPromptTemplate: string;
   llmPromptTemplateDefault?: string;
+  apiKeySet?: boolean;
   llmProviderConfigs: Record<string, LlmProviderSaved>;
 }
 
@@ -167,6 +168,7 @@ export interface LlmProviderSaved {
   endpoint?: string;
   model?: string;
   apiKey?: string;
+  apiKeySet?: boolean;
   temperature?: number;
   fallbackModels?: string[];
 }
@@ -294,7 +296,7 @@ export const infraApi = {
 
 export const translateApi = {
   getConfig: () => request<TranslateConfig>('/translate/config'),
-  updateConfig: ({ llmPromptTemplateDefault: _readonly, ...config }: Partial<TranslateConfig>) =>
+  updateConfig: ({ llmPromptTemplateDefault: _readonly, apiKeySet: _mask, ...config }: Partial<TranslateConfig>) =>
     request<TranslateConfig>('/translate/config', {
       method: 'PUT',
       body: JSON.stringify(config),
