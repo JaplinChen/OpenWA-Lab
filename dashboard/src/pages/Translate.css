@@ -143,3 +143,10 @@
   font-size: 0.72rem;
   opacity: 0.6;
 }
+.translate-page .translate-preview-actions{
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.translate-page .translate-preview-actions select{ flex: 0 0 auto; }

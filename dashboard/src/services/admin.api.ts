@@ -314,10 +314,10 @@ export const translateApi = {
       method: 'POST',
       body: JSON.stringify(probe),
     }),
-  preview: (text: string) =>
+  preview: (text: string, provider?: LlmProvider) =>
     request<{ pair: string; translated: string }>('/translate/preview', {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...(provider ? { provider } : {}) }),
     }),
   getGlossary: () => request<GlossaryTerm[]>('/translate/glossary'),
   addGlossaryTerm: (zh: string, vi: string) =>
