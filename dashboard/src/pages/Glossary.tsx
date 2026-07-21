@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, BookMarked } from 'lucide-react';
-import { translateApi, type GlossaryTerm, type PendingGlossaryTerm, type TranslationCandidate } from '../services/api';
+import { translateApi, type GlossaryTerm, type PendingGlossaryTerm, type TranslationCandidate, type PhraseCandidate } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useToast } from '../components/Toast';
@@ -20,9 +20,11 @@ export function Glossary() {
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [pending, setPending] = useState<PendingGlossaryTerm[]>([]);
   const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
+  const [phrases, setPhrases] = useState<PhraseCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [tab, setTab] = useState<'candidates' | 'terms'>('candidates');
+  const [scanning, setScanning] = useState(false);
+  const [tab, setTab] = useState<'candidates' | 'phrases' | 'terms'>('candidates');
 
   useEffect(() => {
     let active = true;
@@ -39,10 +41,49 @@ export function Glossary() {
       .getMemoryCandidates()
       .then(list => active && setCandidates(list))
       .catch(err => active && fail(err));
+    translateApi
+      .getPhraseCandidates()
+      .then(list => active && setPhrases(list))
+      .catch(err => active && fail(err));
     return () => {
       active = false;
     };
   }, []);
+
+  const scanPhrases = async () => {
+    setScanning(true);
+    try {
+      setPhrases(await translateApi.scanPhraseCandidates());
+    } catch (err) {
+      fail(err);
+    } finally {
+      setScanning(false);
+    }
+  };
+
+  const approvePhrase = async (id: number) => {
+    setBusy(true);
+    try {
+      setPhrases(await translateApi.approvePhraseCandidate(id));
+      setTerms(await translateApi.getGlossary());
+      toast.success(t('glossary.candidateApproved'));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dismissPhrase = async (id: number) => {
+    setBusy(true);
+    try {
+      setPhrases(await translateApi.dismissPhraseCandidate(id));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const approveCandidate = async (id: number) => {
     setBusy(true);
@@ -176,6 +217,15 @@ export function Glossary() {
         </button>
         <button
           role="tab"
+          aria-selected={tab === 'phrases'}
+          className={`etable-tab ${tab === 'phrases' ? 'active' : ''}`}
+          onClick={() => setTab('phrases')}
+        >
+          {t('glossary.phrasesTitle')}
+          <span className="etable-count">{phrases.length}</span>
+        </button>
+        <button
+          role="tab"
           aria-selected={tab === 'terms'}
           className={`etable-tab ${tab === 'terms' ? 'active' : ''}`}
           onClick={() => setTab('terms')}
@@ -193,6 +243,29 @@ export function Glossary() {
           onApprove={approveCandidate}
           onDismiss={dismissCandidate}
         />
+      )}
+
+      {tab === 'phrases' && (
+        <>
+          <section className="etable-panel">
+            <h3 className="etable-panel-title">{t('glossary.phrasesTitle')}</h3>
+            <p className="etable-empty">{t('glossary.phrasesHint')}</p>
+            {canWrite && (
+              <button className="etable-add" onClick={scanPhrases} disabled={scanning}>
+                {scanning ? <Loader2 className="animate-spin" size={16} /> : null}
+                {t('glossary.phrasesScan')}
+              </button>
+            )}
+          </section>
+          {/* Reuse the memory-candidate row UI: phrase maps onto the source column. */}
+          <MemoryCandidates
+            candidates={phrases.map(p => ({ id: p.id, pairKey: '', source: p.phrase, translated: p.translated, count: p.count, at: p.at }))}
+            canWrite={canWrite}
+            busy={busy}
+            onApprove={approvePhrase}
+            onDismiss={dismissPhrase}
+          />
+        </>
       )}
 
       {tab === 'terms' && (

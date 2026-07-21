@@ -87,6 +87,16 @@ export class TranslationMemory {
     );
   }
 
+  /** Every recorded source with its repeat count — feeds the phrase miner (all statuses included). */
+  allSources(): Promise<{ source: string; count: number }[]> {
+    return new Promise(resolve => {
+      if (!this.db) return resolve([]);
+      this.db.all(`SELECT source, count FROM translation_memory`, [], (err, rows) => {
+        resolve(err || !rows ? [] : rows.map(r => ({ source: r.source, count: r.count })));
+      });
+    });
+  }
+
   /** Top unreviewed candidates by frequency, for the approval view. */
   candidates(limit = 50): Promise<Candidate[]> {
     return new Promise(resolve => {

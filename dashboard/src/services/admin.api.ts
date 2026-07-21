@@ -206,6 +206,14 @@ export interface TranslationCandidate {
   at: string;
 }
 
+export interface PhraseCandidate {
+  id: number;
+  phrase: string;
+  translated: string;
+  count: number;
+  at: string;
+}
+
 export interface SenderEntry {
   jid: string; // @mention 的號碼 (digits)
   name: string; // 顯示名稱
@@ -343,6 +351,12 @@ export const translateApi = {
     request<TranslationCandidate[]>(`/translate/memory/${id}/approve`, { method: 'POST' }),
   dismissMemoryCandidate: (id: number) =>
     request<TranslationCandidate[]>(`/translate/memory/${id}`, { method: 'DELETE' }),
+  getPhraseCandidates: () => request<PhraseCandidate[]>('/translate/memory/phrases'),
+  scanPhraseCandidates: () => request<PhraseCandidate[]>('/translate/memory/phrases/scan', { method: 'POST' }),
+  approvePhraseCandidate: (id: number) =>
+    request<PhraseCandidate[]>(`/translate/memory/phrases/${id}/approve`, { method: 'POST' }),
+  dismissPhraseCandidate: (id: number) =>
+    request<PhraseCandidate[]>(`/translate/memory/phrases/${id}`, { method: 'DELETE' }),
   getPendingGlossary: () => request<PendingGlossaryTerm[]>('/translate/glossary/pending'),
   approvePendingGlossary: (id: number) =>
     request<void>(`/translate/glossary/pending/${id}/approve`, { method: 'POST' }),

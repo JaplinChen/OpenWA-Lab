@@ -915,7 +915,10 @@
     "candidatesTitle": "Translation candidates",
     "seenCount": "Seen {{count}}×",
     "dismiss": "Dismiss",
-    "candidateApproved": "Added to glossary"
+    "candidateApproved": "Added to glossary",
+    "phrasesTitle": "High-frequency words",
+    "phrasesHint": "Scan translation history for frequently-used words not yet in the glossary, with AI-suggested Vietnamese. Approve to add.",
+    "phrasesScan": "Scan now"
   },
   "keyproxy": {
     "title": "LLM Keys",
