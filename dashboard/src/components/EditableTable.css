@@ -47,30 +47,51 @@
 }
 
 .etable-page .etable-tabs {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid var(--border);
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 1.25rem;
+  padding: 0.25rem;
+  background: var(--bg-light);
+  border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 0.25rem);
 }
 
 .etable-page .etable-tab {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.6rem 1rem;
+  padding: 0.5rem 1rem;
   border: none;
   background: none;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: var(--text-secondary);
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
+  border-radius: var(--radius);
+  transition: background 0.15s, color 0.15s;
+}
+
+.etable-page .etable-tab:hover:not(.active) {
+  color: var(--text-primary);
+  background: var(--bg-card, var(--bg-white));
 }
 
 .etable-page .etable-tab.active {
-  color: var(--text-primary);
-  border-bottom-color: var(--primary);
+  color: var(--primary-text, var(--text-primary));
+  background: var(--bg-card, var(--bg-white));
+  box-shadow: var(--shadow-sm);
+}
+
+/* Inactive tabs get a muted count chip so the segmented control reads calm; the active tab and
+   the panel-title reuse the solid primary chip below. */
+.etable-page .etable-tab .etable-count {
+  background: var(--primary-soft);
+  color: var(--primary-text);
+}
+
+.etable-page .etable-tab.active .etable-count {
+  background: var(--primary);
+  color: var(--primary-ink);
 }
 
 .etable-page .etable-panel {
