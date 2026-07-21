@@ -919,6 +919,7 @@
     "accountNote": "Rotation only helps when each key belongs to a different account — free-tier quotas are counted per account, not per key.",
     "keys": "Keys",
     "provider": "Provider",
+    "account": "Account",
     "key": "Key",
     "status": "Status",
     "requests": "Requests",
@@ -928,7 +929,8 @@
     "added": "Key added, proxy restarted",
     "removed": "Key removed, proxy restarted",
     "empty": "No keys yet.",
-    "keyPlaceholder": "Paste API key"
+    "keyPlaceholder": "Paste API key",
+    "accountPlaceholder": "Account (optional)"
   },
   "senders": {
     "title": "Senders",

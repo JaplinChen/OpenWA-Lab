@@ -919,6 +919,7 @@
     "accountNote": "只有来自不同账号的密钥轮换才有效——免费额度按账号计算，不是按密钥。",
     "keys": "密钥",
     "provider": "供应商",
+    "account": "账号",
     "key": "密钥",
     "status": "状态",
     "requests": "请求数",
@@ -928,7 +929,8 @@
     "added": "已新增密钥，代理已重启",
     "removed": "已删除密钥，代理已重启",
     "empty": "暂无密钥。",
-    "keyPlaceholder": "粘贴 API 密钥"
+    "keyPlaceholder": "粘贴 API 密钥",
+    "accountPlaceholder": "账号（选填）"
   },
   "senders": {
     "title": "发送者",

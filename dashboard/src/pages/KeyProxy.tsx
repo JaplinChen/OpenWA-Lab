@@ -22,6 +22,7 @@ export function KeyProxy() {
   const [busy, setBusy] = useState(false);
   const [provider, setProvider] = useState(PROVIDERS[0]);
   const [apiKey, setApiKey] = useState('');
+  const [account, setAccount] = useState('');
 
   const fail = (err: unknown) =>
     toast.error(t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }));
@@ -42,8 +43,9 @@ export function KeyProxy() {
     if (!apiKey.trim()) return;
     setBusy(true);
     try {
-      setKeys(await keyProxyApi.add(provider, apiKey.trim()));
+      setKeys(await keyProxyApi.add(provider, apiKey.trim(), account.trim()));
       setApiKey('');
+      setAccount('');
       toast.success(t('keyproxy.added'));
     } catch (err) {
       fail(err);
@@ -103,6 +105,16 @@ export function KeyProxy() {
             onKeyDown={e => e.key === 'Enter' && !busy && add()}
             disabled={busy}
           />
+          <input
+            className="keyproxy-account-input"
+            type="text"
+            autoComplete="off"
+            placeholder={t('keyproxy.accountPlaceholder')}
+            value={account}
+            onChange={e => setAccount(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && !busy && add()}
+            disabled={busy}
+          />
           <button className="btn-primary" onClick={add} disabled={busy || !apiKey.trim()}>
             <Plus size={16} />
             {t('keyproxy.add')}
@@ -122,6 +134,7 @@ export function KeyProxy() {
             <thead>
               <tr>
                 <th>{t('keyproxy.provider')}</th>
+                <th>{t('keyproxy.account')}</th>
                 <th>{t('keyproxy.key')}</th>
                 <th>{t('keyproxy.status')}</th>
                 <th className="keyproxy-num">{t('keyproxy.requests')}</th>
@@ -133,6 +146,7 @@ export function KeyProxy() {
               {keys.map(k => (
                 <tr key={`${k.provider}-${k.index}`}>
                   <td>{k.provider}</td>
+                  <td>{k.account || <span className="keyproxy-muted">—</span>}</td>
                   <td className="keyproxy-mono">{k.masked}</td>
                   <td>
                     <span className={`keyproxy-badge keyproxy-badge-${k.status}`}>{k.status}</span>

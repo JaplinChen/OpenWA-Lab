@@ -919,6 +919,7 @@
     "accountNote": "只有來自不同帳號的金鑰輪替才有效——免費額度按帳號計算，不是按金鑰。",
     "keys": "金鑰",
     "provider": "供應商",
+    "account": "帳號",
     "key": "金鑰",
     "status": "狀態",
     "requests": "請求數",
@@ -928,7 +929,8 @@
     "added": "已新增金鑰，代理已重啟",
     "removed": "已刪除金鑰，代理已重啟",
     "empty": "尚無金鑰。",
-    "keyPlaceholder": "貼上 API 金鑰"
+    "keyPlaceholder": "貼上 API 金鑰",
+    "accountPlaceholder": "帳號（選填）"
   },
   "senders": {
     "title": "發送者",

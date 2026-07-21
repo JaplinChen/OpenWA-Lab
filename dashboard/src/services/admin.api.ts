@@ -358,6 +358,7 @@ export const translateApi = {
 export interface KeyStatus {
   provider: string;
   index: number;
+  account: string;
   masked: string;
   status: string;
   requestCount: number;
@@ -366,10 +367,10 @@ export interface KeyStatus {
 
 export const keyProxyApi = {
   list: () => request<KeyStatus[]>('/keyproxy/keys'),
-  add: (provider: string, apiKey: string) =>
+  add: (provider: string, apiKey: string, account: string) =>
     request<KeyStatus[]>('/keyproxy/keys', {
       method: 'POST',
-      body: JSON.stringify({ provider, apiKey }),
+      body: JSON.stringify({ provider, apiKey, account }),
     }),
   remove: (provider: string, index: number) =>
     request<KeyStatus[]>(`/keyproxy/keys/${encodeURIComponent(provider)}/${index}`, {

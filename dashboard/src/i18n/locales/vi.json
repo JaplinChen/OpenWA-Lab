@@ -919,6 +919,7 @@
     "accountNote": "Việc luân phiên chỉ hiệu quả khi mỗi khóa thuộc một tài khoản khác nhau — hạn mức miễn phí tính theo tài khoản, không theo khóa.",
     "keys": "Khóa",
     "provider": "Nhà cung cấp",
+    "account": "Tài khoản",
     "key": "Khóa",
     "status": "Trạng thái",
     "requests": "Yêu cầu",
@@ -928,7 +929,8 @@
     "added": "Đã thêm khóa, proxy đã khởi động lại",
     "removed": "Đã xóa khóa, proxy đã khởi động lại",
     "empty": "Chưa có khóa nào.",
-    "keyPlaceholder": "Dán khóa API"
+    "keyPlaceholder": "Dán khóa API",
+    "accountPlaceholder": "Tài khoản (tùy chọn)"
   },
   "senders": {
     "title": "Người gửi",
