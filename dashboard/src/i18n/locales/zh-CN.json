@@ -117,6 +117,7 @@
     "glossary": "词汇表",
     "senders": "发送者",
     "llm": "LLM 设置",
+    "keyproxy": "LLM 密钥",
     "translatePrompt": "翻译提示词",
     "apiKeys": "API 密钥",
     "messageTester": "消息测试器",
@@ -911,6 +912,23 @@
     "approved": "已批准建议",
     "rejected": "已拒绝建议",
     "suggestedBy": "由 {{name}} 建议"
+  },
+  "keyproxy": {
+    "title": "LLM 密钥",
+    "subtitle": "管理翻译代理轮换使用的 API 密钥。加入不同账号的密钥，被限流时自动切换。",
+    "accountNote": "只有来自不同账号的密钥轮换才有效——免费额度按账号计算，不是按密钥。",
+    "keys": "密钥",
+    "provider": "供应商",
+    "key": "密钥",
+    "status": "状态",
+    "requests": "请求数",
+    "failures": "失败数",
+    "add": "新增",
+    "remove": "删除",
+    "added": "已新增密钥，代理已重启",
+    "removed": "已删除密钥，代理已重启",
+    "empty": "暂无密钥。",
+    "keyPlaceholder": "粘贴 API 密钥"
   },
   "senders": {
     "title": "发送者",

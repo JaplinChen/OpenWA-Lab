@@ -116,6 +116,7 @@
     "glossary": "Từ điển",
     "senders": "Người gửi",
     "llm": "Cài đặt LLM",
+    "keyproxy": "Khóa LLM",
     "translatePrompt": "Prompt dịch",
     "settings": "Cài đặt",
     "apiKeys": "API Key",
@@ -911,6 +912,23 @@
     "approved": "Đã duyệt đề xuất",
     "rejected": "Đã từ chối đề xuất",
     "suggestedBy": "Đề xuất bởi {{name}}"
+  },
+  "keyproxy": {
+    "title": "Khóa LLM",
+    "subtitle": "Quản lý các khóa API mà proxy dịch luân phiên sử dụng. Thêm khóa từ các tài khoản khác nhau để tránh bị giới hạn.",
+    "accountNote": "Việc luân phiên chỉ hiệu quả khi mỗi khóa thuộc một tài khoản khác nhau — hạn mức miễn phí tính theo tài khoản, không theo khóa.",
+    "keys": "Khóa",
+    "provider": "Nhà cung cấp",
+    "key": "Khóa",
+    "status": "Trạng thái",
+    "requests": "Yêu cầu",
+    "failures": "Lỗi",
+    "add": "Thêm",
+    "remove": "Xóa",
+    "added": "Đã thêm khóa, proxy đã khởi động lại",
+    "removed": "Đã xóa khóa, proxy đã khởi động lại",
+    "empty": "Chưa có khóa nào.",
+    "keyPlaceholder": "Dán khóa API"
   },
   "senders": {
     "title": "Người gửi",

@@ -117,6 +117,7 @@
     "glossary": "詞彙表",
     "senders": "發送者",
     "llm": "LLM 設定",
+    "keyproxy": "LLM 金鑰",
     "translatePrompt": "翻譯提示詞",
     "apiKeys": "API 金鑰",
     "messageTester": "訊息測試器",
@@ -911,6 +912,23 @@
     "approved": "已核准建議",
     "rejected": "已拒絕建議",
     "suggestedBy": "由 {{name}} 建議"
+  },
+  "keyproxy": {
+    "title": "LLM 金鑰",
+    "subtitle": "管理翻譯代理輪替使用的 API 金鑰。加入不同帳號的金鑰，被限流時自動換用。",
+    "accountNote": "只有來自不同帳號的金鑰輪替才有效——免費額度按帳號計算，不是按金鑰。",
+    "keys": "金鑰",
+    "provider": "供應商",
+    "key": "金鑰",
+    "status": "狀態",
+    "requests": "請求數",
+    "failures": "失敗數",
+    "add": "新增",
+    "remove": "刪除",
+    "added": "已新增金鑰，代理已重啟",
+    "removed": "已刪除金鑰，代理已重啟",
+    "empty": "尚無金鑰。",
+    "keyPlaceholder": "貼上 API 金鑰"
   },
   "senders": {
     "title": "發送者",

@@ -352,6 +352,32 @@ export const translateApi = {
 };
 
 // =============================================================================
+// LLM key-proxy API (multi-key rotation for translate)
+// =============================================================================
+
+export interface KeyStatus {
+  provider: string;
+  index: number;
+  masked: string;
+  status: string;
+  requestCount: number;
+  failureCount: number;
+}
+
+export const keyProxyApi = {
+  list: () => request<KeyStatus[]>('/keyproxy/keys'),
+  add: (provider: string, apiKey: string) =>
+    request<KeyStatus[]>('/keyproxy/keys', {
+      method: 'POST',
+      body: JSON.stringify({ provider, apiKey }),
+    }),
+  remove: (provider: string, index: number) =>
+    request<KeyStatus[]>(`/keyproxy/keys/${encodeURIComponent(provider)}/${index}`, {
+      method: 'DELETE',
+    }),
+};
+
+// =============================================================================
 // Settings API
 // =============================================================================
 

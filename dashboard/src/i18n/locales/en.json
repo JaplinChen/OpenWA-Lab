@@ -116,6 +116,7 @@
     "glossary": "Glossary",
     "senders": "Senders",
     "llm": "LLM Settings",
+    "keyproxy": "LLM Keys",
     "translatePrompt": "Translation Prompt",
     "apiKeys": "API Keys",
     "messageTester": "Message Tester",
@@ -911,6 +912,23 @@
     "approved": "Suggestion approved",
     "rejected": "Suggestion rejected",
     "suggestedBy": "Suggested by {{name}}"
+  },
+  "keyproxy": {
+    "title": "LLM Keys",
+    "subtitle": "Manage the API keys the translation proxy rotates through. Add keys from different accounts to survive rate limits.",
+    "accountNote": "Rotation only helps when each key belongs to a different account — free-tier quotas are counted per account, not per key.",
+    "keys": "Keys",
+    "provider": "Provider",
+    "key": "Key",
+    "status": "Status",
+    "requests": "Requests",
+    "failures": "Failures",
+    "add": "Add",
+    "remove": "Remove",
+    "added": "Key added, proxy restarted",
+    "removed": "Key removed, proxy restarted",
+    "empty": "No keys yet.",
+    "keyPlaceholder": "Paste API key"
   },
   "senders": {
     "title": "Senders",
