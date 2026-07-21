@@ -22,6 +22,7 @@ export function Glossary() {
   const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [tab, setTab] = useState<'candidates' | 'terms'>('candidates');
 
   useEffect(() => {
     let active = true;
@@ -163,46 +164,73 @@ export function Glossary() {
         subtitle={t('glossary.subtitle')}
       />
 
-      <GlossaryPending
-        pending={pending}
-        canWrite={canWrite}
-        busy={busy}
-        onApprove={approve}
-        onReject={reject}
-      />
+      <div className="etable-tabs" role="tablist">
+        <button
+          role="tab"
+          aria-selected={tab === 'candidates'}
+          className={`etable-tab ${tab === 'candidates' ? 'active' : ''}`}
+          onClick={() => setTab('candidates')}
+        >
+          {t('glossary.candidatesTitle')}
+          <span className="etable-count">{candidates.length}</span>
+        </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'terms'}
+          className={`etable-tab ${tab === 'terms' ? 'active' : ''}`}
+          onClick={() => setTab('terms')}
+        >
+          {t('glossary.terms')}
+          <span className="etable-count">{terms.length}</span>
+        </button>
+      </div>
 
-      <MemoryCandidates
-        candidates={candidates}
-        canWrite={canWrite}
-        busy={busy}
-        onApprove={approveCandidate}
-        onDismiss={dismissCandidate}
-      />
+      {tab === 'candidates' && (
+        <MemoryCandidates
+          candidates={candidates}
+          canWrite={canWrite}
+          busy={busy}
+          onApprove={approveCandidate}
+          onDismiss={dismissCandidate}
+        />
+      )}
 
-      {/* The glossary maps 中文 to Tiếng Việt, so the key/val labels name the languages themselves
-          and are written in their own script, as a language picker would. */}
-      <EditableKeyValueTable
-        rows={terms}
-        titleLabel={t('glossary.terms')}
-        keyLabel="中文"
-        valLabel="Tiếng Việt"
-        addLabel={t('glossary.add')}
-        emptyIcon={<BookMarked size={32} strokeWidth={1} />}
-        emptyText={t('glossary.empty')}
-        canWrite={canWrite}
-        busy={busy}
-        resizeStorageKey="glossary-col-src"
-        initialSortKey="key"
-        rowKey={g => g.source}
-        rowVal={g => g.target}
-        rowCount={g => g.count ?? 0}
-        compareKey={(a, b) => a.source.localeCompare(b.source)}
-        compareVal={(a, b) => a.target.localeCompare(b.target)}
-        tieBreak={(a, b) => a.source.localeCompare(b.source)}
-        onAdd={add}
-        onSaveEdit={saveEdit}
-        onRemove={remove}
-      />
+      {tab === 'terms' && (
+        <>
+          <GlossaryPending
+            pending={pending}
+            canWrite={canWrite}
+            busy={busy}
+            onApprove={approve}
+            onReject={reject}
+          />
+
+          {/* The glossary maps 中文 to Tiếng Việt, so the key/val labels name the languages themselves
+              and are written in their own script, as a language picker would. */}
+          <EditableKeyValueTable
+            rows={terms}
+            titleLabel={t('glossary.terms')}
+            keyLabel="中文"
+            valLabel="Tiếng Việt"
+            addLabel={t('glossary.add')}
+            emptyIcon={<BookMarked size={32} strokeWidth={1} />}
+            emptyText={t('glossary.empty')}
+            canWrite={canWrite}
+            busy={busy}
+            resizeStorageKey="glossary-col-src"
+            initialSortKey="key"
+            rowKey={g => g.source}
+            rowVal={g => g.target}
+            rowCount={g => g.count ?? 0}
+            compareKey={(a, b) => a.source.localeCompare(b.source)}
+            compareVal={(a, b) => a.target.localeCompare(b.target)}
+            tieBreak={(a, b) => a.source.localeCompare(b.source)}
+            onAdd={add}
+            onSaveEdit={saveEdit}
+            onRemove={remove}
+          />
+        </>
+      )}
     </div>
   );
 }
