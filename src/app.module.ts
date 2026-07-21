@@ -12,6 +12,7 @@ import { validateEnv } from './config/env.validation';
 import { SessionModule } from './modules/session/session.module';
 import { MessageModule } from './modules/message/message.module';
 import { TranslateModule } from './modules/translate/translate.module';
+import { KeyProxyModule } from './modules/keyproxy/keyproxy.module';
 import { TemplateModule } from './modules/template/template.module';
 import { WebhookModule } from './modules/webhook/webhook.module';
 import { HealthModule } from './modules/health/health.module';
@@ -270,6 +271,7 @@ if (dashboardServingEnabled && dashboardBuildPresent) {
     SessionModule,
     MessageModule,
     TranslateModule, // zh<->vi auto-translate in selected groups
+    KeyProxyModule, // manage llm-key-proxy rotation keys from the dashboard
     TemplateModule,
     WebhookModule,
     HealthModule,

@@ -182,6 +182,9 @@ services:
     volumes:
       - openwa-lab-data:/app/data
       - ./docker-compose.yml:/app/docker-compose.yml:ro
+      # Key-proxy .env, writable: the dashboard's key-management page edits it here, then restarts
+      # the llm-key-proxy container (which mounts the same file read-only) so new keys take effect.
+      - ./keyproxy:/app/keyproxy
     depends_on:
       docker-proxy:
         condition: service_started
@@ -206,6 +209,28 @@ services:
     labels:
       - 'com.openwa-lab.service=api'
       - 'com.openwa-lab.core=true'
+
+  # ===== CORE: LLM key-rotation proxy (multi-key Gemini/Groq for translate) =====
+  # Keys live in keyproxy/.env (gitignored): PROXY_API_KEY + GEMINI_API_KEY_N / GROQ_API_KEY_N.
+  # Translate points its OpenAI-compatible endpoint at http://llm-key-proxy:8000/v1/chat/completions.
+  llm-key-proxy:
+    image: ghcr.io/mirrowel/llm-api-key-proxy:latest
+    container_name: openwa-lab-llm-key-proxy
+    restart: unless-stopped
+    networks:
+      - openwa-lab-network
+    security_opt:
+      - 'no-new-privileges:true'
+    environment:
+      - SKIP_OAUTH_INIT_CHECK=true
+    volumes:
+      - ./keyproxy/.env:/app/.env:ro
+      - keyproxy-usage:/app/usage
+    # Host port only for local admin/testing; containers use llm-key-proxy:8000 directly.
+    ports:
+      - '127.0.0.1:8600:8000'
+    labels:
+      - 'com.openwa-lab.service=llm-key-proxy'
 
   # The dashboard SPA is now bundled into the openwa-lab-api image and served by NestJS on the
   # same port (2785) — there is no separate dashboard container. Reach it at the openwa-lab-api
@@ -316,6 +341,9 @@ volumes:
     driver: local
   minio-data:
     name: openwa_minio-data
+    driver: local
+  keyproxy-usage:
+    name: openwa_keyproxy-usage
     driver: local
 
 networks:
