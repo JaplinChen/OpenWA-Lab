@@ -6,6 +6,8 @@ import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
 import { TranslationMemory, type Candidate } from './translate-memory';
+import { PhraseCandidates, type PhraseCandidate } from './translate-phrase-candidates';
+import { minePhrases } from './translate-phrase-miner';
 import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, ZH_TO_VI, detectPair, buildPrompt, fixViCasing, sleep } from './translate-lang';
 import * as llm from './translate-llm-client';
 import { LlmProvider, LlmParams, LLM_PROVIDERS } from './translate-llm-client';
@@ -44,6 +46,8 @@ export class TranslateService implements OnModuleInit {
   private sendersPath = 'data/senders.json';
   // Translation memory: logs every LLM translation as a future glossary candidate.
   private memory!: TranslationMemory;
+  // High-frequency phrase candidates mined from translation memory (dashboard-triggered scan).
+  private phrases!: PhraseCandidates;
   // Author WIDs allowed to mutate the glossary via /glossary commands. Empty = anyone in the group.
   private adminIds = new Set<string>();
 
@@ -77,6 +81,8 @@ export class TranslateService implements OnModuleInit {
 
     this.memory = new TranslationMemory();
     this.memory.init();
+    this.phrases = new PhraseCandidates();
+    this.phrases.init();
 
     // Persisted runtime config takes precedence over .env; .env values seed the file on first run.
     this.loadConfig();
@@ -148,6 +154,69 @@ export class TranslateService implements OnModuleInit {
   async dismissMemoryCandidate(id: number): Promise<Candidate[]> {
     await this.memory.dismiss(id);
     return this.memory.candidates();
+  }
+
+  /** Current high-frequency phrase candidates awaiting review. */
+  phraseCandidates(limit?: number): Promise<PhraseCandidate[]> {
+    return this.phrases.list(limit);
+  }
+
+  /**
+   * Mine translation memory for high-frequency Chinese phrases not yet in the glossary, ask the LLM
+   * for a Vietnamese term for each (non-terms come back blank and are skipped), and upsert the rest as
+   * candidates. Dashboard-triggered — reads the whole memory table + one LLM call, so it's not on the
+   * translation hot path. Returns the refreshed candidate list.
+   */
+  async scanPhrases(): Promise<PhraseCandidate[]> {
+    const sources = await this.memory.allSources();
+    const exclude = new Set(this.glossary.entries().map(e => e.source));
+    const minCount = Math.max(1, Number(process.env.TRANSLATE_PHRASE_MIN_COUNT) || 3);
+    const mined = minePhrases(sources, { minCount, limit: 30, exclude });
+    if (mined.length) {
+      const translations = await this.translatePhrases(mined.map(m => m.phrase));
+      for (const m of mined) {
+        const vi = (translations[m.phrase] || '').trim();
+        if (vi) await this.phrases.upsert(m.phrase, vi, m.count);
+      }
+    }
+    return this.phrases.list();
+  }
+
+  // Batch-translate mined phrases in one LLM call. Asks for strict JSON {phrase: vi}; a phrase the
+  // model deems a non-term (fragment/noise) it returns as "" and we skip it. Failure → empty map
+  // (scan just upserts nothing), never throws into the controller.
+  private async translatePhrases(phrases: string[]): Promise<Record<string, string>> {
+    const params = this.resolveModel(this.cfg.llmModel);
+    if (!params) return {};
+    const list = phrases.map(p => `- ${p}`).join('\n');
+    const prompt =
+      '你是中越術語翻譯助手。以下是從聊天記錄擷取的中文片段，請判斷哪些是有意義的詞彙或術語，' +
+      '並給出越南文翻譯。無意義的片段（斷詞雜訊、非完整詞）翻譯留空字串。\n' +
+      '只回 JSON 物件，key 是中文片段，value 是越南文（或空字串），不要任何其他文字。\n\n' +
+      list;
+    try {
+      const out = await llm.callLlm(params, prompt);
+      const json = out.slice(out.indexOf('{'), out.lastIndexOf('}') + 1);
+      const parsed = JSON.parse(json) as Record<string, unknown>;
+      const result: Record<string, string> = {};
+      for (const [k, v] of Object.entries(parsed)) if (typeof v === 'string') result[k] = v;
+      return result;
+    } catch (err) {
+      this.logger.warn(`Phrase batch translate failed: ${String(err)}`);
+      return {};
+    }
+  }
+
+  /** Promote a phrase candidate into the glossary. */
+  async approvePhraseCandidate(id: number): Promise<PhraseCandidate[]> {
+    const row = await this.phrases.takeForApproval(id);
+    if (row && row.translated) this.glossary.add(row.phrase, row.translated);
+    return this.phrases.list();
+  }
+
+  async dismissPhraseCandidate(id: number): Promise<PhraseCandidate[]> {
+    await this.phrases.dismiss(id);
+    return this.phrases.list();
   }
 
   private registerSentHook(): void {

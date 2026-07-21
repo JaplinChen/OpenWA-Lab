@@ -17,6 +17,7 @@ import { TranslateService } from './translate.service';
 import type { TranslateConfig } from './translate.service';
 import type { PendingSuggestion } from './translate-glossary';
 import type { Candidate } from './translate-memory';
+import type { PhraseCandidate } from './translate-phrase-candidates';
 import { ContactService } from '../contact/contact.service';
 import { GroupService } from '../group/group.service';
 import type { Contact, Group } from '../../engine/interfaces/whatsapp-engine.types';
@@ -175,6 +176,38 @@ export class TranslateController {
   @ApiResponse({ status: 200, description: 'Remaining candidates' })
   dismissMemoryCandidate(@Param('id', ParseIntPipe) id: number): Promise<Candidate[]> {
     return this.translateService.dismissMemoryCandidate(id);
+  }
+
+  @Post('memory/phrases/scan')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Mine high-frequency phrases from translation memory + LLM-suggest terms' })
+  @ApiResponse({ status: 201, description: 'Refreshed phrase candidates' })
+  scanPhraseCandidates(): Promise<PhraseCandidate[]> {
+    return this.translateService.scanPhrases();
+  }
+
+  @Get('memory/phrases')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'High-frequency phrase candidates awaiting review' })
+  @ApiResponse({ status: 200, description: 'Phrase candidates ordered by frequency' })
+  getPhraseCandidates(@Query('limit') limit?: string): Promise<PhraseCandidate[]> {
+    return this.translateService.phraseCandidates(limit ? Number(limit) : undefined);
+  }
+
+  @Post('memory/phrases/:id/approve')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Promote a phrase candidate into the glossary' })
+  @ApiResponse({ status: 201, description: 'Remaining phrase candidates' })
+  approvePhraseCandidate(@Param('id', ParseIntPipe) id: number): Promise<PhraseCandidate[]> {
+    return this.translateService.approvePhraseCandidate(id);
+  }
+
+  @Delete('memory/phrases/:id')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Dismiss a phrase candidate' })
+  @ApiResponse({ status: 200, description: 'Remaining phrase candidates' })
+  dismissPhraseCandidate(@Param('id', ParseIntPipe) id: number): Promise<PhraseCandidate[]> {
+    return this.translateService.dismissPhraseCandidate(id);
   }
 
   @Get('senders')

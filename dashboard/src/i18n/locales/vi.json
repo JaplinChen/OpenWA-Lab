@@ -915,7 +915,10 @@
     "candidatesTitle": "Ứng viên dịch",
     "seenCount": "Xuất hiện {{count}} lần",
     "dismiss": "Bỏ qua",
-    "candidateApproved": "Đã thêm vào từ điển"
+    "candidateApproved": "Đã thêm vào từ điển",
+    "phrasesTitle": "Từ tần suất cao",
+    "phrasesHint": "Quét lịch sử dịch để tìm các từ thường dùng chưa có trong từ điển, kèm gợi ý tiếng Việt từ AI. Duyệt để thêm vào.",
+    "phrasesScan": "Quét ngay"
   },
   "keyproxy": {
     "title": "Khóa LLM",

@@ -915,7 +915,10 @@
     "candidatesTitle": "翻译候选",
     "seenCount": "出现 {{count}} 次",
     "dismiss": "忽略",
-    "candidateApproved": "已加入词汇表"
+    "candidateApproved": "已加入词汇表",
+    "phrasesTitle": "高频词",
+    "phrasesHint": "扫描翻译记录，找出常用但词汇表尚未收录的词，并由 AI 建议越南文译法。核准即可加入。",
+    "phrasesScan": "立即扫描"
   },
   "keyproxy": {
     "title": "LLM 密钥",
