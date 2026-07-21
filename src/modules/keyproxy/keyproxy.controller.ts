@@ -23,7 +23,7 @@ export class KeyProxyController {
   @ApiOperation({ summary: 'Add a key for a provider and restart the proxy' })
   @ApiResponse({ status: 201, description: 'Updated masked key list' })
   add(@Body() dto: AddKeyDto): Promise<KeyStatus[]> {
-    return this.service.addKey(dto.provider, dto.apiKey);
+    return this.service.addKey(dto.provider, dto.apiKey, dto.account ?? '');
   }
 
   @Delete('keys/:provider/:index')

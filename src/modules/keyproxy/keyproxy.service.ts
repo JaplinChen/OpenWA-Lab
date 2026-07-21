@@ -10,6 +10,7 @@ const proxyUrl = (): string => process.env.KEYPROXY_URL || 'http://llm-key-proxy
 export interface KeyStatus {
   provider: string;
   index: number;
+  account: string; // free-text account label (which login the key belongs to)
   masked: string; // last 4 chars only — the full key never leaves the backend
   status: string; // 'active' | 'cooldown' | 'unknown' (as reported by the proxy)
   requestCount: number;
@@ -44,6 +45,7 @@ export class KeyProxyService {
       return {
         provider: k.provider,
         index: k.index,
+        account: k.account,
         masked: mask(k.key),
         status: s?.status ?? 'unknown',
         requestCount: s?.requestCount ?? 0,
@@ -52,12 +54,12 @@ export class KeyProxyService {
     });
   }
 
-  async addKey(provider: string, apiKey: string): Promise<KeyStatus[]> {
+  async addKey(provider: string, apiKey: string, account = ''): Promise<KeyStatus[]> {
     const p = provider.trim().toLowerCase();
     const k = apiKey.trim();
     if (!/^[a-z0-9_]+$/.test(p)) throw new BadRequestException('Invalid provider name');
     if (!k) throw new BadRequestException('API key is empty');
-    this.store.addKey(p, k);
+    this.store.addKey(p, k, account);
     await this.restart();
     return this.listKeys();
   }
@@ -82,8 +84,8 @@ export class KeyProxyService {
     }
   }
 
-  private async fetchStatus(proxyApiKey: string): Promise<Map<string, Omit<KeyStatus, 'provider' | 'index' | 'masked'>>> {
-    const out = new Map<string, Omit<KeyStatus, 'provider' | 'index' | 'masked'>>();
+  private async fetchStatus(proxyApiKey: string): Promise<Map<string, Omit<KeyStatus, 'provider' | 'index' | 'account' | 'masked'>>> {
+    const out = new Map<string, Omit<KeyStatus, 'provider' | 'index' | 'account' | 'masked'>>();
     try {
       const res = await fetch(`${proxyUrl()}/v1/quota-stats`, {
         headers: proxyApiKey ? { authorization: `Bearer ${proxyApiKey}` } : {},
