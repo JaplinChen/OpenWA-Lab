@@ -162,6 +162,20 @@ export class Glossary {
   }
 
   /**
+   * Whole-message exact match: if `text` (trimmed) is itself a glossary source term for this pair,
+   * return its target so the caller can answer directly without an LLM call. Bumps usage like section().
+   * Used for short conversational phrases (明白/好/收到) that weak models otherwise reply to
+   * conversationally instead of translating. Substring matches are intentionally NOT handled here —
+   * that stays with section()'s prompt injection, so a term inside a longer sentence still goes to the LLM.
+   */
+  exact(pairKey: string, text = ''): string | null {
+    const target = (this.data[pairKey] || {})[text.trim()];
+    if (!target) return null;
+    this.bump(pairKey.startsWith('vi') ? target : text.trim());
+    return target;
+  }
+
+  /**
    * Prompt section injecting ONLY the terms whose source actually appears in `text` (empty when none).
    * Injecting the whole table (hundreds of entries) bloats the prompt and makes weak models echo the
    * term list back as their "translation" — so filter to what this message really uses.

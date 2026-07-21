@@ -16,6 +16,7 @@ import { ApiKeyRole } from '../auth/entities/api-key.entity';
 import { TranslateService } from './translate.service';
 import type { TranslateConfig } from './translate.service';
 import type { PendingSuggestion } from './translate-glossary';
+import type { Candidate } from './translate-memory';
 import { ContactService } from '../contact/contact.service';
 import { GroupService } from '../group/group.service';
 import type { Contact, Group } from '../../engine/interfaces/whatsapp-engine.types';
@@ -150,6 +151,30 @@ export class TranslateController {
       throw new BadRequestException(`unknown pending id: ${id}`);
     }
     return this.translateService.glossaryStore.pending();
+  }
+
+  @Get('memory/candidates')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Top translation-memory candidates to promote into the glossary' })
+  @ApiResponse({ status: 200, description: 'Candidates ordered by frequency' })
+  getMemoryCandidates(@Query('limit') limit?: string): Promise<Candidate[]> {
+    return this.translateService.memoryCandidates(limit ? Number(limit) : undefined);
+  }
+
+  @Post('memory/:id/approve')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Promote a memory candidate into the glossary' })
+  @ApiResponse({ status: 201, description: 'Remaining candidates' })
+  approveMemoryCandidate(@Param('id', ParseIntPipe) id: number): Promise<Candidate[]> {
+    return this.translateService.approveMemoryCandidate(id);
+  }
+
+  @Delete('memory/:id')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Dismiss a memory candidate' })
+  @ApiResponse({ status: 200, description: 'Remaining candidates' })
+  dismissMemoryCandidate(@Param('id', ParseIntPipe) id: number): Promise<Candidate[]> {
+    return this.translateService.dismissMemoryCandidate(id);
   }
 
   @Get('senders')

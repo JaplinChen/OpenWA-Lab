@@ -5,6 +5,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
+import { TranslationMemory, type Candidate } from './translate-memory';
 import { BOT_MARKER, DEFAULT_PROMPT_TEMPLATE, Pair, ZH_TO_VI, detectPair, buildPrompt, fixViCasing, sleep } from './translate-lang';
 import * as llm from './translate-llm-client';
 import { LlmProvider, LlmParams, LLM_PROVIDERS } from './translate-llm-client';
@@ -41,6 +42,8 @@ export class TranslateService implements OnModuleInit {
   // Manual @mention JID->name overrides applied to the body before translation.
   private senders!: SenderDirectory;
   private sendersPath = 'data/senders.json';
+  // Translation memory: logs every LLM translation as a future glossary candidate.
+  private memory!: TranslationMemory;
   // Author WIDs allowed to mutate the glossary via /glossary commands. Empty = anyone in the group.
   private adminIds = new Set<string>();
 
@@ -71,6 +74,9 @@ export class TranslateService implements OnModuleInit {
     this.senders = new SenderDirectory(this.sendersPath);
     const senderCount = this.senders.load();
     if (senderCount > 0) this.logger.log(`Senders loaded: ${senderCount} override(s) from ${this.sendersPath}`);
+
+    this.memory = new TranslationMemory();
+    this.memory.init();
 
     // Persisted runtime config takes precedence over .env; .env values seed the file on first run.
     this.loadConfig();
@@ -126,6 +132,23 @@ export class TranslateService implements OnModuleInit {
   // REST CRUD on the glossary/sender stores lives in the controller (boundary validation there).
   get glossaryStore(): Glossary { return this.glossary; }
   get senderStore(): SenderDirectory { return this.senders; }
+
+  /** Top translation-memory candidates to promote into the glossary. */
+  memoryCandidates(limit?: number): Promise<Candidate[]> {
+    return this.memory.candidates(limit);
+  }
+
+  /** Promote a candidate into the glossary (both directions handled by Glossary.add's orient). */
+  async approveMemoryCandidate(id: number): Promise<Candidate[]> {
+    const row = await this.memory.takeForApproval(id);
+    if (row) this.glossary.add(row.source, row.translated);
+    return this.memory.candidates();
+  }
+
+  async dismissMemoryCandidate(id: number): Promise<Candidate[]> {
+    await this.memory.dismiss(id);
+    return this.memory.candidates();
+  }
 
   private registerSentHook(): void {
     if (this.sentHookId) return;
@@ -295,9 +318,16 @@ export class TranslateService implements OnModuleInit {
   }
 
   private async translate(text: string, pair: Pair): Promise<string> {
-    // Resolve unknown @mention JIDs to names, then inject only the glossary terms that actually
-    // appear in this message (see Glossary.section).
+    // Resolve unknown @mention JIDs to names.
     const applied = this.senders.apply(text);
+
+    // Whole-message exact glossary hit (short conversational phrases like 明白/好/收到): answer
+    // directly and skip the LLM, which weak models otherwise reply to conversationally ("請提供
+    // 您需要翻譯的內容。"). Substring matches still go through the LLM via section() below.
+    const exact = this.glossary.exact(pair.key, applied);
+    if (exact) return pair.key === ZH_TO_VI.key ? fixViCasing(exact) : exact;
+
+    // Inject only the glossary terms that actually appear in this message (see Glossary.section).
     const prompt = buildPrompt(applied, pair, this.glossary.section(pair.key, applied), this.cfg.llmPromptTemplate);
 
     // Try the primary model, then each fallback in order — covers "model not loaded"/timeout on a
@@ -314,7 +344,11 @@ export class TranslateService implements OnModuleInit {
       }
       try {
         const out = await llm.callLlm(params, prompt);
-        return pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
+        const result = pair.key === ZH_TO_VI.key ? fixViCasing(out) : out;
+        // Log for later glossary curation (best-effort). Exact glossary hits returned above, so this
+        // only captures genuine LLM output — not terms already in the glossary.
+        this.memory.record(pair.key, applied, result);
+        return result;
       } catch (err) {
         lastErr = err;
         this.logger.warn(`Model "${entry}" failed, trying next fallback: ${String(err)}`);
