@@ -73,7 +73,7 @@
   },
   "llm": {
     "subtitle": "Cấu hình mô hình dịch tự động.",
-    "provider": "Engine",
+    "provider": "Giao thức",
     "endpoint": "Địa chỉ máy chủ",
     "model": "Mô hình",
     "apiKey": "API Key",
