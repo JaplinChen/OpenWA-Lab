@@ -137,7 +137,7 @@
   font-weight: 600;
 }
 .translate-page .llm-tab.active .llm-tab-name{
-  color: var(--primary-ink, inherit);
+  color: var(--primary-text, inherit);
 }
 .translate-page .llm-tab-sub{
   font-size: 0.72rem;
