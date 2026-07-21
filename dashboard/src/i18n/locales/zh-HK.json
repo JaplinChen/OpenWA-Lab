@@ -73,7 +73,7 @@
   },
   "llm": {
     "subtitle": "設定驅動自動翻譯的模型。",
-    "provider": "引擎類型",
+    "provider": "通訊協定",
     "endpoint": "伺服器位址",
     "model": "模型名稱",
     "apiKey": "API 金鑰",

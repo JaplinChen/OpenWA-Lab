@@ -73,7 +73,7 @@
   },
   "llm": {
     "subtitle": "配置驱动自动翻译的模型。",
-    "provider": "引擎类型",
+    "provider": "通信协议",
     "endpoint": "服务器地址",
     "model": "模型名称",
     "apiKey": "API 密钥",

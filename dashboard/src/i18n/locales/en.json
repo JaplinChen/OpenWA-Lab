@@ -73,7 +73,7 @@
   },
   "llm": {
     "subtitle": "Configure the model that powers auto-translation.",
-    "provider": "Engine",
+    "provider": "Protocol",
     "endpoint": "Server URL",
     "model": "Model",
     "apiKey": "API Key",
