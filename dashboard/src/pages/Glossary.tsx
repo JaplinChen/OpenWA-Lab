@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, BookMarked } from 'lucide-react';
-import { translateApi, type GlossaryTerm, type PendingGlossaryTerm } from '../services/api';
+import { translateApi, type GlossaryTerm, type PendingGlossaryTerm, type TranslationCandidate } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useRole } from '../hooks/useRole';
 import { useToast } from '../components/Toast';
 import { PageHeader } from '../components/PageHeader';
 import { EditableKeyValueTable } from '../components/EditableKeyValueTable';
 import { GlossaryPending } from './GlossaryPending';
+import { MemoryCandidates } from './MemoryCandidates';
 import '../components/EditableTable.css';
 
 export function Glossary() {
@@ -18,6 +19,7 @@ export function Glossary() {
 
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [pending, setPending] = useState<PendingGlossaryTerm[]>([]);
+  const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -32,10 +34,38 @@ export function Glossary() {
       .getPendingGlossary()
       .then(list => active && setPending(list))
       .catch(err => active && fail(err));
+    translateApi
+      .getMemoryCandidates()
+      .then(list => active && setCandidates(list))
+      .catch(err => active && fail(err));
     return () => {
       active = false;
     };
   }, []);
+
+  const approveCandidate = async (id: number) => {
+    setBusy(true);
+    try {
+      setCandidates(await translateApi.approveMemoryCandidate(id));
+      setTerms(await translateApi.getGlossary());
+      toast.success(t('glossary.candidateApproved'));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const dismissCandidate = async (id: number) => {
+    setBusy(true);
+    try {
+      setCandidates(await translateApi.dismissMemoryCandidate(id));
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const fail = (err: unknown) =>
     toast.error(t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }));
@@ -139,6 +169,14 @@ export function Glossary() {
         busy={busy}
         onApprove={approve}
         onReject={reject}
+      />
+
+      <MemoryCandidates
+        candidates={candidates}
+        canWrite={canWrite}
+        busy={busy}
+        onApprove={approveCandidate}
+        onDismiss={dismissCandidate}
       />
 
       {/* The glossary maps 中文 to Tiếng Việt, so the key/val labels name the languages themselves

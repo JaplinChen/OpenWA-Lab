@@ -911,7 +911,11 @@
     "reject": "Reject",
     "approved": "Suggestion approved",
     "rejected": "Suggestion rejected",
-    "suggestedBy": "Suggested by {{name}}"
+    "suggestedBy": "Suggested by {{name}}",
+    "candidatesTitle": "Translation candidates",
+    "seenCount": "Seen {{count}}×",
+    "dismiss": "Dismiss",
+    "candidateApproved": "Added to glossary"
   },
   "keyproxy": {
     "title": "LLM Keys",

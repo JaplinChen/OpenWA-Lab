@@ -911,7 +911,11 @@
     "reject": "拒絕",
     "approved": "已核准建議",
     "rejected": "已拒絕建議",
-    "suggestedBy": "由 {{name}} 建議"
+    "suggestedBy": "由 {{name}} 建議",
+    "candidatesTitle": "翻譯候選",
+    "seenCount": "出現 {{count}} 次",
+    "dismiss": "忽略",
+    "candidateApproved": "已加入詞彙表"
   },
   "keyproxy": {
     "title": "LLM 金鑰",

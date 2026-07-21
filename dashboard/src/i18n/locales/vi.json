@@ -911,7 +911,11 @@
     "reject": "Từ chối",
     "approved": "Đã duyệt đề xuất",
     "rejected": "Đã từ chối đề xuất",
-    "suggestedBy": "Đề xuất bởi {{name}}"
+    "suggestedBy": "Đề xuất bởi {{name}}",
+    "candidatesTitle": "Ứng viên dịch",
+    "seenCount": "Xuất hiện {{count}} lần",
+    "dismiss": "Bỏ qua",
+    "candidateApproved": "Đã thêm vào từ điển"
   },
   "keyproxy": {
     "title": "Khóa LLM",
