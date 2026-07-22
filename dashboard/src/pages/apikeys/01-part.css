@@ -52,12 +52,15 @@
 
 .api-keys-page .keys-table{
   width: 100%;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   border-collapse: collapse;
+  /* Fixed layout so TanStack column sizes (incl. drag-resized) render exactly. */
+  table-layout: fixed;
 }
 
 /* Table header and row styling */
 .api-keys-page .keys-table thead tr.table-row.header th{
+  position: relative;
   background: var(--bg-light);
   font-size: 0.7rem;
   font-weight: 700;
@@ -65,14 +68,42 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 1px solid var(--border);
-  padding: 1.125rem 1.5rem;
+  border-right: 1px solid var(--border);
+  padding: 0.85rem 1.25rem;
   text-align: left;
 }
 
 .api-keys-page .keys-table tbody tr.table-row td{
-  padding: 1.125rem 1.5rem;
+  padding: 0.85rem 1.25rem;
   border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
   vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-keys-page .keys-table th:last-child,
+.api-keys-page .keys-table td:last-child{
+  border-right: none;
+}
+
+/* Column resize handle pinned to each header cell's right edge. */
+.api-keys-page .keys-table .keys-col-resize{
+  position: absolute;
+  top: 0;
+  right: -0.5px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  border-right: 2px solid transparent;
+  touch-action: none;
+  user-select: none;
+}
+
+.api-keys-page .keys-table .keys-col-resize:hover,
+.api-keys-page .keys-table .keys-col-resize.is-resizing{
+  border-right-color: var(--text-secondary);
 }
 
 .api-keys-page .keys-table tbody tr.table-row:last-child td{
