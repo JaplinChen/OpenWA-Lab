@@ -248,7 +248,7 @@ export function Glossary() {
       {tab === 'phrases' && (
         <>
           <section className="etable-panel">
-            <h3 className="etable-panel-title">{t('glossary.phrasesTitle')}</h3>
+            {/* No panel title: the glossary tab bar already shows this count. */}
             <p className="etable-empty">{t('glossary.phrasesHint')}</p>
             {canWrite && (
               <button className="etable-add" onClick={scanPhrases} disabled={scanning}>

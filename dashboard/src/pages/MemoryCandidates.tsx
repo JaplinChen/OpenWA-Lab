@@ -15,10 +15,7 @@ export function MemoryCandidates({ candidates, canWrite, busy, onApprove, onDism
   if (candidates.length === 0) return null;
   return (
     <section className="etable-panel etable-panel--pending">
-      <h3 className="etable-panel-title">
-        {t('glossary.candidatesTitle')}
-        <span className="etable-count">{candidates.length}</span>
-      </h3>
+      {/* No panel title: the glossary tab bar already shows this count. */}
       <div className="etable-list">
         {candidates.map(c => (
           <div key={c.id} className="etable-item etable-item--pending">
