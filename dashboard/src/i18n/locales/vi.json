@@ -58,7 +58,8 @@
     "unknownError": "Lỗi không xác định",
     "retry": "Thử lại",
     "failed": "Thất bại: {{message}}",
-    "saved": "Đã lưu"
+    "saved": "Đã lưu",
+    "all": "Tất cả"
   },
   "theme": {
     "light": "Sáng",

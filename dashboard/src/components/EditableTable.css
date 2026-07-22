@@ -161,6 +161,20 @@
 .etable-page .etable-search {
   position: relative;
   margin-top: 0.5rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+/* The search box grows; the category filter keeps a fixed width beside it. */
+.etable-page .etable-search input {
+  flex: 1;
+  min-width: 0;
+}
+
+.etable-page .etable-cat-filter {
+  flex: 0 0 auto;
+  height: 100%;
 }
 
 .etable-page .etable-search-icon {

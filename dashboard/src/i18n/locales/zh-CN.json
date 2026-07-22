@@ -58,7 +58,8 @@
     "unknownError": "未知错误",
     "retry": "重试",
     "failed": "失败：{{message}}",
-    "saved": "已保存"
+    "saved": "已保存",
+    "all": "全部"
   },
   "theme": {
     "light": "浅色",

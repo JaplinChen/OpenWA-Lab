@@ -58,7 +58,8 @@
     "unknownError": "Unknown error",
     "retry": "Retry",
     "failed": "Failed: {{message}}",
-    "saved": "Saved"
+    "saved": "Saved",
+    "all": "All"
   },
   "theme": {
     "light": "Light",

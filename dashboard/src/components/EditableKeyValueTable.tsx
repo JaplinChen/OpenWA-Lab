@@ -81,9 +81,15 @@ export function EditableKeyValueTable<T>({
     />
   );
 
+  // Category filter sits before search/sort: narrow the row set, then the hook searches+sorts+pages it.
+  // '__all__' is the no-filter sentinel so an empty-string option can still mean the "未設" bucket.
+  const [catFilter, setCatFilter] = useState('__all__');
+  const catRows =
+    hasCat && catFilter !== '__all__' ? rows.filter(r => rowCategory!(r) === catFilter) : rows;
+
   const { filter, setFilter, filtered, toggleSort, sortMark, current, totalPages, paged, setPage } =
     useSortableTable<T, TableSortKey>({
-      rows,
+      rows: catRows,
       initialKey: initialSortKey,
       descFirstKeys: ['count'],
       searchText: r => `${rowKey(r)}\n${rowVal(r)}`,
@@ -194,6 +200,21 @@ export function EditableKeyValueTable<T>({
           value={filter}
           onChange={e => setFilter(e.target.value)}
         />
+        {hasCat && (
+          <select
+            className="etable-cat-select etable-cat-filter"
+            aria-label={categoryLabel}
+            value={catFilter}
+            onChange={e => setCatFilter(e.target.value)}
+          >
+            <option value="__all__">{t('common.all')}</option>
+            {categoryOptions!.map(o => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {filtered.length > 0 && (
