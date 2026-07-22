@@ -133,6 +133,12 @@
 .infrastructure-page .radio-option small{
   font-size: 0.75rem;
   color: var(--text-secondary);
+  /* The card clips overflow for the watermark icon; let long library names
+     (e.g. @whiskeysockets/baileys 7.0.0-rc13) wrap instead of being cut off. */
+  overflow-wrap: anywhere;
+  /* Keep text clear of the bottom-right watermark. */
+  position: relative;
+  z-index: 1;
 }
 
 /* Watermark Icon */

@@ -81,10 +81,9 @@ export function TranslatePrompt() {
       <div className="translate-content translate-content--single">
         <section className="translate-panel">
           <div className="form-group">
-            <label htmlFor={promptFieldId}>{t('llm.promptTemplate')}</label>
-            <span className="llm-hint">{t('llm.promptHint')}</span>
             <textarea
               id={promptFieldId}
+              aria-label={t('llm.promptTemplate')}
               rows={12}
               value={prompt}
               disabled={!canWrite}

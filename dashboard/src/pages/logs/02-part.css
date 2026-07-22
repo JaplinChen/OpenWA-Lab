@@ -51,6 +51,7 @@
 
   .logs-page .logs-table{
     display: block;
+    min-width: 0;
   }
 
   .logs-page .logs-table .table-row.header{

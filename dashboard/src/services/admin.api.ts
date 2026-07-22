@@ -347,7 +347,10 @@ export const translateApi = {
     request<GlossaryTerm[]>(`/translate/glossary?term=${encodeURIComponent(term)}`, {
       method: 'DELETE',
     }),
-  getMemoryCandidates: () => request<TranslationCandidate[]>('/translate/memory/candidates'),
+  getMemoryCandidates: (limit = 20, offset = 0) =>
+    request<{ items: TranslationCandidate[]; total: number }>(
+      `/translate/memory/candidates?limit=${limit}&offset=${offset}`,
+    ),
   approveMemoryCandidate: (id: number) =>
     request<TranslationCandidate[]>(`/translate/memory/${id}/approve`, { method: 'POST' }),
   dismissMemoryCandidate: (id: number) =>

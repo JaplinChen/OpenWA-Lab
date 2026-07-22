@@ -149,4 +149,7 @@
   align-items: center;
   margin-top: 0.5rem;
 }
-.translate-page .translate-preview-actions select{ flex: 0 0 auto; }
+.translate-page .translate-preview-actions select{ flex: 1 1 auto; min-width: 0; }
+/* Keep the run button at its natural width so a short CJK label (翻譯) never
+   collapses and wraps vertically. */
+.translate-page .translate-preview-actions .btn-primary{ flex: 0 0 auto; white-space: nowrap; }

@@ -110,6 +110,9 @@
   display: flex;
   flex-direction: column;
   width: 100%;
+  /* Force the grid rows wider than the container so .logs-table-container's
+     overflow-x:auto actually scrolls instead of clipping the last column. */
+  min-width: 1180px;
   font-size: 0.875rem;
 }
 

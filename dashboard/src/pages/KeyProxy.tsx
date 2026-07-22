@@ -152,6 +152,7 @@ export function KeyProxy() {
             <span>{t('keyproxy.empty')}</span>
           </div>
         ) : (
+          <div className="keyproxy-table-scroll">
           <table className="keyproxy-table" ref={tableRef as React.RefObject<HTMLTableElement>}>
             <colgroup>
               <col style={{ width: 'var(--col-provider, 8rem)' }} />
@@ -201,6 +202,7 @@ export function KeyProxy() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
     </div>

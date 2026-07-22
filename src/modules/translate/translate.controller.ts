@@ -158,8 +158,14 @@ export class TranslateController {
   @RequireRole(ApiKeyRole.ADMIN)
   @ApiOperation({ summary: 'Top translation-memory candidates to promote into the glossary' })
   @ApiResponse({ status: 200, description: 'Candidates ordered by frequency' })
-  getMemoryCandidates(@Query('limit') limit?: string): Promise<Candidate[]> {
-    return this.translateService.memoryCandidates(limit ? Number(limit) : undefined);
+  getMemoryCandidates(
+    @Query('limit') limit?: string,
+    @Query('offset') offset?: string,
+  ): Promise<{ items: Candidate[]; total: number }> {
+    return this.translateService.memoryCandidates(
+      limit ? Number(limit) : undefined,
+      offset ? Number(offset) : undefined,
+    );
   }
 
   @Post('memory/:id/approve')

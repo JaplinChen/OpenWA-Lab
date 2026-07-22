@@ -97,15 +97,27 @@ export class TranslationMemory {
     });
   }
 
+  /** Count of unreviewed candidates, for paginating the approval view. */
+  candidatesCount(): Promise<number> {
+    return new Promise(resolve => {
+      if (!this.db) return resolve(0);
+      this.db.get(
+        `SELECT COUNT(*) AS n FROM translation_memory WHERE status = 'new'`,
+        [],
+        (err, row) => resolve(err || !row ? 0 : Number((row as { n?: number }).n) || 0),
+      );
+    });
+  }
+
   /** Top unreviewed candidates by frequency, for the approval view. */
-  candidates(limit = 50): Promise<Candidate[]> {
+  candidates(limit = 50, offset = 0): Promise<Candidate[]> {
     return new Promise(resolve => {
       if (!this.db) return resolve([]);
       this.db.all(
         `SELECT id, pair_key, source, translated, count, updated_at
            FROM translation_memory WHERE status = 'new'
-           ORDER BY count DESC, updated_at DESC LIMIT ?`,
-        [Math.max(1, Math.min(500, limit))],
+           ORDER BY count DESC, updated_at DESC LIMIT ? OFFSET ?`,
+        [Math.max(1, Math.min(500, limit)), Math.max(0, offset)],
         (err, rows) => {
           if (err || !rows) return resolve([]);
           resolve(
