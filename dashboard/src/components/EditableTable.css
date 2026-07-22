@@ -357,7 +357,9 @@
 .etable-page .etable-resize-handle {
   position: absolute;
   top: 50%;
-  right: -0.5rem;
+  /* Align with the rows' column dividers, which sit at the cell's right edge (border-right on
+     .etable-src/.etable-tgt/.etable-usage/.etable-cat) rather than out in the gap. */
+  right: 0;
   transform: translateY(-50%);
   width: 8px;
   height: 1.1rem;

@@ -35,6 +35,8 @@ interface Props<T> {
   categoryLabel?: string;
   categoryOptions?: { value: string; label: string }[];
   rowCategory?: (row: T) => string;
+  // The glossary tab bar already shows the title + count, so the panel header would just repeat it.
+  hideTitle?: boolean;
 }
 
 export function EditableKeyValueTable<T>({
@@ -62,6 +64,7 @@ export function EditableKeyValueTable<T>({
   categoryLabel,
   categoryOptions,
   rowCategory,
+  hideTitle,
 }: Props<T>) {
   const { t } = useTranslation();
   const { ref: panelRef, startResize } = useResizableCol(resizeStorageKey);
@@ -133,12 +136,14 @@ export function EditableKeyValueTable<T>({
 
   return (
     <section className="etable-panel" ref={panelRef as React.RefObject<HTMLElement>}>
-      <div className="etable-head">
-        <h3 className="etable-panel-title">
-          {titleLabel}
-          <span className="etable-count">{rows.length}</span>
-        </h3>
-      </div>
+      {!hideTitle && (
+        <div className="etable-head">
+          <h3 className="etable-panel-title">
+            {titleLabel}
+            <span className="etable-count">{rows.length}</span>
+          </h3>
+        </div>
+      )}
 
       {canWrite && (
         <div className="etable-add">

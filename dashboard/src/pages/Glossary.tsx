@@ -283,6 +283,7 @@ export function Glossary() {
           <EditableKeyValueTable
             rows={terms}
             titleLabel={t('glossary.terms')}
+            hideTitle
             keyLabel="中文"
             valLabel="Tiếng Việt"
             addLabel={t('glossary.add')}
