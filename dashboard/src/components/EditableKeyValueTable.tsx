@@ -27,9 +27,14 @@ interface Props<T> {
   compareKey: (a: T, b: T) => number;
   compareVal: (a: T, b: T) => number;
   tieBreak: (a: T, b: T) => number;
-  onAdd: (key: string, val: string) => Promise<boolean>;
-  onSaveEdit: (originalKey: string, key: string, val: string) => Promise<boolean>;
+  onAdd: (key: string, val: string, category?: string) => Promise<boolean>;
+  onSaveEdit: (originalKey: string, key: string, val: string, category?: string) => Promise<boolean>;
   onRemove: (key: string) => void;
+  // Optional category column: pass these to render a per-row category select (glossary uses it;
+  // other tables like senders omit them and the column is hidden entirely).
+  categoryLabel?: string;
+  categoryOptions?: { value: string; label: string }[];
+  rowCategory?: (row: T) => string;
 }
 
 export function EditableKeyValueTable<T>({
@@ -54,9 +59,14 @@ export function EditableKeyValueTable<T>({
   onAdd,
   onSaveEdit,
   onRemove,
+  categoryLabel,
+  categoryOptions,
+  rowCategory,
 }: Props<T>) {
   const { t } = useTranslation();
   const { ref: panelRef, onResizeStart } = useResizableCol(resizeStorageKey);
+  const hasCat = !!categoryOptions && !!rowCategory;
+  const catLabelOf = (v: string) => categoryOptions?.find(o => o.value === v)?.label ?? v;
 
   const { filter, setFilter, filtered, toggleSort, sortMark, current, totalPages, paged, setPage } =
     useSortableTable<T, TableSortKey>({
@@ -71,19 +81,22 @@ export function EditableKeyValueTable<T>({
 
   const [keyInput, setKeyInput] = useState('');
   const [valInput, setValInput] = useState('');
+  const [catInput, setCatInput] = useState('');
   // The key column is the record's key, so the row being edited is tracked by its original key;
   // renaming one has to drop the old key, which `editing` still holds.
   const [editing, setEditing] = useState<string | null>(null);
   const [editKey, setEditKey] = useState('');
   const [editVal, setEditVal] = useState('');
+  const [editCat, setEditCat] = useState('');
 
   const add = async () => {
     const k = keyInput.trim();
     const v = valInput.trim();
     if (!k || !v) return;
-    if (await onAdd(k, v)) {
+    if (await onAdd(k, v, hasCat ? catInput : undefined)) {
       setKeyInput('');
       setValInput('');
+      setCatInput('');
     }
   };
 
@@ -91,6 +104,7 @@ export function EditableKeyValueTable<T>({
     setEditing(rowKey(row));
     setEditKey(rowKey(row));
     setEditVal(rowVal(row));
+    setEditCat(hasCat ? rowCategory!(row) : '');
   };
 
   const cancelEdit = () => setEditing(null);
@@ -99,11 +113,12 @@ export function EditableKeyValueTable<T>({
     const k = editKey.trim();
     const v = editVal.trim();
     if (!k || !v) return;
-    if (k === rowKey(row) && v === rowVal(row)) {
+    const catChanged = hasCat && editCat !== rowCategory!(row);
+    if (k === rowKey(row) && v === rowVal(row) && !catChanged) {
       setEditing(null);
       return;
     }
-    if (await onSaveEdit(rowKey(row), k, v)) setEditing(null);
+    if (await onSaveEdit(rowKey(row), k, v, hasCat ? editCat : undefined)) setEditing(null);
   };
 
   return (
@@ -134,6 +149,20 @@ export function EditableKeyValueTable<T>({
             onChange={e => setValInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && add()}
           />
+          {hasCat && (
+            <select
+              className="etable-cat-select"
+              aria-label={categoryLabel}
+              value={catInput}
+              onChange={e => setCatInput(e.target.value)}
+            >
+              {categoryOptions!.map(o => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          )}
           <button className="btn-primary" onClick={add} disabled={busy || !keyInput.trim() || !valInput.trim()}>
             <Plus size={16} />
             {addLabel}
@@ -153,7 +182,7 @@ export function EditableKeyValueTable<T>({
       </div>
 
       {filtered.length > 0 && (
-        <div className="etable-cols">
+        <div className={`etable-cols${hasCat ? ' etable-cols--cat' : ''}`}>
           <button className="etable-col-sort" onClick={() => toggleSort('key')}>
             {keyLabel}{sortMark('key')}
           </button>
@@ -164,6 +193,7 @@ export function EditableKeyValueTable<T>({
           <button className="etable-col-sort etable-col-sort--num" onClick={() => toggleSort('count')}>
             {t('common.usageCount')}{sortMark('count')}
           </button>
+          {hasCat && <span className="etable-col-label">{categoryLabel}</span>}
           {canWrite && <span className="etable-col-label">{t('common.actions')}</span>}
         </div>
       )}
@@ -176,7 +206,7 @@ export function EditableKeyValueTable<T>({
         ) : (
           paged.map(row =>
             editing === rowKey(row) ? (
-              <div key={rowKey(row)} className="etable-item etable-item--editing">
+              <div key={rowKey(row)} className={`etable-item etable-item--editing${hasCat ? ' etable-item--cat' : ''}`}>
                 <input
                   className="etable-edit"
                   value={editKey}
@@ -199,6 +229,21 @@ export function EditableKeyValueTable<T>({
                     if (e.key === 'Escape') cancelEdit();
                   }}
                 />
+                {hasCat && <span className="etable-usage" aria-hidden="true" />}
+                {hasCat && (
+                  <select
+                    className="etable-cat-select"
+                    aria-label={categoryLabel}
+                    value={editCat}
+                    onChange={e => setEditCat(e.target.value)}
+                  >
+                    {categoryOptions!.map(o => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div className="etable-row-actions">
                   <button
                     className="etable-del"
@@ -214,11 +259,12 @@ export function EditableKeyValueTable<T>({
                 </div>
               </div>
             ) : (
-              <div key={rowKey(row)} className="etable-item">
+              <div key={rowKey(row)} className={`etable-item${hasCat ? ' etable-item--cat' : ''}`}>
                 <span className="etable-src">{renderKey(row)}</span>
                 <span className="etable-arrow">→</span>
                 <span className="etable-tgt">{rowVal(row)}</span>
                 <span className="etable-usage" title={t('common.usageCount')}>{rowCount(row)}</span>
+                {hasCat && <span className="etable-cat">{catLabelOf(rowCategory!(row))}</span>}
                 {canWrite && (
                   <div className="etable-row-actions">
                     <button

@@ -112,10 +112,10 @@ export function Glossary() {
   const fail = (err: unknown) =>
     toast.error(t('common.failed', { message: err instanceof Error ? err.message : 'unknown' }));
 
-  const add = async (zh: string, vi: string) => {
+  const add = async (zh: string, vi: string, category?: string) => {
     setBusy(true);
     try {
-      setTerms(await translateApi.addGlossaryTerm(zh, vi));
+      setTerms(await translateApi.addGlossaryTerm(zh, vi, category));
       toast.success(t('glossary.added'));
       return true;
     } catch (err) {
@@ -137,12 +137,12 @@ export function Glossary() {
     }
   };
 
-  const saveEdit = async (original: string, zh: string, vi: string) => {
+  const saveEdit = async (original: string, zh: string, vi: string, category?: string) => {
     setBusy(true);
     try {
       // POST upserts on the source key, so an unchanged source is a plain overwrite. A changed
       // one writes a new record, which leaves the old key behind until it is removed.
-      let list = await translateApi.addGlossaryTerm(zh, vi);
+      let list = await translateApi.addGlossaryTerm(zh, vi, category);
       if (zh !== original) list = await translateApi.removeGlossaryTerm(original);
       setTerms(list);
       toast.success(t('common.saved'));
@@ -298,6 +298,17 @@ export function Glossary() {
             compareKey={(a, b) => a.source.localeCompare(b.source)}
             compareVal={(a, b) => a.target.localeCompare(b.target)}
             tieBreak={(a, b) => a.source.localeCompare(b.source)}
+            categoryLabel={t('glossary.category.label')}
+            categoryOptions={[
+              { value: '', label: t('glossary.category.unset') },
+              { value: 'name', label: t('glossary.category.name') },
+              { value: 'dept', label: t('glossary.category.dept') },
+              { value: 'term', label: t('glossary.category.term') },
+              { value: 'asset', label: t('glossary.category.asset') },
+              { value: 'phrase', label: t('glossary.category.phrase') },
+              { value: 'other', label: t('glossary.category.other') },
+            ]}
+            rowCategory={g => g.category ?? ''}
             onAdd={add}
             onSaveEdit={saveEdit}
             onRemove={remove}

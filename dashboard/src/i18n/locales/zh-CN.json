@@ -918,7 +918,17 @@
     "candidateApproved": "已加入词汇表",
     "phrasesTitle": "高频词",
     "phrasesHint": "扫描翻译记录，找出常用但词汇表尚未收录的词，并由 AI 建议越南文译法。核准即可加入。",
-    "phrasesScan": "立即扫描"
+    "phrasesScan": "立即扫描",
+    "category": {
+      "label": "类别",
+      "unset": "—",
+      "name": "人名",
+      "dept": "部门",
+      "term": "术语",
+      "asset": "资产",
+      "phrase": "对话",
+      "other": "其他"
+    }
   },
   "keyproxy": {
     "title": "LLM 密钥",

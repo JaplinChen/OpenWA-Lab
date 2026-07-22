@@ -918,7 +918,17 @@
     "candidateApproved": "Added to glossary",
     "phrasesTitle": "High-frequency words",
     "phrasesHint": "Scan translation history for frequently-used words not yet in the glossary, with AI-suggested Vietnamese. Approve to add.",
-    "phrasesScan": "Scan now"
+    "phrasesScan": "Scan now",
+    "category": {
+      "label": "Category",
+      "unset": "—",
+      "name": "Person",
+      "dept": "Department",
+      "term": "Term",
+      "asset": "Asset",
+      "phrase": "Phrase",
+      "other": "Other"
+    }
   },
   "keyproxy": {
     "title": "LLM Keys",

@@ -918,7 +918,17 @@
     "candidateApproved": "Đã thêm vào từ điển",
     "phrasesTitle": "Từ tần suất cao",
     "phrasesHint": "Quét lịch sử dịch để tìm các từ thường dùng chưa có trong từ điển, kèm gợi ý tiếng Việt từ AI. Duyệt để thêm vào.",
-    "phrasesScan": "Quét ngay"
+    "phrasesScan": "Quét ngay",
+    "category": {
+      "label": "Phân loại",
+      "unset": "—",
+      "name": "Tên người",
+      "dept": "Bộ phận",
+      "term": "Thuật ngữ",
+      "asset": "Tài sản",
+      "phrase": "Câu thoại",
+      "other": "Khác"
+    }
   },
   "keyproxy": {
     "title": "Khóa LLM",

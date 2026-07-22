@@ -209,6 +209,27 @@
   background: var(--bg-light);
 }
 
+/* Optional category column (glossary): inserts a column between usage and row actions. Doubled
+   class raises specificity so it wins over the base .etable-item/.etable-cols grid defined later. */
+.etable-page .etable-item.etable-item--cat,
+.etable-page .etable-cols.etable-cols--cat {
+  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto auto;
+}
+
+.etable-page .etable-cat {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.etable-page .etable-cat-select {
+  padding: 0.35rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-light);
+  color: var(--text-primary);
+}
+
 .etable-page .etable-src {
   text-align: left;
   color: var(--text-primary);

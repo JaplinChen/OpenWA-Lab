@@ -187,6 +187,7 @@ export interface GlossaryTerm {
   source: string; // 中文
   target: string; // 越南文
   count?: number; // 翻譯時實際套用次數
+  category?: string; // 類別標籤（name/dept/term/asset/phrase/other）
 }
 
 export interface PendingGlossaryTerm {
@@ -337,10 +338,10 @@ export const translateApi = {
       body: JSON.stringify({ text, ...(provider ? { provider } : {}) }),
     }),
   getGlossary: () => request<GlossaryTerm[]>('/translate/glossary'),
-  addGlossaryTerm: (zh: string, vi: string) =>
+  addGlossaryTerm: (zh: string, vi: string, category?: string) =>
     request<GlossaryTerm[]>('/translate/glossary', {
       method: 'POST',
-      body: JSON.stringify({ zh, vi }),
+      body: JSON.stringify({ zh, vi, ...(category !== undefined ? { category } : {}) }),
     }),
   removeGlossaryTerm: (term: string) =>
     request<GlossaryTerm[]>(`/translate/glossary?term=${encodeURIComponent(term)}`, {
