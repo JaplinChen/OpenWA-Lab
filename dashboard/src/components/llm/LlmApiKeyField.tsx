@@ -5,6 +5,7 @@ import type { ProviderMeta } from './providerMeta';
 
 interface Props {
   meta: ProviderMeta;
+  apiKeyUrl?: string;
   apiKey: string;
   keySet?: boolean;
   canWrite: boolean;
@@ -18,6 +19,7 @@ interface Props {
 
 export function LlmApiKeyField({
   meta,
+  apiKeyUrl = meta.apiKeyUrl,
   apiKey,
   keySet,
   canWrite,
@@ -35,8 +37,8 @@ export function LlmApiKeyField({
     <div className="form-group">
       <div className="llm-label-row">
         <label htmlFor={apiKeyFieldId}>{t('llm.apiKey')}</label>
-        {meta.apiKeyUrl && (
-          <a className="llm-apply-link" href={meta.apiKeyUrl} target="_blank" rel="noreferrer">
+        {apiKeyUrl && (
+          <a className="llm-apply-link" href={apiKeyUrl} target="_blank" rel="noreferrer">
             <ExternalLink size={14} />
             {t('llm.apiKeyApply')}
           </a>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, KeyRound, Trash2, Plus } from 'lucide-react';
+import { Loader2, KeyRound, Trash2, Plus, ExternalLink } from 'lucide-react';
 import { keyProxyApi, type KeyStatus } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useResizableCol } from '../hooks/useResizableCol';
@@ -11,6 +11,16 @@ import './KeyProxy.css';
 
 // Providers the llm-key-proxy supports that make sense for free-tier rotation here.
 const PROVIDERS = ['gemini', 'groq', 'openai', 'anthropic', 'mistral', 'openrouter', 'nvidia_nim'];
+
+const APPLY_URLS: Record<string, string> = {
+  gemini: 'https://aistudio.google.com/apikey',
+  groq: 'https://console.groq.com/keys',
+  openai: 'https://platform.openai.com/api-keys',
+  anthropic: 'https://console.anthropic.com/settings/keys',
+  mistral: 'https://console.mistral.ai/api-keys',
+  openrouter: 'https://openrouter.ai/keys',
+  nvidia_nim: 'https://build.nvidia.com/settings/api-keys',
+};
 
 export function KeyProxy() {
   const { t } = useTranslation();
@@ -101,6 +111,12 @@ export function KeyProxy() {
               </option>
             ))}
           </select>
+          {APPLY_URLS[provider] && (
+            <a className="keyproxy-apply" href={APPLY_URLS[provider]} target="_blank" rel="noreferrer">
+              <ExternalLink size={14} />
+              {t('llm.apiKeyApply')}
+            </a>
+          )}
           <input
             className="keyproxy-input"
             type="password"

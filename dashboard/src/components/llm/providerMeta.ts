@@ -18,6 +18,14 @@ export const PROVIDERS: { value: LlmProvider; meta: ProviderMeta }[] = [
 
 export const metaOf = (p: LlmProvider): ProviderMeta => PROVIDERS.find(x => x.value === p)!.meta;
 
+// The proxy routes "<provider>/<model>" (e.g. "gemini/flash"); the apply-key link should follow the
+// model's real provider, not the OpenAI-compatible transport provider.
+export function apiKeyUrlForModel(fallback: ProviderMeta, model: string): string | undefined {
+  const slash = model.indexOf('/');
+  const prefix = slash > 0 ? model.slice(0, slash) : '';
+  return PROVIDERS.find(p => p.value === prefix)?.meta.apiKeyUrl ?? fallback.apiKeyUrl;
+}
+
 // One tab's provider config. provider '' means the (fallback) tab is unset — skipped on save.
 // fallbackModels are extra models of THIS provider, tried after `model` before moving to the next tab.
 export interface ProviderConfig {

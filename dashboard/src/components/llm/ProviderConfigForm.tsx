@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Check, AlertTriangle, Plug, Plus, Trash2 } from 'lucide-react';
 import { translateApi, type LlmProvider } from '../../services/api';
 import { useToast } from '../Toast';
-import { PROVIDERS, metaOf, type ProviderConfig } from './providerMeta';
+import { PROVIDERS, metaOf, apiKeyUrlForModel, type ProviderConfig } from './providerMeta';
 import { LlmModelField } from './LlmModelField';
 import { LlmApiKeyField } from './LlmApiKeyField';
 
@@ -171,6 +171,7 @@ export function ProviderConfigForm({ value, keySet, canWrite, allowNone, exclude
       {meta.needsKey && (
         <LlmApiKeyField
           meta={meta}
+          apiKeyUrl={apiKeyUrlForModel(meta, value.model)}
           apiKey={value.apiKey}
           keySet={keySet}
           canWrite={canWrite}
