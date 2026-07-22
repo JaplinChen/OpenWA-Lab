@@ -48,19 +48,46 @@
 .keyproxy-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.9375rem;
+  /* Fixed layout so per-column <col> widths (incl. drag-resized ones) are honored exactly. */
+  table-layout: fixed;
+  font-size: 0.8125rem;
 }
 
 .keyproxy-table th,
 .keyproxy-table td {
   text-align: left;
-  padding: 0.6rem 0.75rem;
+  padding: 0.45rem 0.75rem;
   border-bottom: 1px solid var(--border);
+  /* Column divider + clip overflow so a long value doesn't blow out its fixed column. */
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.keyproxy-table th:last-child,
+.keyproxy-table td:last-child {
+  border-right: none;
 }
 
 .keyproxy-table th {
+  position: relative;
   color: var(--text-secondary);
   font-weight: 600;
+}
+
+.kp-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -0.5px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+  border-right: 2px solid transparent;
+}
+
+.kp-resize-handle:hover {
+  border-right-color: var(--text-secondary);
 }
 
 .keyproxy-num {

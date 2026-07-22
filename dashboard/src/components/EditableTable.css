@@ -195,14 +195,17 @@
 
 .etable-page .etable-item {
   display: grid;
-  /* src / arrow / tgt / usage badge / row actions — empty auto columns collapse in edit mode.
-     --col-src is set by useResizableCol when the user drags the header divider. */
-  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto;
+  /* key / arrow / val / usage badge / row actions — empty auto columns collapse in edit mode.
+     --col-* are set per-column by useResizableCol when the user drags a header handle. */
+  /* Only key/val are flexible (fr); every other column is a fixed width so the header and rows
+     resolve the fr columns identically and stay aligned (auto columns would differ in content width). */
+  grid-template-columns: var(--col-key, 1.6fr) 1.25rem var(--col-val, 2fr) var(--col-count, 3.5rem) 3.75rem;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.5rem 0.75rem;
+  padding: 0.4rem 0.75rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  font-size: 0.8125rem;
 }
 
 .etable-page .etable-item:hover {
@@ -213,7 +216,7 @@
    class raises specificity so it wins over the base .etable-item/.etable-cols grid defined later. */
 .etable-page .etable-item.etable-item--cat,
 .etable-page .etable-cols.etable-cols--cat {
-  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto auto;
+  grid-template-columns: var(--col-key, 1.6fr) 1.25rem var(--col-val, 2fr) var(--col-count, 3.5rem) var(--col-cat, 5rem) 3.75rem;
 }
 
 .etable-page .etable-cat {
@@ -326,22 +329,53 @@
 /* Header row mirrors the item grid so its labels sit over the columns they sort. */
 .etable-page .etable-cols {
   display: grid;
-  grid-template-columns: var(--col-src, 1fr) auto 1fr auto auto;
+  grid-template-columns: var(--col-key, 1.6fr) 1.25rem var(--col-val, 2fr) var(--col-count, 3.5rem) 3.75rem;
   align-items: center;
   gap: 0.75rem;
   padding: 0.35rem 0.75rem;
   margin-top: 0.75rem;
   border-bottom: 1px solid var(--border);
+  /* Match the rows' 1px side borders so the fr columns resolve to the exact same widths. */
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
 }
 
-/* Sits where the rows' arrow sits, so it keeps the header's target column aligned; the invisible
-   arrow glyph reserves the same width while the cell doubles as the column-resize handle. */
+/* Reserves the same width as the rows' arrow glyph so the header's val column stays aligned. */
 .etable-page .etable-col-resize {
   color: transparent;
   font-size: 1.1rem;
-  cursor: col-resize;
   user-select: none;
   padding: 0 0.25rem;
+}
+
+/* Per-column drag handle pinned to the right edge of each resizable header cell. */
+.etable-page .etable-col-sort,
+.etable-page .etable-col-label {
+  position: relative;
+}
+
+.etable-page .etable-resize-handle {
+  position: absolute;
+  top: 50%;
+  right: -0.5rem;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 1.1rem;
+  cursor: col-resize;
+  border-right: 2px solid var(--border);
+}
+
+.etable-page .etable-resize-handle:hover {
+  border-right-color: var(--text-secondary);
+}
+
+/* Column dividers between data cells (header + rows). */
+.etable-page .etable-src,
+.etable-page .etable-tgt,
+.etable-page .etable-usage,
+.etable-page .etable-cat {
+  border-right: 1px solid var(--border);
+  padding-right: 0.75rem;
 }
 
 .etable-page .etable-col-sort {

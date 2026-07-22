@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useReactTable, getCoreRowModel, flexRender, type VisibilityState } from '@tanstack/react-table';
+import {
+  useReactTable,
+  getCoreRowModel,
+  flexRender,
+  type VisibilityState,
+  type ColumnSizingState,
+} from '@tanstack/react-table';
 import { Plus, KeyRound, AlertCircle } from 'lucide-react';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
 import { useWindowSize } from '../hooks/useWindowSize';
@@ -30,10 +36,21 @@ export function ApiKeys() {
   const isMobile = windowWidth < 768;
   const isSmall = windowWidth < 640;
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('apikeys-col-sizing') || '{}') as ColumnSizingState;
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     setColumnVisibility({ key: !isSmall, lastUsed: !isMobile });
   }, [isMobile, isSmall]);
+
+  useEffect(() => {
+    localStorage.setItem('apikeys-col-sizing', JSON.stringify(columnSizing));
+  }, [columnSizing]);
 
   const handleCreate = async () => {
     if (!newKey.name) return;
@@ -90,8 +107,11 @@ export function ApiKeys() {
   const table = useReactTable({
     data: apiKeys,
     columns,
-    state: { columnVisibility },
+    state: { columnVisibility, columnSizing },
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnSizingChange: setColumnSizing,
+    columnResizeMode: 'onChange',
+    enableColumnResizing: true,
     getCoreRowModel: getCoreRowModel(),
   });
 
@@ -146,13 +166,22 @@ export function ApiKeys() {
               <p>{t('apiKeys.empty.description')}</p>
             </div>
           ) : (
-            <table className="keys-table">
+            <table className="keys-table" style={{ width: table.getTotalSize() }}>
               <thead>
                 {table.getHeaderGroups().map(headerGroup => (
                   <tr key={headerGroup.id} className="table-row header">
                     {headerGroup.headers.map(header => (
-                      <th key={header.id}>
+                      <th key={header.id} style={{ width: header.getSize() }}>
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.column.getCanResize() && (
+                          <span
+                            className={`keys-col-resize${header.column.getIsResizing() ? ' is-resizing' : ''}`}
+                            aria-hidden="true"
+                            onMouseDown={header.getResizeHandler()}
+                            onTouchStart={header.getResizeHandler()}
+                            onDoubleClick={() => header.column.resetSize()}
+                          />
+                        )}
                       </th>
                     ))}
                   </tr>
@@ -162,7 +191,9 @@ export function ApiKeys() {
                 {table.getRowModel().rows.map(row => (
                   <tr key={row.id} className="table-row">
                     {row.getVisibleCells().map(cell => (
-                      <td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</td>
+                      <td key={cell.id} style={{ width: cell.column.getSize() }}>
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      </td>
                     ))}
                   </tr>
                 ))}

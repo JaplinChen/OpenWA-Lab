@@ -64,9 +64,19 @@ export function EditableKeyValueTable<T>({
   rowCategory,
 }: Props<T>) {
   const { t } = useTranslation();
-  const { ref: panelRef, onResizeStart } = useResizableCol(resizeStorageKey);
+  const { ref: panelRef, startResize } = useResizableCol(resizeStorageKey);
   const hasCat = !!categoryOptions && !!rowCategory;
   const catLabelOf = (v: string) => categoryOptions?.find(o => o.value === v)?.label ?? v;
+
+  // Right-edge drag handle for a resizable column; stops click/mousedown from reaching the sort button.
+  const ResizeHandle = ({ col }: { col: string }) => (
+    <span
+      className="etable-resize-handle"
+      aria-hidden="true"
+      onMouseDown={startResize(col)}
+      onClick={e => e.stopPropagation()}
+    />
+  );
 
   const { filter, setFilter, filtered, toggleSort, sortMark, current, totalPages, paged, setPage } =
     useSortableTable<T, TableSortKey>({
@@ -183,17 +193,25 @@ export function EditableKeyValueTable<T>({
 
       {filtered.length > 0 && (
         <div className={`etable-cols${hasCat ? ' etable-cols--cat' : ''}`}>
-          <button className="etable-col-sort" onClick={() => toggleSort('key')}>
+          <button className="etable-col-sort" data-col="key" onClick={() => toggleSort('key')}>
             {keyLabel}{sortMark('key')}
+            <ResizeHandle col="key" />
           </button>
-          <span className="etable-col-resize" aria-hidden="true" onMouseDown={onResizeStart}>→</span>
-          <button className="etable-col-sort" onClick={() => toggleSort('val')}>
+          <span className="etable-col-resize" aria-hidden="true">→</span>
+          <button className="etable-col-sort" data-col="val" onClick={() => toggleSort('val')}>
             {valLabel}{sortMark('val')}
+            <ResizeHandle col="val" />
           </button>
-          <button className="etable-col-sort etable-col-sort--num" onClick={() => toggleSort('count')}>
+          <button className="etable-col-sort etable-col-sort--num" data-col="count" onClick={() => toggleSort('count')}>
             {t('common.usageCount')}{sortMark('count')}
+            <ResizeHandle col="count" />
           </button>
-          {hasCat && <span className="etable-col-label">{categoryLabel}</span>}
+          {hasCat && (
+            <span className="etable-col-label" data-col="cat">
+              {categoryLabel}
+              <ResizeHandle col="cat" />
+            </span>
+          )}
           {canWrite && <span className="etable-col-label">{t('common.actions')}</span>}
         </div>
       )}

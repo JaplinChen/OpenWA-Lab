@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, KeyRound, Trash2, Plus } from 'lucide-react';
 import { keyProxyApi, type KeyStatus } from '../services/api';
 import { useDocumentTitle } from '../hooks/useDocumentTitle';
+import { useResizableCol } from '../hooks/useResizableCol';
 import { useRole } from '../hooks/useRole';
 import { useToast } from '../components/Toast';
 import { PageHeader } from '../components/PageHeader';
@@ -16,6 +17,11 @@ export function KeyProxy() {
   useDocumentTitle(t('keyproxy.title'));
   const { canWrite } = useRole();
   const toast = useToast();
+  const { ref: tableRef, startResize } = useResizableCol('keyproxy-cols');
+
+  const RH = ({ col }: { col: string }) => (
+    <span className="kp-resize-handle" aria-hidden="true" onMouseDown={startResize(col)} />
+  );
 
   const [keys, setKeys] = useState<KeyStatus[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,15 +136,24 @@ export function KeyProxy() {
             <span>{t('keyproxy.empty')}</span>
           </div>
         ) : (
-          <table className="keyproxy-table">
+          <table className="keyproxy-table" ref={tableRef as React.RefObject<HTMLTableElement>}>
+            <colgroup>
+              <col style={{ width: 'var(--col-provider, 8rem)' }} />
+              <col style={{ width: 'var(--col-account, 9rem)' }} />
+              <col style={{ width: 'var(--col-keycol, auto)' }} />
+              <col style={{ width: 'var(--col-status, 7rem)' }} />
+              <col style={{ width: 'var(--col-requests, 6rem)' }} />
+              <col style={{ width: 'var(--col-failures, 6rem)' }} />
+              {canWrite && <col style={{ width: '3rem' }} />}
+            </colgroup>
             <thead>
               <tr>
-                <th>{t('keyproxy.provider')}</th>
-                <th>{t('keyproxy.account')}</th>
-                <th>{t('keyproxy.key')}</th>
-                <th>{t('keyproxy.status')}</th>
-                <th className="keyproxy-num">{t('keyproxy.requests')}</th>
-                <th className="keyproxy-num">{t('keyproxy.failures')}</th>
+                <th data-col="provider">{t('keyproxy.provider')}<RH col="provider" /></th>
+                <th data-col="account">{t('keyproxy.account')}<RH col="account" /></th>
+                <th data-col="keycol">{t('keyproxy.key')}<RH col="keycol" /></th>
+                <th data-col="status">{t('keyproxy.status')}<RH col="status" /></th>
+                <th className="keyproxy-num" data-col="requests">{t('keyproxy.requests')}<RH col="requests" /></th>
+                <th className="keyproxy-num" data-col="failures">{t('keyproxy.failures')}<RH col="failures" /></th>
                 {canWrite && <th />}
               </tr>
             </thead>
