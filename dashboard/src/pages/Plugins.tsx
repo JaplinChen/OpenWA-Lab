@@ -129,6 +129,7 @@ export default function Plugins() {
         </div>
       )}
 
+      {visiblePlugins.length > 0 && (
       <div className="plugins-layout">
         <aside className="plugins-rail">
           <div className="rail-stats">
@@ -176,6 +177,7 @@ export default function Plugins() {
           </div>
         </main>
       </div>
+      )}
 
       {visiblePlugins.length === 0 && !loading && (
         <EmptyState
