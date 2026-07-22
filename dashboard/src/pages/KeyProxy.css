@@ -59,8 +59,16 @@
   opacity: 0.6;
 }
 
+/* Scroll the wide fixed-width table inside its own container so it never forces
+   the page (which has overflow-x:hidden) wider than the viewport and clips the
+   note/warning/addbar beside it on narrow screens. */
+.keyproxy-table-scroll {
+  overflow-x: auto;
+}
+
 .keyproxy-table {
   width: 100%;
+  min-width: 40rem;
   border-collapse: collapse;
   /* Fixed layout so per-column <col> widths (incl. drag-resized ones) are honored exactly. */
   table-layout: fixed;
