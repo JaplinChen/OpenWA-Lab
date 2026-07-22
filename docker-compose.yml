@@ -181,6 +181,11 @@ services:
       - DOCKER_HOST=tcp://docker-proxy:2375
     volumes:
       - openwa-lab-data:/app/data
+      # Hand-edited term tables bind-mounted from host so local edits apply without docker cp.
+      # ONLY these two JSON files — the rest of /app/data (sqlite DBs, sessions, media) stays on the
+      # named volume, keeping SQLite off the Windows bind mount (WSL2/9p locking + corruption risk).
+      - ./data/glossary.json:/app/data/glossary.json
+      - ./data/senders.json:/app/data/senders.json
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       # Key-proxy .env, writable: the dashboard's key-management page edits it here, then restarts
       # the llm-key-proxy container (which mounts the same file read-only) so new keys take effect.
