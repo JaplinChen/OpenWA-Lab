@@ -185,6 +185,7 @@ services:
       # ONLY these two JSON files — the rest of /app/data (sqlite DBs, sessions, media) stays on the
       # named volume, keeping SQLite off the Windows bind mount (WSL2/9p locking + corruption risk).
       - ./data/glossary.json:/app/data/glossary.json
+      - ./data/glossary-category.json:/app/data/glossary-category.json
       - ./data/senders.json:/app/data/senders.json
       - ./docker-compose.yml:/app/docker-compose.yml:ro
       # Key-proxy .env, writable: the dashboard's key-management page edits it here, then restarts

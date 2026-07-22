@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class GlossaryTermDto {
   @IsString()
@@ -8,4 +8,8 @@ export class GlossaryTermDto {
   @IsString()
   @IsNotEmpty()
   vi!: string;
+
+  @IsOptional()
+  @IsString()
+  category?: string;
 }

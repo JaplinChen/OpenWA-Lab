@@ -126,6 +126,40 @@ describe('Glossary', () => {
     expect(g.pending()).toEqual([]);
   });
 
+  it('stores a category in a sidecar, exposes it via entries, and reloads it', () => {
+    const g = new Glossary(file);
+    g.add('鍵盤', 'bàn phím', 'asset');
+    expect(g.entries()).toEqual([{ source: '鍵盤', target: 'bàn phím', count: 0, category: 'asset' }]);
+    expect(g.getCategory('鍵盤')).toBe('asset');
+    const reloaded = new Glossary(file);
+    reloaded.load();
+    expect(reloaded.getCategory('鍵盤')).toBe('asset');
+  });
+
+  it('omits category when untagged so the entry shape is unchanged', () => {
+    const g = new Glossary(file);
+    g.add('電腦', 'máy tính');
+    expect(g.entries()).toEqual([{ source: '電腦', target: 'máy tính', count: 0 }]);
+    expect(g.getCategory('電腦')).toBe('');
+  });
+
+  it('setCategory with empty string clears the tag', () => {
+    const g = new Glossary(file);
+    g.add('電腦', 'máy tính', 'term');
+    g.setCategory('電腦', '');
+    expect(g.getCategory('電腦')).toBe('');
+    expect(g.entries()[0]).not.toHaveProperty('category');
+  });
+
+  it('remove drops the category tag too', () => {
+    const g = new Glossary(file);
+    g.add('電腦', 'máy tính', 'term');
+    g.remove('電腦');
+    const reloaded = new Glossary(file);
+    reloaded.load();
+    expect(reloaded.getCategory('電腦')).toBe('');
+  });
+
   it('dedupes suggestions against the glossary and the pending list', () => {
     const g = new Glossary(file);
     g.add('電腦', 'máy tính');

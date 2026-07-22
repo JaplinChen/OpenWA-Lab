@@ -28,7 +28,7 @@ import { GlossaryTermDto } from './dto/glossary-term.dto';
 import { SenderEntryDto } from './dto/sender-entry.dto';
 import { ImportSendersDto } from './dto/import-senders.dto';
 
-type GlossaryEntry = { source: string; target: string };
+type GlossaryEntry = { source: string; target: string; count?: number; category?: string };
 type SenderEntry = { jid: string; name: string };
 
 @ApiTags('translate')
@@ -109,7 +109,7 @@ export class TranslateController {
     const source = dto.zh.trim();
     const target = dto.vi.trim();
     if (!source || !target) throw new BadRequestException('zh and vi are required');
-    this.translateService.glossaryStore.add(source, target);
+    this.translateService.glossaryStore.add(source, target, dto.category?.trim());
     return this.translateService.glossaryStore.entries();
   }
 

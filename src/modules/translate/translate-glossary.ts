@@ -17,12 +17,15 @@ export class Glossary {
   private data: Record<string, Record<string, string>> = {};
   private pendingData: PendingSuggestion[] = [];
   private usage: Record<string, number> = {};
+  private categories: Record<string, string> = {};
   private readonly pendingPath: string;
   private readonly usagePath: string;
+  private readonly categoryPath: string;
 
   constructor(private readonly filePath: string, pendingPath?: string) {
     this.pendingPath = pendingPath || filePath.replace(/\.json$/, '-pending.json');
     this.usagePath = filePath.replace(/\.json$/, '-usage.json');
+    this.categoryPath = filePath.replace(/\.json$/, '-category.json');
   }
 
   private static readonly CJK = /[一-鿿]/;
@@ -43,6 +46,11 @@ export class Glossary {
       this.usage = JSON.parse(fs.readFileSync(this.usagePath, 'utf8')) as Record<string, number>;
     } catch {
       this.usage = {};
+    }
+    try {
+      this.categories = JSON.parse(fs.readFileSync(this.categoryPath, 'utf8')) as Record<string, string>;
+    } catch {
+      this.categories = {};
     }
     try {
       this.data = JSON.parse(fs.readFileSync(this.filePath, 'utf8')) as Record<string, Record<string, string>>;
@@ -93,20 +101,33 @@ export class Glossary {
   }
 
   /** zh->vi terms as a flat list for the dashboard/API (source = 中文, target = 越南文). */
-  entries(): { source: string; target: string; count: number }[] {
-    return Object.entries(this.data['zh-tw:vi'] || {}).map(([source, target]) => ({
-      source,
-      target,
-      count: this.usage[source] ?? 0,
-    }));
+  entries(): { source: string; target: string; count: number; category?: string }[] {
+    return Object.entries(this.data['zh-tw:vi'] || {}).map(([source, target]) => {
+      const category = this.categories[source];
+      // Omit category when unset so existing callers (and equality checks) see the original shape.
+      return category ? { source, target, count: this.usage[source] ?? 0, category } : { source, target, count: this.usage[source] ?? 0 };
+    });
   }
 
-  /** Add/overwrite a zh<->vi term in both directions, persisting immediately. */
-  add(zh: string, vi: string): void {
+  /** The category tag for a zh term (empty string when untagged). Keyed by the zh side like usage. */
+  getCategory(zh: string): string {
+    return this.categories[zh] ?? '';
+  }
+
+  /** Set (or clear, when empty) a zh term's category, persisting the sidecar. Keeps glossary.json format. */
+  setCategory(zh: string, category: string): void {
+    if (category) this.categories[zh] = category;
+    else delete this.categories[zh];
+    atomicWriteJson(this.categoryPath, this.categories);
+  }
+
+  /** Add/overwrite a zh<->vi term in both directions, persisting immediately. Optional category sidecar. */
+  add(zh: string, vi: string, category?: string): void {
     [zh, vi] = Glossary.orient(zh, vi);
     (this.data['zh-tw:vi'] ??= {})[zh] = vi;
     (this.data['vi:zh-tw'] ??= {})[vi] = zh;
     this.save();
+    if (category !== undefined) this.setCategory(zh, category);
   }
 
   /** Remove any pairing where `term` appears on either side; returns whether anything was removed. */
@@ -119,6 +140,10 @@ export class Glossary {
           removed = true;
         }
       }
+    }
+    if (this.categories[term]) {
+      delete this.categories[term];
+      atomicWriteJson(this.categoryPath, this.categories);
     }
     if (removed) this.save();
     return removed;
