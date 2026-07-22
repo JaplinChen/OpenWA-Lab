@@ -2,6 +2,10 @@
 // Dry run by default: prints a report + writes data/reclassify-report.txt, changes nothing.
 // Add --apply to write the category sidecar (backs it up first).
 //
+// Deterministic override (see override() below), applied AFTER the LLM and reflected in the dry-run
+// report: any 表單/一覽表/XX表 noun is pinned to `term` (the model scatters these into asset/phrase),
+// except terms with a sentence-ending mark (？?。，、！!) which keep the LLM's call (UI prompts/questions).
+//
 // Usage:  node scripts/reclassify-glossary-categories.mjs [--apply]
 // Env:    RECLASS_MODEL (default qwen3-14b-cline-32768:latest)
 //         OLLAMA_ENDPOINT (default http://127.0.0.1:11434/api/chat)
