@@ -32,6 +32,18 @@ describe('translate-memory', () => {
     expect((await mem.candidates()).length).toBe(0);
   });
 
+  it('paginates candidates by limit/offset and counts the full set', async () => {
+    for (let i = 0; i < 25; i++) mem.record('zh-tw:vi', `詞${i}`, `t${i}`);
+    expect(await mem.candidatesCount()).toBe(25);
+    const page1 = await mem.candidates(20, 0);
+    const page2 = await mem.candidates(20, 20);
+    expect(page1.length).toBe(20);
+    expect(page2.length).toBe(5);
+    // No overlap between pages.
+    const ids = new Set(page1.map(c => c.id));
+    expect(page2.every(c => !ids.has(c.id))).toBe(true);
+  });
+
   it('dismiss drops it and it stays dismissed even when seen again', async () => {
     mem.record('zh-tw:vi', '好', 'Được');
     const id = (await mem.candidates())[0].id;

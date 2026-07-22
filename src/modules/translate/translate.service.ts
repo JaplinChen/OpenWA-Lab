@@ -140,8 +140,12 @@ export class TranslateService implements OnModuleInit {
   get senderStore(): SenderDirectory { return this.senders; }
 
   /** Top translation-memory candidates to promote into the glossary. */
-  memoryCandidates(limit?: number): Promise<Candidate[]> {
-    return this.memory.candidates(limit);
+  async memoryCandidates(limit?: number, offset?: number): Promise<{ items: Candidate[]; total: number }> {
+    const [items, total] = await Promise.all([
+      this.memory.candidates(limit, offset),
+      this.memory.candidatesCount(),
+    ]);
+    return { items, total };
   }
 
   /** Promote a candidate into the glossary (both directions handled by Glossary.add's orient). */

@@ -9,7 +9,10 @@ import { PageHeader } from '../components/PageHeader';
 import { EditableKeyValueTable } from '../components/EditableKeyValueTable';
 import { GlossaryPending } from './GlossaryPending';
 import { MemoryCandidates } from './MemoryCandidates';
+import { pageWindow } from '../utils/pageWindow';
 import '../components/EditableTable.css';
+
+const CANDIDATES_PAGE_SIZE = 20;
 
 export function Glossary() {
   const { t } = useTranslation();
@@ -20,6 +23,8 @@ export function Glossary() {
   const [terms, setTerms] = useState<GlossaryTerm[]>([]);
   const [pending, setPending] = useState<PendingGlossaryTerm[]>([]);
   const [candidates, setCandidates] = useState<TranslationCandidate[]>([]);
+  const [candTotal, setCandTotal] = useState(0);
+  const [candPage, setCandPage] = useState(1);
   const [phrases, setPhrases] = useState<PhraseCandidate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -38,8 +43,12 @@ export function Glossary() {
       .then(list => active && setPending(list))
       .catch(err => active && fail(err));
     translateApi
-      .getMemoryCandidates()
-      .then(list => active && setCandidates(list))
+      .getMemoryCandidates(CANDIDATES_PAGE_SIZE, 0)
+      .then(res => {
+        if (!active) return;
+        setCandidates(res.items);
+        setCandTotal(res.total);
+      })
       .catch(err => active && fail(err));
     translateApi
       .getPhraseCandidates()
@@ -85,11 +94,22 @@ export function Glossary() {
     }
   };
 
+  // Reload one candidate page. If a mutation empties the last page, step back
+  // one so the user never lands on a blank page.
+  const loadCandidates = async (page: number) => {
+    const res = await translateApi.getMemoryCandidates(CANDIDATES_PAGE_SIZE, (page - 1) * CANDIDATES_PAGE_SIZE);
+    if (res.items.length === 0 && page > 1) return loadCandidates(page - 1);
+    setCandidates(res.items);
+    setCandTotal(res.total);
+    setCandPage(page);
+  };
+
   const approveCandidate = async (id: number) => {
     setBusy(true);
     try {
-      setCandidates(await translateApi.approveMemoryCandidate(id));
+      await translateApi.approveMemoryCandidate(id);
       setTerms(await translateApi.getGlossary());
+      await loadCandidates(candPage);
       toast.success(t('glossary.candidateApproved'));
     } catch (err) {
       fail(err);
@@ -101,7 +121,8 @@ export function Glossary() {
   const dismissCandidate = async (id: number) => {
     setBusy(true);
     try {
-      setCandidates(await translateApi.dismissMemoryCandidate(id));
+      await translateApi.dismissMemoryCandidate(id);
+      await loadCandidates(candPage);
     } catch (err) {
       fail(err);
     } finally {
@@ -213,7 +234,7 @@ export function Glossary() {
           onClick={() => setTab('candidates')}
         >
           {t('glossary.candidatesTitle')}
-          <span className="etable-count">{candidates.length}</span>
+          <span className="etable-count">{candTotal}</span>
         </button>
         <button
           role="tab"
@@ -236,13 +257,40 @@ export function Glossary() {
       </div>
 
       {tab === 'candidates' && (
-        <MemoryCandidates
-          candidates={candidates}
-          canWrite={canWrite}
-          busy={busy}
-          onApprove={approveCandidate}
-          onDismiss={dismissCandidate}
-        />
+        <>
+          <MemoryCandidates
+            candidates={candidates}
+            canWrite={canWrite}
+            busy={busy}
+            onApprove={approveCandidate}
+            onDismiss={dismissCandidate}
+          />
+          {candTotal > CANDIDATES_PAGE_SIZE && (
+            <div className="pagination">
+              <button disabled={candPage === 1 || busy} onClick={() => loadCandidates(candPage - 1)}>
+                {t('common.previous')}
+              </button>
+              <span className="page-numbers">
+                {pageWindow(candPage, Math.ceil(candTotal / CANDIDATES_PAGE_SIZE)).map(p => (
+                  <button
+                    key={p}
+                    className={p === candPage ? 'active' : ''}
+                    disabled={busy}
+                    onClick={() => loadCandidates(p)}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </span>
+              <button
+                disabled={candPage >= Math.ceil(candTotal / CANDIDATES_PAGE_SIZE) || busy}
+                onClick={() => loadCandidates(candPage + 1)}
+              >
+                {t('common.next')}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {tab === 'phrases' && (
