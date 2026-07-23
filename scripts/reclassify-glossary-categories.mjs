@@ -37,6 +37,10 @@ const VALID = new Set(Object.keys(CATS));
 function override(zh, cat) {
   if (/[？?。，、！!]/.test(zh)) return cat; // 帶句末標點的句子維持 LLM 判斷（多為 UI 提示/問句）
   if (/表單|一覽表|表$/.test(zh)) return 'term';
+  // name 只收真實人名；LLM 常把角色/職稱泛稱誤丟 name。黑客/XX專家/XX裡人(替代者) 一律 term。
+  if (/黑客|駭客|專家$|裡人$/.test(zh)) return 'term';
+  // 廠內「XX素材」是裁切部門代稱(越譯 Cắt)，非物料，pin 到 dept。
+  if (/素材/.test(zh)) return 'dept';
   return cat;
 }
 
