@@ -5,6 +5,7 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
+import { CategoryStore } from './translate-categories';
 import { TranslationMemory, type Candidate } from './translate-memory';
 import { PhraseCandidates, type PhraseCandidate } from './translate-phrase-candidates';
 import { minePhrases } from './translate-phrase-miner';
@@ -44,6 +45,9 @@ export class TranslateService implements OnModuleInit {
   // Manual @mention JID->name overrides applied to the body before translation.
   private senders!: SenderDirectory;
   private sendersPath = 'data/senders.json';
+  // Admin-managed glossary category list backing the dashboard dropdown.
+  private categories!: CategoryStore;
+  private categoriesPath = 'data/categories.json';
   // Translation memory: logs every LLM translation as a future glossary candidate.
   private memory!: TranslationMemory;
   // High-frequency phrase candidates mined from translation memory (dashboard-triggered scan).
@@ -78,6 +82,11 @@ export class TranslateService implements OnModuleInit {
     this.senders = new SenderDirectory(this.sendersPath);
     const senderCount = this.senders.load();
     if (senderCount > 0) this.logger.log(`Senders loaded: ${senderCount} override(s) from ${this.sendersPath}`);
+
+    this.categoriesPath = process.env.TRANSLATE_CATEGORIES_PATH || this.categoriesPath;
+    this.categories = new CategoryStore(this.categoriesPath);
+    const categoryCount = this.categories.load();
+    if (categoryCount > 0) this.logger.log(`Categories loaded: ${categoryCount} from ${this.categoriesPath}`);
 
     this.memory = new TranslationMemory();
     this.memory.init();
@@ -138,6 +147,7 @@ export class TranslateService implements OnModuleInit {
   // REST CRUD on the glossary/sender stores lives in the controller (boundary validation there).
   get glossaryStore(): Glossary { return this.glossary; }
   get senderStore(): SenderDirectory { return this.senders; }
+  get categoryStore(): CategoryStore { return this.categories; }
 
   /** Top translation-memory candidates to promote into the glossary. */
   async memoryCandidates(limit?: number, offset?: number): Promise<{ items: Candidate[]; total: number }> {

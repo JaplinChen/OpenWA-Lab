@@ -366,6 +366,17 @@ export const translateApi = {
     request<void>(`/translate/glossary/pending/${id}/approve`, { method: 'POST' }),
   rejectPendingGlossary: (id: number) =>
     request<void>(`/translate/glossary/pending/${id}`, { method: 'DELETE' }),
+  getCategories: () => request<string[]>('/translate/categories'),
+  addCategory: (name: string) =>
+    request<string[]>('/translate/categories', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
+  deleteCategory: (name: string) =>
+    request<string[]>('/translate/categories', {
+      method: 'DELETE',
+      body: JSON.stringify({ name }),
+    }),
   getSenders: () => request<SenderEntry[]>('/translate/senders'),
   addSender: (jid: string, name: string) =>
     request<SenderEntry[]>('/translate/senders', {

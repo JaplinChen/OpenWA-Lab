@@ -27,6 +27,7 @@ import { PreviewTranslateDto } from './dto/preview-translate.dto';
 import { GlossaryTermDto } from './dto/glossary-term.dto';
 import { SenderEntryDto } from './dto/sender-entry.dto';
 import { ImportSendersDto } from './dto/import-senders.dto';
+import { CategoryDto } from './dto/category.dto';
 
 type GlossaryEntry = { source: string; target: string; count?: number; category?: string };
 type SenderEntry = { jid: string; name: string };
@@ -245,6 +246,34 @@ export class TranslateController {
     if (!trimmed) throw new BadRequestException('jid is required');
     this.translateService.senderStore.remove(trimmed);
     return this.translateService.senderStore.entries();
+  }
+
+  @Get('categories')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'List glossary categories' })
+  @ApiResponse({ status: 200, description: 'Categories' })
+  getCategories(): string[] {
+    return this.translateService.categoryStore.list();
+  }
+
+  @Post('categories')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Add a glossary category' })
+  @ApiResponse({ status: 201, description: 'Updated categories' })
+  addCategory(@Body() dto: CategoryDto): string[] {
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('name is required');
+    return this.translateService.categoryStore.add(name);
+  }
+
+  @Delete('categories')
+  @RequireRole(ApiKeyRole.ADMIN)
+  @ApiOperation({ summary: 'Remove a glossary category' })
+  @ApiResponse({ status: 200, description: 'Updated categories' })
+  removeCategory(@Body() dto: CategoryDto): string[] {
+    const name = dto.name.trim();
+    if (!name) throw new BadRequestException('name is required');
+    return this.translateService.categoryStore.remove(name);
   }
 
   @Post('senders/import')

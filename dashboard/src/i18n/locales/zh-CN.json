@@ -937,7 +937,12 @@
       "term": "术语",
       "asset": "资产",
       "phrase": "对话",
-      "other": "其他"
+      "other": "其他",
+      "manageTitle": "自定义类别",
+      "addPlaceholder": "新类别名称",
+      "addButton": "新增类别",
+      "deleteButton": "删除",
+      "empty": "尚无自定义类别"
     }
   },
   "keyproxy": {

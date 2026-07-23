@@ -937,7 +937,12 @@
       "term": "術語",
       "asset": "資產",
       "phrase": "對話",
-      "other": "其他"
+      "other": "其他",
+      "manageTitle": "自訂類別",
+      "addPlaceholder": "新類別名稱",
+      "addButton": "新增類別",
+      "deleteButton": "刪除",
+      "empty": "尚無自訂類別"
     }
   },
   "keyproxy": {
