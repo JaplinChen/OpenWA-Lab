@@ -310,20 +310,6 @@ export class TranslateService implements OnModuleInit {
         return pass; // command, not content to translate
       }
 
-      const pair = this.detectPair(body);
-      if (!pair) return pass; // not zh/vi — leave it alone
-
-      // Cost guards: skip over-long messages and throttle per group so a flood can't run up the
-      // cloud LLM bill. Both default to off (0). Checked before the LLM call, after cheap filters.
-      if (this.cfg.maxMessageLength > 0 && body.length > this.cfg.maxMessageLength) {
-        this.logger.warn(`Skipped (too long: ${body.length} > ${this.cfg.maxMessageLength}) chat=${msg.chatId}`);
-        return pass;
-      }
-      if (!this.allowByRate(msg.chatId)) {
-        this.logger.warn(`Skipped (rate limit ${this.cfg.maxTranslationsPerMinute}/min) chat=${msg.chatId}`);
-        return pass;
-      }
-
       // markUsed(mentionedIds) is the sole usage counter: the adapter already replaced the raw
       // @<digits> token with a name before this hook runs, so apply() can't see mentions reliably.
       // Unresolved mentions get queued as empty-name entries for an admin to name (notePending).
@@ -332,29 +318,69 @@ export class TranslateService implements OnModuleInit {
         this.senders.notePending(msg.mentionedIds, body);
       }
 
-      void this.enqueue(async () => {
-        const translated = await this.translate(body, pair);
-        // The model can echo the source when it's not translatable natural language — don't spam the
-        // group with a verbatim copy. This is the only path that discards a successful LLM response,
-        // so log it or it looks like the bot randomly stopped translating.
-        if (!translated || translated.trim() === body.trim()) {
-          this.logger.warn(`Skipped (echo/empty) pair=${pair.key} in="${body.slice(0, 60)}"`);
-          return;
-        }
-        // Anti-ban pacing (race-free: sends are serialized on the queue). Typing simulation runs
-        // inside MessageService.sendText (SIMULATE_TYPING).
-        const wait = this.nextSendAt - Date.now();
-        if (wait > 0) await sleep(wait);
-        await this.messageService.sendText(sessionId, {
-          chatId: msg.chatId,
-          text: BOT_MARKER + translated,
-        });
-        this.nextSendAt = Date.now() + this.cfg.minSendIntervalMs;
-      }).catch(err => this.onTranslateFailure(sessionId, msg.chatId, err));
+      // Fire-and-forget off the receive pipeline: decide + translate in the shared core, then send.
+      void this.translateAndSend(sessionId, msg.chatId, body).catch(err =>
+        this.onTranslateFailure(sessionId, msg.chatId, err),
+      );
     } catch (err) {
       this.logger.error('Translate hook error', String(err));
     }
     return pass;
+  }
+
+  /**
+   * Platform-agnostic translate decision: given inbound text and a chat key (rate-limit bucket),
+   * return the bot reply (BOT_MARKER + translation) or null to stay silent. Serialized on the shared
+   * queue so a single-request Ollama isn't hit concurrently. Shared by the WhatsApp hook and any other
+   * adapter (e.g. Teams) injecting this same service — glossary/sender/memory/config all shared.
+   */
+  async translateInbound(
+    text: string,
+    chatKey: string,
+    send?: (reply: string) => Promise<void>,
+  ): Promise<string | null> {
+    const body = text || '';
+    if (!body.trim() || body.startsWith(BOT_MARKER)) return null;
+    const pair = this.detectPair(body);
+    if (!pair) return null; // not zh/vi — leave it alone
+
+    // Cost guards: skip over-long messages and throttle per chat so a flood can't run up the cloud
+    // LLM bill. Both default to off (0). Checked before the LLM call, after cheap filters.
+    if (this.cfg.maxMessageLength > 0 && body.length > this.cfg.maxMessageLength) {
+      this.logger.warn(`Skipped (too long: ${body.length} > ${this.cfg.maxMessageLength}) chat=${chatKey}`);
+      return null;
+    }
+    if (!this.allowByRate(chatKey)) {
+      this.logger.warn(`Skipped (rate limit ${this.cfg.maxTranslationsPerMinute}/min) chat=${chatKey}`);
+      return null;
+    }
+
+    return this.enqueue(async () => {
+      const translated = await this.translate(body, pair);
+      // The model can echo the source when it's not translatable natural language — don't spam a
+      // verbatim copy. Only path that discards a successful LLM response, so log it or the bot looks
+      // like it randomly stopped translating.
+      if (!translated || translated.trim() === body.trim()) {
+        this.logger.warn(`Skipped (echo/empty) pair=${pair.key} in="${body.slice(0, 60)}"`);
+        return null;
+      }
+      const reply = BOT_MARKER + translated;
+      // In-queue send keeps sends serialized behind translations (race-free pacing). Adapters that
+      // don't need in-queue delivery (e.g. Teams) omit send and dispatch the returned reply themselves.
+      if (send) await send(reply);
+      return reply;
+    });
+  }
+
+  // WhatsApp send path: translate off the receive pipeline, then pace + send back (in-queue). Typing
+  // simulation runs inside MessageService.sendText (SIMULATE_TYPING).
+  private translateAndSend(sessionId: string, chatId: string, body: string): Promise<string | null> {
+    return this.translateInbound(body, chatId, async reply => {
+      const wait = this.nextSendAt - Date.now();
+      if (wait > 0) await sleep(wait);
+      await this.messageService.sendText(sessionId, { chatId, text: reply });
+      this.nextSendAt = Date.now() + this.cfg.minSendIntervalMs;
+    });
   }
 
   // Rolling 60s window per chat. Records a hit when allowed; returns false once the group hits the cap.
