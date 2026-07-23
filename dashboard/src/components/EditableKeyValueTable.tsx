@@ -172,14 +172,14 @@ export function EditableKeyValueTable<T>({
           />
           {hasCat && (
             <select
-              className="etable-cat-select"
+              className="etable-cat-select etable-cat-add"
               aria-label={categoryLabel}
               value={catInput}
               onChange={e => setCatInput(e.target.value)}
             >
               {categoryOptions!.map(o => (
                 <option key={o.value} value={o.value}>
-                  {o.label}
+                  {o.value === '' ? categoryLabel : o.label}
                 </option>
               ))}
             </select>
