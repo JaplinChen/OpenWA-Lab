@@ -928,7 +928,12 @@
       "term": "Thuật ngữ",
       "asset": "Tài sản",
       "phrase": "Câu thoại",
-      "other": "Khác"
+      "other": "Khác",
+      "manageTitle": "Phân loại tùy chỉnh",
+      "addPlaceholder": "Tên phân loại mới",
+      "addButton": "Thêm phân loại",
+      "deleteButton": "Xóa",
+      "empty": "Chưa có phân loại tùy chỉnh"
     }
   },
   "keyproxy": {

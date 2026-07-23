@@ -229,6 +229,13 @@
   background: var(--bg-light);
 }
 
+/* 自訂類別管理列：單一名稱 + 刪除鈕，不套用詞條的多欄 grid */
+.etable-page .etable-item--simple {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 /* Optional category column (glossary): inserts a column between usage and row actions. Doubled
    class raises specificity so it wins over the base .etable-item/.etable-cols grid defined later. */
 .etable-page .etable-item.etable-item--cat,

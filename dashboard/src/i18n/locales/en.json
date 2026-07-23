@@ -928,7 +928,12 @@
       "term": "Term",
       "asset": "Asset",
       "phrase": "Phrase",
-      "other": "Other"
+      "other": "Other",
+      "manageTitle": "Custom categories",
+      "addPlaceholder": "New category name",
+      "addButton": "Add category",
+      "deleteButton": "Delete",
+      "empty": "No custom categories yet"
     }
   },
   "keyproxy": {
