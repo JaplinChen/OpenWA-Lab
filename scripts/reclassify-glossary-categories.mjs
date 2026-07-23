@@ -41,6 +41,8 @@ function override(zh, cat) {
   if (/黑客|駭客|專家$|裡人$/.test(zh)) return 'term';
   // 廠內「XX素材」是裁切部門代稱(越譯 Cắt)，非物料，pin 到 dept。
   if (/素材/.test(zh)) return 'dept';
+  // 入侵檢測/防禦系統是資安概念名詞（同防火牆那批），非實體設備，pin term。
+  if (/入侵(檢測|防禦)系統/.test(zh)) return 'term';
   return cat;
 }
 
