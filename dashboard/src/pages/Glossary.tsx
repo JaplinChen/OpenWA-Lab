@@ -394,7 +394,7 @@ export function Glossary() {
             onReject={reject}
           />
 
-          <section className="etable-panel">
+          <section className="etable-panel etable-panel--dup">
             <button className="etable-add" onClick={() => setShowDups(v => !v)}>
               {t('glossary.dupCheck')}
               <span className="etable-count">{dupGroups.length}</span>

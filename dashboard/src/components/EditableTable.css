@@ -105,6 +105,12 @@
   padding: 1.25rem;
 }
 
+/* The dup-check panel is a small collapsible control sharing the terms tab with the table below it,
+   so it must not grab the panel's default flex:1 and push the table off-screen. */
+.etable-page .etable-panel--dup {
+  flex: 0 0 auto;
+}
+
 .etable-page .etable-panel-title {
   margin: 0 0 1rem;
   font-size: 1rem;
