@@ -44,6 +44,9 @@ export function minePhrases(sources: SourceCount[], opts: MineOptions = {}): Phr
   const limit = opts.limit ?? 30;
   const exclude = opts.exclude ?? new Set<string>();
 
+  // Tally EVERY fragment (glossary terms included): excluding them here would strip the parent term
+  // that should dominate its own slices (訪談影片 in glossary → its slices 談影片/訪談影 leak). We
+  // exclude at the very end instead, after domination has run.
   const tally = new Map<string, number>();
   for (const { source, count } of sources) {
     const weight = count > 0 ? count : 1;
@@ -52,7 +55,7 @@ export function minePhrases(sources: SourceCount[], opts: MineOptions = {}): Phr
       for (let n = minLen; n <= maxLen; n++) {
         for (let i = 0; i + n <= run.length; i++) {
           const frag = run.slice(i, i + n);
-          if (!CJK.test(frag) || exclude.has(frag) || seen.has(frag)) continue;
+          if (!CJK.test(frag) || seen.has(frag)) continue;
           seen.add(frag);
           tally.set(frag, (tally.get(frag) ?? 0) + weight);
         }
@@ -61,10 +64,15 @@ export function minePhrases(sources: SourceCount[], opts: MineOptions = {}): Phr
   }
 
   const kept = [...tally.entries()].filter(([, c]) => c >= minCount);
-  // Drop a short fragment when a longer fragment contains it at no lower count — the short one is just
-  // a slice of the real term (設備管理部 → 備管理). Longer, more-frequent phrases win.
-  const survivors = kept.filter(([frag, c]) =>
-    !kept.some(([other, oc]) => other.length > frag.length && oc >= c && other.includes(frag)),
+  // A glossary term dominates any of its slices regardless of length or count — the slice is just a
+  // known term cut short. Covers terms longer than maxLen (設備管理部 never mined) that would otherwise
+  // never dominate 備管理部/設備管. Cheap linear scan over the glossary per fragment.
+  const excludeList = [...exclude];
+  const survivors = kept.filter(
+    ([frag, c]) =>
+      !kept.some(([other, oc]) => other.length > frag.length && oc >= c && other.includes(frag)) &&
+      !excludeList.some(g => g.length > frag.length && g.includes(frag)) &&
+      !exclude.has(frag), // the term itself is already in the glossary
   );
 
   return survivors
@@ -90,6 +98,15 @@ if (require.main === module) {
   const redun = minePhrases([{ source: '設備管理', count: 5 }], { minCount: 1 });
   if (redun.some(p => p.phrase === '備管理')) throw new Error('redundant substring not filtered');
   if (!redun.some(p => p.phrase === '設備管理')) throw new Error('longest phrase lost');
+  // glossary domination: 設備管理部 in glossary (longer than maxLen, never mined) must still drop its
+  // slices 備管理部/設備管, and 訪談影片 in glossary must drop 談影片 — the leak the real corpus showed.
+  const gloss = minePhrases([{ source: '設備管理部門 訪談影片', count: 5 }], {
+    minCount: 1,
+    exclude: new Set(['設備管理部', '訪談影片']),
+  });
+  for (const leak of ['備管理部', '設備管', '談影片', '訪談影']) {
+    if (gloss.some(p => p.phrase === leak)) throw new Error(`glossary slice leaked: ${leak}`);
+  }
   // eslint-disable-next-line no-console
   console.log('minePhrases self-check ok', out.slice(0, 3));
 }
