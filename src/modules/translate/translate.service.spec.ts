@@ -5,7 +5,7 @@ import { TranslateService } from './translate.service';
 import { HookManager } from '../../core/hooks';
 import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
-import { parseCommand, type GlossaryCommandDeps } from './translate-commands';
+import { parseCommand, type CommandDeps } from './translate-commands';
 
 describe('TranslateService glossary', () => {
   let glossaryPath: string;
@@ -21,6 +21,8 @@ describe('TranslateService glossary', () => {
     process.env.TRANSLATE_GLOSSARY_PATH = glossaryPath;
     sendersPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'send-')), 'senders.json');
     process.env.TRANSLATE_SENDERS_PATH = sendersPath;
+    process.env.TRANSLATE_WATCHWORDS_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'watch-')), 'watchwords.json');
+    process.env.TRANSLATE_FEEDBACK_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'fb-')), 'bad-feedback.json');
     process.env.TRANSLATE_CONFIG_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'tcfg-')), 'translate-config.json');
     sent = [];
     const messageService = {
@@ -42,9 +44,15 @@ describe('TranslateService glossary', () => {
   const cmd = (body: string): Promise<void> => {
     const parsed = parseCommand(body.trim());
     if (!parsed) throw new Error(`not a command: ${body}`);
-    const svc = service as unknown as GlossaryCommandDeps;
+    const svc = service as unknown as CommandDeps;
     return parsed.spec.handle({
-      deps: { glossary: svc.glossary, adminIds: svc.adminIds, messageService: svc.messageService },
+      deps: {
+        glossary: svc.glossary,
+        adminIds: svc.adminIds,
+        messageService: svc.messageService,
+        watchwords: svc.watchwords,
+        feedback: svc.feedback,
+      },
       sessionId: 'sess',
       msg: makeMsg(body),
       raw: body,
