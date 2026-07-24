@@ -60,8 +60,14 @@ export function minePhrases(sources: SourceCount[], opts: MineOptions = {}): Phr
     }
   }
 
-  return [...tally.entries()]
-    .filter(([, c]) => c >= minCount)
+  const kept = [...tally.entries()].filter(([, c]) => c >= minCount);
+  // Drop a short fragment when a longer fragment contains it at no lower count — the short one is just
+  // a slice of the real term (設備管理部 → 備管理). Longer, more-frequent phrases win.
+  const survivors = kept.filter(([frag, c]) =>
+    !kept.some(([other, oc]) => other.length > frag.length && oc >= c && other.includes(frag)),
+  );
+
+  return survivors
     .map(([phrase, count]) => ({ phrase, count }))
     .sort((a, b) => b.count - a.count || b.phrase.length - a.phrase.length)
     .slice(0, Math.max(1, limit));
@@ -72,7 +78,7 @@ if (require.main === module) {
   const src: SourceCount[] = [
     { source: '客戶的 forecast 很重要', count: 1 },
     { source: '這是客戶的資料', count: 1 },
-    { source: '請確認客戶的訂單', count: 1 },
+    { source: '請確認客戶訂單', count: 1 }, // 客戶 without 的 → 客戶 count 3 > 客戶的 count 2
     { source: 'hello world', count: 5 }, // no CJK → contributes nothing
   ];
   const out = minePhrases(src, { minCount: 3 });
@@ -80,6 +86,10 @@ if (require.main === module) {
   if (!hit || hit.count !== 3) throw new Error(`expected 客戶 count 3, got ${JSON.stringify(hit)}`);
   const excluded = minePhrases(src, { minCount: 3, exclude: new Set(['客戶']) });
   if (excluded.some(p => p.phrase === '客戶')) throw new Error('exclude set not honored');
+  // redundancy filter: 備管理 is a slice of 設備管理 at equal count → dropped
+  const redun = minePhrases([{ source: '設備管理', count: 5 }], { minCount: 1 });
+  if (redun.some(p => p.phrase === '備管理')) throw new Error('redundant substring not filtered');
+  if (!redun.some(p => p.phrase === '設備管理')) throw new Error('longest phrase lost');
   // eslint-disable-next-line no-console
   console.log('minePhrases self-check ok', out.slice(0, 3));
 }
