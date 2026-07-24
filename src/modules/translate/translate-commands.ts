@@ -3,18 +3,44 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { Glossary } from './translate-glossary';
 import { BOT_MARKER } from './translate-lang';
 
-export interface ParsedCommand {
-  cmd: 'glossary' | 'help';
-  rest: string;
+/** Everything a command handler needs; built once per command by the caller. */
+export interface CommandContext {
+  deps: GlossaryCommandDeps;
+  sessionId: string;
+  msg: IncomingMessage;
+  raw: string; // full trimmed command text (handlers that re-split a batch use this)
+  rest: string; // text after the prefix, trimmed
 }
 
+export interface CommandSpec {
+  cmd: string;
+  aliases: string[]; // matched as /<alias>; first is the canonical name
+  handle: (ctx: CommandContext) => Promise<void>;
+}
+
+// Command registry. Adding a chat command = append one row + write its handler; parse and dispatch
+// both drive off this table, so no if-chain or switch to touch. Aliases are plain words (no regex
+// metacharacters), so joining them into the strip-prefix regex below is safe.
+export const COMMANDS: CommandSpec[] = [
+  {
+    cmd: 'glossary',
+    aliases: ['glossary', 'g'],
+    handle: ctx => handleGlossaryCommand(ctx.deps, ctx.sessionId, ctx.msg, ctx.raw),
+  },
+  {
+    cmd: 'help',
+    aliases: ['help', 'h'],
+    handle: ctx => handleHelpCommand(ctx.deps.messageService, ctx.sessionId, ctx.msg),
+  },
+];
+
 /** Single parse for chat commands; null = not a command (regular content). */
-export function parseCommand(trimmed: string): ParsedCommand | null {
-  const lower = trimmed.toLowerCase();
-  if (lower === '/glossary' || lower.startsWith('/glossary ') || lower === '/g' || lower.startsWith('/g ')) {
-    return { cmd: 'glossary', rest: trimmed.replace(/^\/(?:glossary|g)(?=\s|$)\s*/i, '').trim() };
+export function parseCommand(trimmed: string): { spec: CommandSpec; rest: string } | null {
+  for (const spec of COMMANDS) {
+    // /<alias> must be followed by whitespace (incl. newline, for pasted multi-line batches) or end.
+    const prefix = new RegExp(`^/(?:${spec.aliases.join('|')})(?=\\s|$)\\s*`, 'i');
+    if (prefix.test(trimmed)) return { spec, rest: trimmed.replace(prefix, '').trim() };
   }
-  if (lower === '/help' || lower === '/h') return { cmd: 'help', rest: '' };
   return null;
 }
 

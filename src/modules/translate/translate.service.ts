@@ -23,7 +23,7 @@ import {
   maskProviderConfigs,
   splitList,
 } from './translate-config.store';
-import { parseCommand, handleGlossaryCommand, handleHelpCommand } from './translate-commands';
+import { parseCommand, type CommandContext } from './translate-commands';
 
 export { LLM_PROVIDERS } from './translate-llm-client';
 export type { LlmProvider, LlmParams } from './translate-llm-client';
@@ -301,12 +301,16 @@ export class TranslateService implements OnModuleInit {
       const trimmed = body.trim();
       const command = parseCommand(trimmed);
       if (command) {
-        const run =
-          command.cmd === 'glossary'
-            ? this.handleGlossaryCommand(sessionId, msg, trimmed)
-            : this.handleHelpCommand(sessionId, msg);
-        const label = command.cmd === 'glossary' ? 'Glossary' : 'Help';
-        void run.catch(err => this.logger.error(`${label} command failed`, String(err)));
+        const cmdCtx: CommandContext = {
+          deps: { glossary: this.glossary, adminIds: this.adminIds, messageService: this.messageService },
+          sessionId,
+          msg,
+          raw: trimmed,
+          rest: command.rest,
+        };
+        void command.spec
+          .handle(cmdCtx)
+          .catch(err => this.logger.error(`${command.spec.cmd} command failed`, String(err)));
         return pass; // command, not content to translate
       }
 
@@ -409,13 +413,6 @@ export class TranslateService implements OnModuleInit {
         .catch(e => this.logger.error('Failure-notice send failed', String(e)));
     }
   }
-
-  private handleGlossaryCommand(sessionId: string, msg: IncomingMessage, raw: string): Promise<void> {
-    const deps = { glossary: this.glossary, adminIds: this.adminIds, messageService: this.messageService };
-    return handleGlossaryCommand(deps, sessionId, msg, raw);
-  }
-
-  private handleHelpCommand(sessionId: string, msg: IncomingMessage): Promise<void> { return handleHelpCommand(this.messageService, sessionId, msg); }
 
   // Thin instance wrapper over the pure detector (kept a method so the spec's private-method poke works).
   private detectPair(text: string): Pair | null { return detectPair(text); }

@@ -5,6 +5,7 @@ import { TranslateService } from './translate.service';
 import { HookManager } from '../../core/hooks';
 import { MessageService } from '../message/message.service';
 import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interface';
+import { parseCommand, type GlossaryCommandDeps } from './translate-commands';
 
 describe('TranslateService glossary', () => {
   let glossaryPath: string;
@@ -37,9 +38,19 @@ describe('TranslateService glossary', () => {
     Object.assign((service as unknown as { cfg: Record<string, unknown> }).cfg, patch);
   };
 
-  const cmd = (body: string): Promise<void> =>
-    (service as unknown as { handleGlossaryCommand: (s: string, m: IncomingMessage, r: string) => Promise<void> })
-      .handleGlossaryCommand('sess', makeMsg(body), body);
+  // Drive the real dispatch table: parse → spec.handle, with deps pulled from the service internals.
+  const cmd = (body: string): Promise<void> => {
+    const parsed = parseCommand(body.trim());
+    if (!parsed) throw new Error(`not a command: ${body}`);
+    const svc = service as unknown as GlossaryCommandDeps;
+    return parsed.spec.handle({
+      deps: { glossary: svc.glossary, adminIds: svc.adminIds, messageService: svc.messageService },
+      sessionId: 'sess',
+      msg: makeMsg(body),
+      raw: body,
+      rest: parsed.rest,
+    });
+  };
 
   it('add writes both directions and persists', async () => {
     await cmd('/glossary add 出貨 = giao hàng');
