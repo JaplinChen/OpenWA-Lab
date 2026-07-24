@@ -929,6 +929,9 @@
     "phrasesTitle": "高频词",
     "phrasesHint": "扫描翻译记录，找出常用但词汇表尚未收录的词，并由 AI 建议越南文译法。核准即可加入。",
     "phrasesScan": "立即扫描",
+    "dupCheck": "查找重复",
+    "dupTitle": "重复译法（不同中文对应相同越南文）",
+    "dupEmpty": "没有发现重复译法",
     "category": {
       "label": "类别",
       "unset": "—",

@@ -920,6 +920,9 @@
     "phrasesTitle": "Từ tần suất cao",
     "phrasesHint": "Quét lịch sử dịch để tìm các từ thường dùng chưa có trong từ điển, kèm gợi ý tiếng Việt từ AI. Duyệt để thêm vào.",
     "phrasesScan": "Quét ngay",
+    "dupCheck": "Tìm trùng lặp",
+    "dupTitle": "Bản dịch trùng (中文 khác nhau, cùng Tiếng Việt)",
+    "dupEmpty": "Không có bản dịch trùng",
     "category": {
       "label": "Phân loại",
       "unset": "—",

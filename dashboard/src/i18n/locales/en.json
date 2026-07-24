@@ -920,6 +920,9 @@
     "phrasesTitle": "High-frequency words",
     "phrasesHint": "Scan translation history for frequently-used words not yet in the glossary, with AI-suggested Vietnamese. Approve to add.",
     "phrasesScan": "Scan now",
+    "dupCheck": "Find duplicates",
+    "dupTitle": "Duplicate translations (different 中文, same Tiếng Việt)",
+    "dupEmpty": "No duplicate translations",
     "category": {
       "label": "Category",
       "unset": "—",

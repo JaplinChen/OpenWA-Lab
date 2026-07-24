@@ -272,6 +272,22 @@
   color: var(--text-primary);
 }
 
+/* Duplicate-check panel: one target on the left, its 中文 variants as wrapping chips on the right. */
+.etable-page .etable-dup-terms {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.etable-page .etable-dup-terms .etable-src {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.15rem 0.15rem 0.15rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
 .etable-page .etable-tgt {
   color: var(--text-primary);
 }

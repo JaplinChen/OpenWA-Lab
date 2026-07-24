@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, BookMarked, Plus, Trash2 } from 'lucide-react';
 import { translateApi, type GlossaryTerm, type PendingGlossaryTerm, type TranslationCandidate, type PhraseCandidate } from '../services/api';
@@ -34,7 +34,19 @@ export function Glossary() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [scanning, setScanning] = useState(false);
-  const [tab, setTab] = useState<'candidates' | 'phrases' | 'terms'>('candidates');
+  const [tab, setTab] = useState<'candidates' | 'phrases' | 'terms' | 'categories'>('candidates');
+  const [showDups, setShowDups] = useState(false);
+
+  // Group by 越南文: source keys are unique, so the only real "duplicate" is many 中文 sharing one target.
+  const dupGroups = useMemo(() => {
+    const byTarget = new Map<string, GlossaryTerm[]>();
+    for (const term of terms) {
+      const arr = byTarget.get(term.target) ?? [];
+      arr.push(term);
+      byTarget.set(term.target, arr);
+    }
+    return [...byTarget.values()].filter(g => g.length > 1).sort((a, b) => b.length - a.length);
+  }, [terms]);
 
   useEffect(() => {
     let active = true;
@@ -301,6 +313,15 @@ export function Glossary() {
           {t('glossary.terms')}
           <span className="etable-count">{terms.length}</span>
         </button>
+        <button
+          role="tab"
+          aria-selected={tab === 'categories'}
+          className={`etable-tab ${tab === 'categories' ? 'active' : ''}`}
+          onClick={() => setTab('categories')}
+        >
+          {t('glossary.category.manageTitle')}
+          <span className="etable-count">{customCategories.length}</span>
+        </button>
       </div>
 
       {tab === 'candidates' && (
@@ -373,6 +394,45 @@ export function Glossary() {
             onReject={reject}
           />
 
+          <section className="etable-panel">
+            <button className="etable-add" onClick={() => setShowDups(v => !v)}>
+              {t('glossary.dupCheck')}
+              <span className="etable-count">{dupGroups.length}</span>
+            </button>
+            {showDups &&
+              (dupGroups.length === 0 ? (
+                <div className="etable-empty">{t('glossary.dupEmpty')}</div>
+              ) : (
+                <>
+                  <h3 className="etable-panel-title">{t('glossary.dupTitle')}</h3>
+                  <div className="etable-list">
+                    {dupGroups.map(group => (
+                      <div key={group[0].target} className="etable-item etable-item--simple">
+                        <span className="etable-val">{group[0].target}</span>
+                        <div className="etable-row-actions etable-dup-terms">
+                          {group.map(g => (
+                            <span key={g.source} className="etable-src">
+                              {g.source}
+                              {canWrite && (
+                                <button
+                                  className="etable-del"
+                                  onClick={() => remove(g.source)}
+                                  disabled={busy}
+                                  title={t('glossary.category.deleteButton')}
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ))}
+          </section>
+
           {/* The glossary maps 中文 to Tiếng Việt, so the key/val labels name the languages themselves
               and are written in their own script, as a language picker would. */}
           <EditableKeyValueTable
@@ -401,46 +461,50 @@ export function Glossary() {
             onSaveEdit={saveEdit}
             onRemove={remove}
           />
-
-          {canWrite && (
-            <section className="etable-panel">
-              <h3 className="etable-panel-title">{t('glossary.category.manageTitle')}</h3>
-              <div className="etable-add">
-                <input
-                  value={catInput}
-                  onChange={e => setCatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addCat()}
-                  placeholder={t('glossary.category.addPlaceholder')}
-                />
-                <button className="btn-primary" onClick={addCat} disabled={busy || !catInput.trim()}>
-                  <Plus size={16} />
-                  {t('glossary.category.addButton')}
-                </button>
-              </div>
-              <div className="etable-list">
-                {customCategories.length === 0 ? (
-                  <div className="etable-empty">{t('glossary.category.empty')}</div>
-                ) : (
-                  customCategories.map(c => (
-                    <div key={c} className="etable-item etable-item--simple">
-                      <span className="etable-src">{c}</span>
-                      <div className="etable-row-actions">
-                        <button
-                          className="etable-del"
-                          onClick={() => removeCat(c)}
-                          disabled={busy}
-                          title={t('glossary.category.deleteButton')}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </section>
-          )}
         </>
+      )}
+
+      {tab === 'categories' && (
+        <section className="etable-panel">
+          <h3 className="etable-panel-title">{t('glossary.category.manageTitle')}</h3>
+          {canWrite && (
+            <div className="etable-add">
+              <input
+                value={catInput}
+                onChange={e => setCatInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && addCat()}
+                placeholder={t('glossary.category.addPlaceholder')}
+              />
+              <button className="btn-primary" onClick={addCat} disabled={busy || !catInput.trim()}>
+                <Plus size={16} />
+                {t('glossary.category.addButton')}
+              </button>
+            </div>
+          )}
+          <div className="etable-list">
+            {customCategories.length === 0 ? (
+              <div className="etable-empty">{t('glossary.category.empty')}</div>
+            ) : (
+              customCategories.map(c => (
+                <div key={c} className="etable-item etable-item--simple">
+                  <span className="etable-src">{c}</span>
+                  {canWrite && (
+                    <div className="etable-row-actions">
+                      <button
+                        className="etable-del"
+                        onClick={() => removeCat(c)}
+                        disabled={busy}
+                        title={t('glossary.category.deleteButton')}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </section>
       )}
     </div>
   );
