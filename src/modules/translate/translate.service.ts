@@ -5,6 +5,8 @@ import { IncomingMessage } from '../../engine/interfaces/whatsapp-engine.interfa
 import { createLogger } from '../../common/services/logger.service';
 import { Glossary } from './translate-glossary';
 import { SenderDirectory } from './translate-senders';
+import { WatchwordStore } from './translate-watchwords';
+import { FeedbackStore } from './translate-feedback';
 import { CategoryStore } from './translate-categories';
 import { TranslationMemory, type Candidate } from './translate-memory';
 import { PhraseCandidates, type PhraseCandidate } from './translate-phrase-candidates';
@@ -45,6 +47,12 @@ export class TranslateService implements OnModuleInit {
   // Manual @mention JID->name overrides applied to the body before translation.
   private senders!: SenderDirectory;
   private sendersPath = 'data/senders.json';
+  // Per-user keyword alerts: DM the watcher when a group message contains their keyword.
+  private watchwords!: WatchwordStore;
+  private watchwordsPath = 'data/watchwords.json';
+  // /bad translation feedback: ring of recent sends (for source recovery) + persisted report list.
+  private feedback!: FeedbackStore;
+  private feedbackPath = 'data/bad-feedback.json';
   // Admin-managed glossary category list backing the dashboard dropdown.
   private categories!: CategoryStore;
   private categoriesPath = 'data/categories.json';
@@ -82,6 +90,16 @@ export class TranslateService implements OnModuleInit {
     this.senders = new SenderDirectory(this.sendersPath);
     const senderCount = this.senders.load();
     if (senderCount > 0) this.logger.log(`Senders loaded: ${senderCount} override(s) from ${this.sendersPath}`);
+
+    this.watchwordsPath = process.env.TRANSLATE_WATCHWORDS_PATH || this.watchwordsPath;
+    this.watchwords = new WatchwordStore(this.watchwordsPath);
+    const watcherCount = this.watchwords.load();
+    if (watcherCount > 0) this.logger.log(`Watchwords loaded: ${watcherCount} watcher(s) from ${this.watchwordsPath}`);
+
+    this.feedbackPath = process.env.TRANSLATE_FEEDBACK_PATH || this.feedbackPath;
+    this.feedback = new FeedbackStore(this.feedbackPath);
+    const feedbackCount = this.feedback.load();
+    if (feedbackCount > 0) this.logger.log(`Feedback loaded: ${feedbackCount} report(s) from ${this.feedbackPath}`);
 
     this.categoriesPath = process.env.TRANSLATE_CATEGORIES_PATH || this.categoriesPath;
     this.categories = new CategoryStore(this.categoriesPath);
@@ -302,7 +320,13 @@ export class TranslateService implements OnModuleInit {
       const command = parseCommand(trimmed);
       if (command) {
         const cmdCtx: CommandContext = {
-          deps: { glossary: this.glossary, adminIds: this.adminIds, messageService: this.messageService },
+          deps: {
+            glossary: this.glossary,
+            adminIds: this.adminIds,
+            messageService: this.messageService,
+            watchwords: this.watchwords,
+            feedback: this.feedback,
+          },
           sessionId,
           msg,
           raw: trimmed,
@@ -320,6 +344,16 @@ export class TranslateService implements OnModuleInit {
       if (msg.mentionedIds?.length) {
         this.senders.markUsed(msg.mentionedIds);
         this.senders.notePending(msg.mentionedIds, body);
+      }
+
+      // Keyword alerts: DM every watcher (other than the author) whose keyword this group message hits.
+      // Fire-and-forget; a watcher that's an unresolved @lid may fail to DM — logged, never blocks translate.
+      if (msg.isGroup) {
+        for (const { watcher, keyword } of this.watchwords.matches(body, msg.author || msg.from)) {
+          void this.messageService
+            .sendText(sessionId, { chatId: watcher, text: `${BOT_MARKER}🔔 群組有人提到「${keyword}」：\n${body}` })
+            .catch(err => this.logger.error('Watch alert send failed', String(err)));
+        }
       }
 
       // Fire-and-forget off the receive pipeline: decide + translate in the shared core, then send.
@@ -382,8 +416,10 @@ export class TranslateService implements OnModuleInit {
     return this.translateInbound(body, chatId, async reply => {
       const wait = this.nextSendAt - Date.now();
       if (wait > 0) await sleep(wait);
-      await this.messageService.sendText(sessionId, { chatId, text: reply });
+      const res = await this.messageService.sendText(sessionId, { chatId, text: reply });
       this.nextSendAt = Date.now() + this.cfg.minSendIntervalMs;
+      // Remember source↔translation keyed by the sent id so a later /bad quoting it recovers the source.
+      this.feedback.record(res?.messageId, body, reply.replace(BOT_MARKER, '').trim());
     });
   }
 
